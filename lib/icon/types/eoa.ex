@@ -4,12 +4,14 @@ defmodule Icon.Types.EOA do
   """
   use Ecto.Type
 
+  alias Icon.Types.Address
+
   @typedoc """
   An Externally Owned Account (EOA) address:
   - 2 bytes for the `hx` prefix.
   - 40 bytes for a lowercase hex string.
   """
-  @type t :: <<_::336>>
+  @type t :: Address.t()
 
   @spec type() :: :string
   @impl Ecto.Type
@@ -18,20 +20,8 @@ defmodule Icon.Types.EOA do
   @spec cast(any()) :: {:ok, t()} | :error
   @impl Ecto.Type
   def cast(value)
-
-  def cast(<<"hx", bytes::bytes-size(40)>>) do
-    bytes = String.downcase(bytes)
-
-    if String.match?(bytes, ~r/[a-f0-9]+/) do
-      {:ok, "hx#{bytes}"}
-    else
-      :error
-    end
-  end
-
-  def cast(_value) do
-    :error
-  end
+  def cast(<<"hx", _::bytes-size(40)>> = address), do: Address.cast(address)
+  def cast(_value), do: :error
 
   @spec load(any()) :: {:ok, t()} | :error
   @impl Ecto.Type

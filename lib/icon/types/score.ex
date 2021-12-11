@@ -4,12 +4,14 @@ defmodule Icon.Types.SCORE do
   """
   use Ecto.Type
 
+  alias Icon.Types.Address
+
   @typedoc """
   A SCORE address:
   - 2 bytes for the `cx` prefix.
   - 40 bytes for a lowercase hex string.
   """
-  @type t :: <<_::336>>
+  @type t :: Address.t()
 
   @spec type() :: :string
   @impl Ecto.Type
@@ -18,20 +20,8 @@ defmodule Icon.Types.SCORE do
   @spec cast(any()) :: {:ok, t()} | :error
   @impl Ecto.Type
   def cast(value)
-
-  def cast(<<"cx", bytes::bytes-size(40)>>) do
-    bytes = String.downcase(bytes)
-
-    if String.match?(bytes, ~r/[a-f0-9]+/) do
-      {:ok, "cx#{bytes}"}
-    else
-      :error
-    end
-  end
-
-  def cast(_value) do
-    :error
-  end
+  def cast(<<"cx", _::bytes-size(40)>> = address), do: Address.cast(address)
+  def cast(_value), do: :error
 
   @spec load(any()) :: {:ok, t()} | :error
   @impl Ecto.Type
