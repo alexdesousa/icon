@@ -11,6 +11,7 @@ defmodule Icon.RPC.Goloop do
           :get_last_block
           | :get_block_by_height
           | :get_block_by_hash
+          | :get_balance
 
   @doc """
   Gets block.
@@ -58,6 +59,35 @@ defmodule Icon.RPC.Goloop do
     end
   end
 
+  @doc """
+  Given an EOA or SCORE `address`, returns its balance.
+  """
+  @spec get_balance(Icon.Types.Address.t()) ::
+          {:ok, RPC.t()}
+          | {:error, Ecto.Changeset.t()}
+  def get_balance(address) do
+    types = %{
+      address: Icon.Types.Address
+    }
+
+    {%{}, types}
+    |> Ecto.Changeset.cast(%{address: address}, [:address])
+    |> Ecto.Changeset.validate_required([:address])
+    |> Ecto.Changeset.apply_action(:insert)
+    |> case do
+      {:ok, %{address: _address} = params} ->
+        rpc =
+          :get_balance
+          |> method()
+          |> RPC.build(params, types: types)
+
+        {:ok, rpc}
+
+      {:error, %Ecto.Changeset{}} = error ->
+        error
+    end
+  end
+
   #########
   # Helpers
 
@@ -65,6 +95,7 @@ defmodule Icon.RPC.Goloop do
   defp method(:get_last_block), do: "icx_getLastBlock"
   defp method(:get_block_by_height), do: "icx_getBlockByHeight"
   defp method(:get_block_by_hash), do: "icx_getBlockByHash"
+  defp method(:get_balance), do: "icx_getBalance"
 
   @spec get_last_block() :: RPC.t()
   defp get_last_block do

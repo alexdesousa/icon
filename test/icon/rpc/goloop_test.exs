@@ -144,4 +144,94 @@ defmodule Icon.RPC.GoloopTest do
              } = RPC.Goloop.get_block(height: -42)
     end
   end
+
+  describe "get_balance/1" do
+    test "when valid EOA address is provided, builds RPC call for icx_getBalance" do
+      address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getBalance",
+                 options: [
+                   types: %{
+                     address: Icon.Types.Address
+                   }
+                 ],
+                 params: %{
+                   address: ^address
+                 }
+               }
+             } = RPC.Goloop.get_balance(address)
+    end
+
+    test "encodes EOA address correctly" do
+      address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getBalance",
+               "params" => %{
+                 "address" => ^address
+               }
+             } =
+               address
+               |> RPC.Goloop.get_balance()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when valid SCORE address is provided, builds RPC call for icx_getBalance" do
+      address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getBalance",
+                 options: [
+                   types: %{
+                     address: Icon.Types.Address
+                   }
+                 ],
+                 params: %{
+                   address: ^address
+                 }
+               }
+             } = RPC.Goloop.get_balance(address)
+    end
+
+    test "encodes SCORE address correctly" do
+      address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getBalance",
+               "params" => %{
+                 "address" => ^address
+               }
+             } =
+               address
+               |> RPC.Goloop.get_balance()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when invalid EOA address is provided, errors" do
+      assert {
+               :error,
+               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+             } = RPC.Goloop.get_balance("hx0")
+    end
+
+    test "when invalid SCORE address is provided, errors" do
+      assert {
+               :error,
+               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+             } = RPC.Goloop.get_balance("cx0")
+    end
+  end
 end
