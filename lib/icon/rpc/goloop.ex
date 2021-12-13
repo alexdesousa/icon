@@ -12,6 +12,7 @@ defmodule Icon.RPC.Goloop do
           | :get_block_by_height
           | :get_block_by_hash
           | :get_balance
+          | :get_score_api
 
   @doc """
   Gets block.
@@ -88,6 +89,35 @@ defmodule Icon.RPC.Goloop do
     end
   end
 
+  @doc """
+  Given a SCORE `address`, returns its API.
+  """
+  @spec get_score_api(Icon.Types.SCORE.t()) ::
+          {:ok, RPC.t()}
+          | {:error, Ecto.Changeset.t()}
+  def get_score_api(address) do
+    types = %{
+      address: Icon.Types.SCORE
+    }
+
+    {%{}, types}
+    |> Ecto.Changeset.cast(%{address: address}, [:address])
+    |> Ecto.Changeset.validate_required([:address])
+    |> Ecto.Changeset.apply_action(:insert)
+    |> case do
+      {:ok, %{address: _address} = params} ->
+        rpc =
+          :get_score_api
+          |> method()
+          |> RPC.build(params, types: types)
+
+        {:ok, rpc}
+
+      {:error, %Ecto.Changeset{}} = error ->
+        error
+    end
+  end
+
   #########
   # Helpers
 
@@ -96,6 +126,7 @@ defmodule Icon.RPC.Goloop do
   defp method(:get_block_by_height), do: "icx_getBlockByHeight"
   defp method(:get_block_by_hash), do: "icx_getBlockByHash"
   defp method(:get_balance), do: "icx_getBalance"
+  defp method(:get_score_api), do: "icx_getScoreApi"
 
   @spec get_last_block() :: RPC.t()
   defp get_last_block do

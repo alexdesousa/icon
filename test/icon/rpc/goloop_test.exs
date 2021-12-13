@@ -234,4 +234,59 @@ defmodule Icon.RPC.GoloopTest do
              } = RPC.Goloop.get_balance("cx0")
     end
   end
+
+  describe "get_score_api/1" do
+    test "when valid SCORE address is provided, builds RPC call for icx_getScoreApi" do
+      address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getScoreApi",
+                 options: [
+                   types: %{
+                     address: Icon.Types.SCORE
+                   }
+                 ],
+                 params: %{
+                   address: ^address
+                 }
+               }
+             } = RPC.Goloop.get_score_api(address)
+    end
+
+    test "encodes SCORE address correctly" do
+      address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getScoreApi",
+               "params" => %{
+                 "address" => ^address
+               }
+             } =
+               address
+               |> RPC.Goloop.get_score_api()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when invalid SCORE address is provided, errors" do
+      assert {
+               :error,
+               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+             } = RPC.Goloop.get_score_api("cx0")
+    end
+
+    test "when valid EOA address is provided, errors" do
+      address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+
+      assert {
+               :error,
+               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+             } = RPC.Goloop.get_score_api(address)
+    end
+  end
 end
