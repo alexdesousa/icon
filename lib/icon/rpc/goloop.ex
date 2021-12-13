@@ -13,6 +13,7 @@ defmodule Icon.RPC.Goloop do
           | :get_block_by_hash
           | :get_balance
           | :get_score_api
+          | :get_total_supply
 
   @doc """
   Gets block.
@@ -118,6 +119,19 @@ defmodule Icon.RPC.Goloop do
     end
   end
 
+  @doc """
+  Returns the total ICX supply.
+  """
+  @spec get_total_supply() :: {:ok, RPC.t()}
+  def get_total_supply do
+    rpc =
+      :get_total_supply
+      |> method()
+      |> RPC.build()
+
+    {:ok, rpc}
+  end
+
   #########
   # Helpers
 
@@ -127,6 +141,7 @@ defmodule Icon.RPC.Goloop do
   defp method(:get_block_by_hash), do: "icx_getBlockByHash"
   defp method(:get_balance), do: "icx_getBalance"
   defp method(:get_score_api), do: "icx_getScoreApi"
+  defp method(:get_total_supply), do: "icx_getTotalSupply"
 
   @spec get_last_block() :: RPC.t()
   defp get_last_block do

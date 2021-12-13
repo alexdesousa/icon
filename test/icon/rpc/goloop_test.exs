@@ -289,4 +289,29 @@ defmodule Icon.RPC.GoloopTest do
              } = RPC.Goloop.get_score_api(address)
     end
   end
+
+  describe "get_total_supply/0" do
+    test "builds RPC call for icx_getTotalSupply" do
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getTotalSupply",
+                 options: [],
+                 params: %{}
+               }
+             } = RPC.Goloop.get_total_supply()
+    end
+
+    test "it is encoded correctly" do
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getTotalSupply"
+             } =
+               RPC.Goloop.get_total_supply()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+  end
 end
