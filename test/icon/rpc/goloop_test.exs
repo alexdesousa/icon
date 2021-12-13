@@ -314,4 +314,212 @@ defmodule Icon.RPC.GoloopTest do
                |> Jason.decode!()
     end
   end
+
+  describe "get_transaction/1" do
+    test "when no options are provided, builds RPC call for icx_getTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getTransactionResult",
+                 options: [
+                   types: %{
+                     txHash: Icon.Types.Hash
+                   }
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = RPC.Goloop.get_transaction(tx_hash)
+    end
+
+    test "it is encoded correctly for icx_getTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getTransactionResult",
+               "params" => %{
+                 "txHash" => ^tx_hash
+               }
+             } =
+               tx_hash
+               |> RPC.Goloop.get_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "it is encoded correctly for icx_getTransactionByHash" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getTransactionByHash",
+               "params" => %{
+                 "txHash" => ^tx_hash
+               }
+             } =
+               tx_hash
+               |> RPC.Goloop.get_transaction(format: :transaction)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "it is encoded correctly for icx_waitTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_waitTransactionResult",
+               "params" => %{
+                 "txHash" => ^tx_hash
+               }
+             } =
+               tx_hash
+               |> RPC.Goloop.get_transaction(wait_for: 5000)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when wait_for=0 and format=:result, builds RPC call for icx_getTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      options = [
+        wait_for: 0,
+        format: :result
+      ]
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getTransactionResult",
+                 options: [
+                   types: %{
+                     txHash: Icon.Types.Hash
+                   }
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = RPC.Goloop.get_transaction(tx_hash, options)
+    end
+
+    test "when wait_for=0 and format=:transaction, builds RPC call for icx_getTransactionByHash" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      options = [
+        wait_for: 0,
+        format: :transaction
+      ]
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_getTransactionByHash",
+                 options: [
+                   types: %{
+                     txHash: Icon.Types.Hash
+                   }
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = RPC.Goloop.get_transaction(tx_hash, options)
+    end
+
+    test "when wait_for>0 and format=:result, builds RPC call for icx_waitTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      options = [
+        wait_for: 5000,
+        format: :result
+      ]
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_waitTransactionResult",
+                 options: [
+                   types: %{
+                     txHash: Icon.Types.Hash
+                   },
+                   timeout: 5000,
+                   format: :result
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = RPC.Goloop.get_transaction(tx_hash, options)
+    end
+
+    test "when wait_for>0 and format=:transaction, builds RPC call for icx_waitTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      options = [
+        wait_for: 5000,
+        format: :transaction
+      ]
+
+      assert {
+               :ok,
+               %RPC{
+                 method: "icx_waitTransactionResult",
+                 options: [
+                   types: %{
+                     txHash: Icon.Types.Hash
+                   },
+                   timeout: 5000,
+                   format: :transaction
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = RPC.Goloop.get_transaction(tx_hash, options)
+    end
+
+    test "when invalid hash is provided, errors" do
+      assert {
+               :error,
+               %Ecto.Changeset{errors: [txHash: {"is invalid", _}]}
+             } = RPC.Goloop.get_transaction("0x0")
+    end
+
+    test "when invalid wait_for value is provided, raises" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert_raise ArgumentError, fn ->
+        RPC.Goloop.get_transaction(tx_hash, wait_for: -1)
+      end
+    end
+
+    test "when invalid format value is provided, raises" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert_raise ArgumentError, fn ->
+        RPC.Goloop.get_transaction(tx_hash, format: :full)
+      end
+    end
+  end
 end

@@ -14,6 +14,9 @@ defmodule Icon.RPC.Goloop do
           | :get_balance
           | :get_score_api
           | :get_total_supply
+          | :get_transaction_result
+          | :get_transaction_by_hash
+          | :wait_transaction_result
 
   @doc """
   Gets block.
@@ -132,6 +135,56 @@ defmodule Icon.RPC.Goloop do
     {:ok, rpc}
   end
 
+  @doc """
+  Given a `transaction_hash`, returns the transaction result.
+
+  Options:
+
+  - `wait_for` (default: `0` milliseconds) - Timeout for waiting for the result.
+  - `format` (default: `:result`) - Whether the output should be in `:result` or
+  `:transaction` format.
+  """
+  @spec get_transaction(Icon.Types.Hash.t(), keyword()) ::
+          {:ok, RPC.t()}
+          | {:error, Ecto.Changeset.t()}
+          | no_return()
+  def get_transaction(transaction_hash, options \\ [])
+
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
+  def get_transaction(transaction_hash, options) do
+    timeout = options[:wait_for] || 0
+    format = options[:format] || :result
+
+    types = %{
+      txHash: Icon.Types.Hash
+    }
+
+    {%{}, types}
+    |> Ecto.Changeset.cast(%{txHash: transaction_hash}, [:txHash])
+    |> Ecto.Changeset.validate_required([:txHash])
+    |> Ecto.Changeset.apply_action(:insert)
+    |> case do
+      {:ok, %{txHash: tx_hash}}
+      when timeout == 0 and format == :result ->
+        {:ok, get_transaction_result(tx_hash, types)}
+
+      {:ok, %{txHash: tx_hash}}
+      when timeout == 0 and format == :transaction ->
+        {:ok, get_transaction_by_hash(tx_hash, types)}
+
+      {:ok, %{txHash: tx_hash}}
+      when timeout > 0 and format in [:result, :transaction] ->
+        options = [timeout: timeout, format: format]
+        {:ok, wait_transaction_result(tx_hash, types, options)}
+
+      {:ok, _} ->
+        raise ArgumentError, message: "invalid options"
+
+      {:error, %Ecto.Changeset{}} = error ->
+        error
+    end
+  end
+
   #########
   # Helpers
 
@@ -142,6 +195,9 @@ defmodule Icon.RPC.Goloop do
   defp method(:get_balance), do: "icx_getBalance"
   defp method(:get_score_api), do: "icx_getScoreApi"
   defp method(:get_total_supply), do: "icx_getTotalSupply"
+  defp method(:get_transaction_result), do: "icx_getTransactionResult"
+  defp method(:get_transaction_by_hash), do: "icx_getTransactionByHash"
+  defp method(:wait_transaction_result), do: "icx_waitTransactionResult"
 
   @spec get_last_block() :: RPC.t()
   defp get_last_block do
@@ -162,5 +218,29 @@ defmodule Icon.RPC.Goloop do
     :get_block_by_height
     |> method()
     |> RPC.build(%{height: height}, types: types)
+  end
+
+  @spec get_transaction_result(Icon.Types.Hash.t(), map()) :: RPC.t()
+  defp get_transaction_result(tx_hash, types) do
+    :get_transaction_result
+    |> method()
+    |> RPC.build(%{txHash: tx_hash}, types: types)
+  end
+
+  @spec get_transaction_by_hash(Icon.Types.Hash.t(), map()) :: RPC.t()
+  defp get_transaction_by_hash(tx_hash, types) do
+    :get_transaction_by_hash
+    |> method()
+    |> RPC.build(%{txHash: tx_hash}, types: types)
+  end
+
+  @spec wait_transaction_result(Icon.Types.Hash.t(), map(), keyword()) ::
+          RPC.t()
+  defp wait_transaction_result(tx_hash, types, options) do
+    options = Keyword.put(options, :types, types)
+
+    :wait_transaction_result
+    |> method()
+    |> RPC.build(%{txHash: tx_hash}, options)
   end
 end
