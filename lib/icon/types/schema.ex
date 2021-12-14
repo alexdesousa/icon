@@ -2,11 +2,12 @@ defmodule Icon.Types.Schema do
   @moduledoc """
   This module defines a schema.
   """
+  alias __MODULE__, as: State
 
   @typedoc """
   Schema.
   """
-  @type schema :: map()
+  @type t :: map()
 
   @typedoc """
   Type.
@@ -21,7 +22,7 @@ defmodule Icon.Types.Schema do
   @type external_type ::
           internal_type()
           | {:list, external_type()}
-          | {:any, [external_type()]}
+          | {:any, [{atom(), external_type()}]}
           | {:enum, [atom()]}
           | :address
           | :binary_data
@@ -38,8 +39,9 @@ defmodule Icon.Types.Schema do
   """
   @type internal_type ::
           {:list, internal_type()}
-          | {:any, [internal_type()]}
-          | schema()
+          | {:any, [{atom(), internal_type()}]}
+          | {:enum, [atom()]}
+          | t()
           | Icon.Types.Address
           | Icon.Types.BinaryData
           | Icon.Types.Boolean
@@ -51,6 +53,87 @@ defmodule Icon.Types.Schema do
           | Icon.Types.String
           | module()
 
+  ##############
+  # Schema state
+
+  @doc """
+  Schema state.
+  """
+  defstruct schema: %{},
+            params: %{},
+            data: %{},
+            errors: %{},
+            is_valid?: true
+
+  @typedoc """
+  Schema state.
+  """
+  @type state :: %State{
+          schema: t(),
+          params: map(),
+          data: map(),
+          errors: map(),
+          is_valid?: boolean()
+        }
+
+  @spec add_data(state(), atom(), any()) :: state()
+  defp add_data(state, key, value)
+
+  defp add_data(%State{data: data} = state, key, value) do
+    %{state | data: Map.put(data, key, value)}
+  end
+
+  @spec add_error(state(), atom(), :is_required | :is_invalid | map()) ::
+          state()
+  defp add_error(state, key, type)
+
+  defp add_error(%State{errors: errors} = state, key, :is_required) do
+    %{state | errors: Map.put(errors, key, "is required"), is_valid?: false}
+  end
+
+  defp add_error(%State{errors: errors} = state, key, :is_invalid) do
+    %{state | errors: Map.put(errors, key, "is invalid"), is_valid?: false}
+  end
+
+  defp add_error(%State{errors: errors} = state, key, inner_errors)
+       when is_map(inner_errors) do
+    %{state | errors: Map.put(errors, key, inner_errors), is_valid?: false}
+  end
+
+  @spec get_field(state(), binary() | atom(), any()) :: any()
+  defp get_field(state, key, default)
+
+  defp get_field(%State{params: params}, key, default)
+       when is_map_key(params, key) do
+    value = params[key]
+
+    if value in [nil, ""], do: default, else: value
+  end
+
+  defp get_field(%State{} = state, key, default) when is_atom(key) do
+    get_field(state, "#{key}", default)
+  end
+
+  defp get_field(%State{}, _key, default) do
+    default
+  end
+
+  @spec get_value(state(), atom()) :: {:found, any()} | :miss
+  defp get_value(%State{data: data}, key) do
+    case data[key] do
+      nil -> :miss
+      value -> {:found, value}
+    end
+  end
+
+  ############
+  # Public API
+
+  @doc """
+  Callback for defining a schema.
+  """
+  @callback init() :: t()
+
   @doc """
   Uses the schema behaviour.
   """
@@ -60,16 +143,43 @@ defmodule Icon.Types.Schema do
       @behaviour Icon.Types.Schema
       import Icon.Types.Schema, only: [list: 1, any: 1, enum: 1]
 
-      @doc false
-      @spec __schema__() :: boolean()
-      def __schema__, do: true
+      @spec __schema__() :: Icon.Types.Schema.t()
+      def __schema__ do
+        schema = __MODULE__.init()
+        # credo:disable-for-next-line Credo.Check.Design.AliasUsage
+        Icon.Types.Schema.generate(schema)
+      end
     end
+  end
+
+  @doc """
+  Generates a new schema state.
+  """
+  @spec new(t(), map() | keyword()) :: state()
+  def new(schema, params)
+
+  def new(schema, params) when is_list(params) do
+    new(schema, Map.new(params))
+  end
+
+  def new(schema, params) when is_map(params) do
+    %State{schema: schema, params: params}
+  end
+
+  @doc """
+  Validates a schema state.
+  """
+  @spec validate(state()) :: state()
+  def validate(%State{schema: schema} = state) do
+    Enum.reduce(schema, state, fn {_, validator}, state ->
+      validator.(state)
+    end)
   end
 
   @doc """
   Generates a full `schema`, given a schema definition.
   """
-  @spec generate(schema()) :: schema()
+  @spec generate(t()) :: t()
   def generate(schema) do
     schema
     |> Stream.map(fn {key, type} -> expand(key, type) end)
@@ -100,11 +210,11 @@ defmodule Icon.Types.Schema do
   ##################
   # Schema expansion
 
-  @spec expand(atom(), type()) :: {atom(), internal_type()}
+  @spec expand(atom(), type()) ::
+          {atom(), (state() -> state())}
   defp expand(key, type)
 
   defp expand(key, {:list, _type} = type), do: expand(key, {type, []})
-  defp expand(key, {:any, _types} = type), do: expand(key, {type, []})
   defp expand(key, {:enum, _values} = type), do: expand(key, {type, []})
   defp expand(key, schema) when is_map(schema), do: expand(key, {schema, []})
   defp expand(key, type) when is_atom(type), do: expand(key, {type, []})
@@ -116,9 +226,9 @@ defmodule Icon.Types.Schema do
   end
 
   @spec expand(atom(), internal_type(), keyword()) ::
-          {atom(), {internal_type(), keyword()}}
+          {atom(), (state() -> state())}
   defp expand(key, type, options) do
-    {key, {type, options}}
+    {key, validate(key, type, options)}
   end
 
   @spec expand_type(atom(), external_type()) :: internal_type() | no_return()
@@ -151,17 +261,182 @@ defmodule Icon.Types.Schema do
   end
 
   defp expand_type(key, {:any, types}) when is_list(types) do
-    {:any, Enum.map(types, &expand_type(key, &1))}
+    types =
+      Enum.map(types, fn {value, type} ->
+        {value, expand_type(key, type)}
+      end)
+
+    {:any, types}
   end
 
   defp expand_type(key, module) when is_atom(module) do
-    with {:module, module} <- Code.ensure_compiled(module),
-         true <- function_exported?(module, :__schema__, 0) do
-      module
-    else
+    case Code.ensure_compiled(module) do
+      {:module, module} ->
+        module
+
       _ ->
         raise ArgumentError,
-          message: "#{key}'s type (#{module})is not a valid schema or type"
+          message: "#{key}'s type (#{module}) is not a valid schema or type"
+    end
+  end
+
+  ##################
+  # Schema validator
+
+  @spec validate(atom(), internal_type(), keyword()) :: (t() -> t())
+  defp validate(key, type, options) do
+    fn %State{} = state ->
+      state
+      |> retrieve(key, options).()
+      |> load(key, type, options).()
+    end
+  end
+
+  @spec retrieve(atom(), keyword()) :: (t() -> t())
+  defp retrieve(key, options) do
+    fn %State{} = state ->
+      required? = options[:required] || false
+      default = options[:default]
+
+      state
+      |> get_field(key, default)
+      |> case do
+        nil when required? ->
+          add_error(state, key, :is_required)
+
+        "" when required? ->
+          add_error(state, key, :is_required)
+
+        nil ->
+          state
+
+        "" ->
+          state
+
+        value ->
+          add_data(state, key, value)
+      end
+    end
+  end
+
+  #########
+  # Loaders
+
+  @spec load(atom(), internal_type(), keyword()) :: (state() -> state())
+  defp load(key, module, options)
+
+  defp load(key, module, _options) when is_atom(module) do
+    fn %State{} = state ->
+      if function_exported?(module, :__schema__, 0) do
+        load_schema(state, key, module.__schema__())
+      else
+        load_type(state, key, module)
+      end
+    end
+  end
+
+  defp load(key, {:enum, values}, _options) do
+    fn %State{} = state ->
+      load_enum(state, key, values)
+    end
+  end
+
+  defp load(key, {:list, module}, _options) do
+    fn %State{} = state ->
+      load_list(state, key, module)
+    end
+  end
+
+  defp load(key, {:any, types}, options) do
+    fn %State{} = state ->
+      load_any(state, key, types, options)
+    end
+  end
+
+  defp load(key, schema, _options) when is_map(schema) do
+    fn %State{} = state ->
+      load_schema(state, key, schema)
+    end
+  end
+
+  @spec load_schema(state(), atom(), t()) :: state()
+  defp load_schema(state, key, schema)
+
+  defp load_schema(%State{} = state, key, schema) do
+    validator = fn params ->
+      schema
+      |> new(params)
+      |> validate()
+    end
+
+    with {:found, params} <- get_value(state, key),
+         %State{data: data, is_valid?: true} = state <- validator.(params) do
+      add_data(state, key, data)
+    else
+      :miss ->
+        state
+
+      %State{errors: errors, is_valid?: false} ->
+        add_error(state, key, errors)
+    end
+  end
+
+  @spec load_type(state(), atom(), module()) :: state()
+  defp load_type(%State{} = state, key, module) do
+    with {:found, value} <- get_value(state, key),
+         {:ok, loaded} <- module.load(value) do
+      add_data(state, key, loaded)
+    else
+      :miss ->
+        state
+
+      _ ->
+        add_error(state, key, :is_invalid)
+    end
+  end
+
+  @spec load_enum(state(), atom(), [atom()]) :: state()
+  defp load_enum(%State{} = state, key, values) do
+    with {:found, value} <- get_value(state, key),
+         true <- Enum.any?(values, &("#{&1}" == value)) do
+      choice = String.to_existing_atom(value)
+      add_data(state, key, choice)
+    else
+      :miss ->
+        state
+
+      _ ->
+        add_error(state, key, :is_invalid)
+    end
+  end
+
+  @spec load_list(state(), atom(), module()) :: state()
+  defp load_list(%State{} = state, key, module) do
+    with {:found, values} <- get_value(state, key),
+         loaded = Enum.map(values, &module.load/1),
+         false <- Enum.any?(loaded, &(&1 == :error)) do
+      loaded = Enum.map(loaded, &elem(&1, 1))
+
+      add_data(state, key, loaded)
+    else
+      :miss ->
+        state
+
+      _ ->
+        add_error(state, key, :is_invalid)
+    end
+  end
+
+  @spec load_any(state(), atom(), keyword(), keyword()) :: state()
+  defp load_any(%State{} = state, key, choices, options) do
+    with field when not is_nil(field) <- options[:field],
+         %State{data: data, is_valid?: true} <- state.schema[field].(state),
+         value = data[field],
+         type when not is_nil(type) <- choices[value] do
+      load(key, type, options).(state)
+    else
+      _ ->
+        add_error(state, key, :is_invalid)
     end
   end
 end
