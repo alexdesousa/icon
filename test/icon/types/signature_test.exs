@@ -3,45 +3,30 @@ defmodule Icon.Types.SignatureTest do
 
   alias Icon.Types.Signature
 
-  describe "type/0" do
-    test "it's a string" do
-      assert :string = Signature.type()
-    end
-  end
-
-  describe "cast/1" do
+  describe "load/1" do
     test "when it's a valid signature, returns said signature" do
       signature =
         "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA="
 
-      assert {:ok, ^signature} = Signature.cast(signature)
+      assert {:ok, ^signature} = Signature.load(signature)
     end
 
     test "when it's not a valid signature, errors" do
-      assert :error = Signature.cast("INVALID")
-      assert :error = Signature.cast(42)
-      assert :error = Signature.cast(nil)
-      assert :error = Signature.cast(:atom)
-      assert :error = Signature.cast(%{})
-      assert :error = Signature.cast([])
-    end
-  end
-
-  describe "load/1" do
-    test "delegates EOA signaturees to cast/1" do
-      signature =
-        "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA="
-
-      assert Signature.load(signature) == Signature.cast(signature)
+      assert :error = Signature.load("INVALID")
+      assert :error = Signature.load(42)
+      assert :error = Signature.load(nil)
+      assert :error = Signature.load(:atom)
+      assert :error = Signature.load(%{})
+      assert :error = Signature.load([])
     end
   end
 
   describe "dump/1" do
-    test "delegates to cast/1" do
+    test "delegates to load/1" do
       signature =
         "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA="
 
-      assert Signature.dump(signature) == Signature.cast(signature)
+      assert Signature.dump(signature) == Signature.load(signature)
     end
   end
 end

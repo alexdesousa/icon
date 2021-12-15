@@ -3,18 +3,12 @@ defmodule Icon.Types.HashTest do
 
   alias Icon.Types.Hash
 
-  describe "type/0" do
-    test "it's a string" do
-      assert :string = Hash.type()
-    end
-  end
-
-  describe "cast/1" do
+  describe "load/1" do
     test "when it's a valid hash, returns said hash" do
       hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
-      assert {:ok, ^hash} = Hash.cast(hash)
+      assert {:ok, ^hash} = Hash.load(hash)
     end
 
     test "when it doesn't have the 0x prefix, adds it" do
@@ -23,7 +17,7 @@ defmodule Icon.Types.HashTest do
       expected =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
-      assert {:ok, ^expected} = Hash.cast(hash)
+      assert {:ok, ^expected} = Hash.load(hash)
     end
 
     test "when there are capital letters in the hash, returns them as lowercase" do
@@ -33,47 +27,38 @@ defmodule Icon.Types.HashTest do
       expected =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
-      assert {:ok, ^expected} = Hash.cast(hash)
+      assert {:ok, ^expected} = Hash.load(hash)
     end
 
     test "when the hash is too short, errors" do
       hash = "0x0"
 
-      assert :error = Hash.cast(hash)
+      assert :error = Hash.load(hash)
     end
 
     test "when the hash is too long, errors" do
       hash =
         "0x000000000000000000000000000000000000000000000000000000000000000000"
 
-      assert :error = Hash.cast(hash)
+      assert :error = Hash.load(hash)
     end
 
     test "when it's not a valid hash, errors" do
-      assert :error = Hash.cast(42)
-      assert :error = Hash.cast(nil)
-      assert :error = Hash.cast(:atom)
-      assert :error = Hash.cast("")
-      assert :error = Hash.cast(%{})
-      assert :error = Hash.cast([])
-    end
-  end
-
-  describe "load/1" do
-    test "delegates to cast/1" do
-      hash =
-        "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
-
-      assert Hash.load(hash) == Hash.cast(hash)
+      assert :error = Hash.load(42)
+      assert :error = Hash.load(nil)
+      assert :error = Hash.load(:atom)
+      assert :error = Hash.load("")
+      assert :error = Hash.load(%{})
+      assert :error = Hash.load([])
     end
   end
 
   describe "dump/1" do
-    test "delegates to cast/1" do
+    test "delegates to load/1" do
       hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
-      assert Hash.dump(hash) == Hash.cast(hash)
+      assert Hash.dump(hash) == Hash.load(hash)
     end
   end
 end

@@ -2,7 +2,7 @@ defmodule Icon.Types.Hash do
   @moduledoc """
   This module defines an ICON 2.0 hash.
   """
-  use Ecto.Type
+  use Icon.Types.Schema.Type
 
   @typedoc """
   A hash:
@@ -11,19 +11,15 @@ defmodule Icon.Types.Hash do
   """
   @type t :: <<_::528>>
 
-  @spec type() :: :string
-  @impl Ecto.Type
-  def type, do: :string
+  @spec load(any()) :: {:ok, t()} | :error
+  @impl Icon.Types.Schema.Type
+  def load(value)
 
-  @spec cast(any()) :: {:ok, t()} | :error
-  @impl Ecto.Type
-  def cast(value)
-
-  def cast(<<"0x", bytes::bytes-size(64)>>) do
-    cast(bytes)
+  def load(<<"0x", bytes::bytes-size(64)>>) do
+    load(bytes)
   end
 
-  def cast(<<bytes::bytes-size(64)>>) do
+  def load(<<bytes::bytes-size(64)>>) do
     bytes = String.downcase(bytes)
 
     if String.match?(bytes, ~r/[a-f0-9]+/) do
@@ -33,15 +29,11 @@ defmodule Icon.Types.Hash do
     end
   end
 
-  def cast(_value) do
+  def load(_value) do
     :error
   end
 
-  @spec load(any()) :: {:ok, t()} | :error
-  @impl Ecto.Type
-  defdelegate load(hash), to: __MODULE__, as: :cast
-
   @spec dump(any()) :: {:ok, t()} | :error
-  @impl Ecto.Type
-  defdelegate dump(hash), to: __MODULE__, as: :cast
+  @impl Icon.Types.Schema.Type
+  defdelegate dump(hash), to: __MODULE__, as: :load
 end

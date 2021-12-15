@@ -3,46 +3,28 @@ defmodule Icon.Types.BooleanTest do
 
   alias Icon.Types.Boolean
 
-  describe "type/0" do
-    test "it's a boolean" do
-      assert :boolean = Boolean.type()
+  describe "load/1" do
+    test "when an integer is provided, returns the equivalent boolean" do
+      assert {:ok, false} = Boolean.load(0)
+      assert {:ok, true} = Boolean.load(1)
     end
-  end
 
-  describe "cast/1" do
     test "when a boolean is provided, returns said boolean" do
-      assert {:ok, true} = Boolean.cast(true)
-      assert {:ok, false} = Boolean.cast(false)
+      assert {:ok, false} = Boolean.load(false)
+      assert {:ok, true} = Boolean.load(true)
     end
 
     test "when a valid hex string is provided, returns the equivalent boolean" do
-      assert {:ok, false} = Boolean.cast("0x0")
-      assert {:ok, true} = Boolean.cast("0x1")
-    end
-
-    test "when an invalid hex string is provided, errors" do
-      assert :error = Boolean.cast("0x2A")
-    end
-
-    test "when an unsupported type is provided, errors" do
-      assert :error = Boolean.cast("")
-      assert :error = Boolean.cast(42)
-      assert :error = Boolean.cast(nil)
-      assert :error = Boolean.cast(:atom)
-      assert :error = Boolean.cast(%{})
-      assert :error = Boolean.cast([])
-    end
-  end
-
-  describe "load/1" do
-    test "when a valid hex is provided, returns the equivalent boolean" do
       assert {:ok, false} = Boolean.load("0x0")
       assert {:ok, true} = Boolean.load("0x1")
     end
 
+    test "when an invalid hex string is provided, errors" do
+      assert :error = Boolean.load("0x2A")
+    end
+
     test "when an unsupported type is provided, errors" do
       assert :error = Boolean.load("")
-      assert :error = Boolean.load("0x2A")
       assert :error = Boolean.load(42)
       assert :error = Boolean.load(nil)
       assert :error = Boolean.load(:atom)
