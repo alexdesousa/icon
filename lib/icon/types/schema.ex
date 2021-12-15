@@ -1,6 +1,75 @@
 defmodule Icon.Types.Schema do
   @moduledoc """
   This module defines a schema.
+
+  Schemas serve the purpose of validating both requests and responses. The idea
+  is to have a map defining the types and validations for our JSON payloads.
+
+  ## Defining Schemas
+
+  A schema can be either anonymous or not. For non-anonymous schemas, we need to
+  `use` this module and define the callback `init/1` e.g. the following is an
+  (incomplete) transaction.
+
+  ```elixir
+  defmodule Transaction do
+    use Icon.Types.Schema
+
+    @spec Icon.Types.Schema
+    def init do
+      %{
+        version: {:string, default: "2.0"},
+        from: {:eoa_address, required: true},
+        to: {:address, required: true},
+        value: :integer
+        dataType: {enum([:call, :deploy]), required: true},
+        data: any(
+          [
+            call: CallSchema,
+            deploy: DeploySchema
+          ],
+          field: :dataType,
+          required: true
+        )
+      }
+    end
+  end
+  ```
+
+  As seen in the previous example, the values change depending on the types and
+  options each key has. The available primitive types are:
+
+  - `:address` (same as `Icon.Types.Address`).
+  - `:binary_data` (same as `Icon.Types.BinaryData`).
+  - `:boolean` (same as `Icon.Types.Boolean`).
+  - `:eoa_address` (same as `Icon.Types.EOA`).
+  - `:hash` (same as `Icon.Types.Hash`).
+  - `:integer` (same as `Icon.Types.Integer`).
+  - `:score_address` (same as `Icon.Types.SCORE`).
+  - `:signature` (same as `Icon.Types.Signature`).
+  - `:string` (same as `Icon.Types.String`).
+  - `enum([atom()])` (same as `{:enum, [atom()]}`).
+
+  Then we have complex types:
+
+  - Anonymous schema: `t()`.
+  - A homogeneous list of type `t`: `list(t)`.
+  - Any of the types listed in the list: `any([{atom(), t}])`. This type depends on the
+  option `field` for choosing the right type.
+
+  Additionally, we can implement our own primite types and named schemas with
+  the `Icon.Types.Schema.Type` behaviour and this behaviour respectively. The
+  module name should be used as the actual type.
+
+  The available options are the following:
+
+  - `default` - Default value for the key.
+  - `required` - Whether the key is required or not.
+  - `field` - Name of the key to check to choose the right `any()` type. This
+  value should be an `atom()`, so it'll probably come from an `enum()` type.
+
+  > Note: `nil` and `""` are considered empty values. They will be ignored for
+  > not mandatory keys and will add errors for mandatory keys.
   """
   alias __MODULE__, as: State
   alias Icon.Types.Error

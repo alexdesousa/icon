@@ -73,7 +73,44 @@ defmodule Icon.MixProject do
         "CHANGELOG.md"
       ],
       source_url: @root,
-      source_ref: "v#{@version}"
+      source_ref: "v#{@version}",
+      groups_for_modules: groups_for_modules(),
+      nest_modules_by_prefix: nest_modules_by_prefix()
+    ]
+  end
+
+  defp groups_for_modules do
+    [
+      "ICON 2.0 SDK": [
+        Icon
+      ],
+      "Schema Behaviours": [
+        Icon.Types.Schema,
+        Icon.Types.Schema.Type,
+        Icon.Types.Error
+      ],
+      "Schema Primitive Types": [
+        Icon.Types.Address,
+        Icon.Types.BinaryData,
+        Icon.Types.Boolean,
+        Icon.Types.EOA,
+        Icon.Types.Hash,
+        Icon.Types.Integer,
+        Icon.Types.SCORE,
+        Icon.Types.Signature,
+        Icon.Types.String
+      ],
+      "JSON RPC v3": [
+        Icon.RPC,
+        Icon.RPC.Goloop
+      ]
+    ]
+  end
+
+  defp nest_modules_by_prefix do
+    [
+      Icon.Types,
+      Icon.RPC
     ]
   end
 end
