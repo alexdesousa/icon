@@ -70,6 +70,13 @@ defmodule Icon.Types.Schema do
 
   > Note: `nil` and `""` are considered empty values. They will be ignored for
   > not mandatory keys and will add errors for mandatory keys.
+
+  ## Schema Caching
+
+  When a schema is generated with the function `generate/1`, it is also cached
+  as a `:persistent_term` in order to avoid generating the same thing twice.
+  This makes the first schema generation slower, but accessing the generated
+  schema should be then quite fast.
   """
   alias __MODULE__, as: State
   alias Icon.Types.Error
@@ -247,13 +254,23 @@ defmodule Icon.Types.Schema do
   end
 
   @doc """
-  Generates a full `schema`, given a schema definition.
+  Generates a full `schema`, given a schema definition. It caches the generated
+  schema, to avoid regenarating the same every time.
   """
   @spec generate(t()) :: t()
   def generate(schema) do
-    schema
-    |> Stream.map(fn {key, type} -> expand(key, type) end)
-    |> Map.new()
+    key = {__MODULE__, :erlang.phash2(schema)}
+
+    with :miss <- :persistent_term.get(key, :miss) do
+      generated =
+        schema
+        |> Stream.map(fn {key, type} -> expand(key, type) end)
+        |> Map.new()
+
+      :persistent_term.put(key, generated)
+
+      generated
+    end
   end
 
   @doc """
