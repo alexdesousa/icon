@@ -2,7 +2,7 @@ defmodule Icon.Types.SchemaTest do
   use ExUnit.Case, async: true
   import Icon.Types.Schema, only: [list: 1, any: 1, enum: 1]
 
-  alias Icon.Types.Schema
+  alias Icon.Types.{Error, Schema}
 
   describe "schema helpers" do
     test "list/1 expands a list type" do
@@ -626,6 +626,34 @@ defmodule Icon.Types.SchemaTest do
       assert_raise ArgumentError, fn ->
         Schema.generate(schema)
       end
+    end
+  end
+
+  describe "apply/1" do
+    test "returns data when state is valid" do
+      assert {:ok, %{integer: 42}} =
+               %{integer: :integer}
+               |> Schema.generate()
+               |> Schema.new(integer: "0x2a")
+               |> Schema.validate()
+               |> Schema.apply()
+    end
+
+    test "returns error when state is invalid" do
+      assert {
+               :error,
+               %Error{
+                 code: -32_602,
+                 reason: :invalid_params,
+                 domain: :unknown,
+                 message: "integer is invalid"
+               }
+             } =
+               %{integer: :integer}
+               |> Schema.generate()
+               |> Schema.new(integer: "INVALID")
+               |> Schema.validate()
+               |> Schema.apply()
     end
   end
 end

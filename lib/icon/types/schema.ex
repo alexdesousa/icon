@@ -3,6 +3,7 @@ defmodule Icon.Types.Schema do
   This module defines a schema.
   """
   alias __MODULE__, as: State
+  alias Icon.Types.Error
 
   @typedoc """
   Schema.
@@ -184,6 +185,22 @@ defmodule Icon.Types.Schema do
     schema
     |> Stream.map(fn {key, type} -> expand(key, type) end)
     |> Map.new()
+  end
+
+  @doc """
+  Applies schema `state`.
+  """
+  @spec apply(state()) ::
+          {:ok, map()}
+          | {:error, Error.t()}
+  def apply(state)
+
+  def apply(%State{is_valid?: true, data: data}) do
+    {:ok, data}
+  end
+
+  def apply(%State{is_valid?: false} = state) do
+    {:error, Error.new(state)}
   end
 
   ################
