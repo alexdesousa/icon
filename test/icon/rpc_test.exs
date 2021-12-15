@@ -39,7 +39,7 @@ defmodule Icon.RPCTest do
 
     test "sets options" do
       params = %{int: 42}
-      options = [types: %{int: Icon.Types.Integer}]
+      options = [schema: %{int: :integer}]
 
       assert %RPC{options: ^options} = RPC.build("method", params, options)
     end
@@ -49,7 +49,7 @@ defmodule Icon.RPCTest do
     test "ignores options" do
       payload =
         "icx_method"
-        |> RPC.build(%{integer: 42}, types: %{integer: Icon.Types.Integer})
+        |> RPC.build(%{integer: 42}, schema: %{integer: :integer})
         |> Jason.encode!()
         |> Jason.decode!()
 
@@ -98,16 +98,16 @@ defmodule Icon.RPCTest do
       }
 
       options = [
-        types: %{
-          address: Icon.Types.Address,
-          binary_data: Icon.Types.BinaryData,
-          boolean: Icon.Types.Boolean,
-          eoa: Icon.Types.EOA,
-          hash: Icon.Types.Hash,
-          integer: Icon.Types.Integer,
-          score: Icon.Types.SCORE,
-          signature: Icon.Types.Signature,
-          string: Icon.Types.String
+        schema: %{
+          address: :address,
+          binary_data: :binary_data,
+          boolean: :boolean,
+          eoa: :eoa_address,
+          hash: :hash,
+          integer: :integer,
+          score: :score_address,
+          signature: :signature,
+          string: :string
         }
       ]
 
@@ -142,12 +142,21 @@ defmodule Icon.RPCTest do
       assert :miss = Map.get(payload, "params", :miss)
     end
 
-    test "defaults to current value, when the type is not found in the options" do
-      assert %{"params" => %{"integer" => 42}} =
+    test "ignores value when the type is not found in the options" do
+      assert %{"params" => %{}} =
                "icx_method"
-               |> RPC.build(%{integer: 42}, types: %{})
+               |> RPC.build(%{integer: 42}, schema: %{})
                |> Jason.encode!()
                |> Jason.decode!()
+    end
+
+    test "raises when the schema cannot be dumped" do
+      assert_raise ArgumentError, fn ->
+        "icx_method"
+        |> RPC.build(%{integer: "INVALID"}, schema: %{integer: :integer})
+        |> Jason.encode!()
+        |> Jason.decode!()
+      end
     end
   end
 end

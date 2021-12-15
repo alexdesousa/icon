@@ -3,6 +3,7 @@ defmodule Icon.RPC.Goloop do
   This module defines the Goloop API payloads.
   """
   alias Icon.RPC
+  alias Icon.Types.{Error, Schema}
 
   @typedoc """
   Supported methods.
@@ -28,38 +29,26 @@ defmodule Icon.RPC.Goloop do
   If `hash` and `height` are both present in the options, `hash` will take
   precedence.
   """
-  @spec get_block() :: {:ok, RPC.t()} | {:error, Ecto.Changeset.t()}
+  @spec get_block() :: {:ok, RPC.t()} | {:error, Error.t()}
   @spec get_block(keyword() | map()) ::
           {:ok, RPC.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Error.t()}
   def get_block(options \\ [])
 
-  def get_block(options) when is_list(options) do
-    options
-    |> Map.new()
-    |> get_block()
-  end
+  def get_block(params) do
+    schema = %{height: :integer, hash: :hash}
 
-  def get_block(params) when is_map(params) do
-    types = %{
-      height: Icon.Types.Integer,
-      hash: Icon.Types.Hash
-    }
-
-    {%{}, types}
-    |> Ecto.Changeset.cast(params, [:height, :hash])
-    |> Ecto.Changeset.apply_action(:insert)
-    |> case do
+    case validate(schema, params) do
       {:ok, %{hash: hash}} ->
-        {:ok, get_block_by_hash(hash, types)}
+        {:ok, get_block_by_hash(hash)}
 
       {:ok, %{height: height}} ->
-        {:ok, get_block_by_height(height, types)}
+        {:ok, get_block_by_height(height)}
 
       {:ok, _} ->
         {:ok, get_last_block()}
 
-      {:error, %Ecto.Changeset{}} = error ->
+      {:error, %Error{}} = error ->
         error
     end
   end
@@ -69,26 +58,20 @@ defmodule Icon.RPC.Goloop do
   """
   @spec get_balance(Icon.Types.Address.t()) ::
           {:ok, RPC.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Error.t()}
   def get_balance(address) do
-    types = %{
-      address: Icon.Types.Address
-    }
+    schema = %{address: {:address, required: true}}
 
-    {%{}, types}
-    |> Ecto.Changeset.cast(%{address: address}, [:address])
-    |> Ecto.Changeset.validate_required([:address])
-    |> Ecto.Changeset.apply_action(:insert)
-    |> case do
+    case validate(schema, address: address) do
       {:ok, %{address: _address} = params} ->
         rpc =
           :get_balance
           |> method()
-          |> RPC.build(params, types: types)
+          |> RPC.build(params, schema: schema)
 
         {:ok, rpc}
 
-      {:error, %Ecto.Changeset{}} = error ->
+      {:error, %Error{}} = error ->
         error
     end
   end
@@ -98,26 +81,20 @@ defmodule Icon.RPC.Goloop do
   """
   @spec get_score_api(Icon.Types.SCORE.t()) ::
           {:ok, RPC.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Error.t()}
   def get_score_api(address) do
-    types = %{
-      address: Icon.Types.SCORE
-    }
+    schema = %{address: {:score_address, required: true}}
 
-    {%{}, types}
-    |> Ecto.Changeset.cast(%{address: address}, [:address])
-    |> Ecto.Changeset.validate_required([:address])
-    |> Ecto.Changeset.apply_action(:insert)
-    |> case do
+    case validate(schema, address: address) do
       {:ok, %{address: _address} = params} ->
         rpc =
           :get_score_api
           |> method()
-          |> RPC.build(params, types: types)
+          |> RPC.build(params, schema: schema)
 
         {:ok, rpc}
 
-      {:error, %Ecto.Changeset{}} = error ->
+      {:error, %Error{}} = error ->
         error
     end
   end
@@ -136,7 +113,7 @@ defmodule Icon.RPC.Goloop do
   end
 
   @doc """
-  Given a `transaction_hash`, returns the transaction result.
+  Given a `tx_hash`, returns the transaction result.
 
   Options:
 
@@ -146,47 +123,46 @@ defmodule Icon.RPC.Goloop do
   """
   @spec get_transaction(Icon.Types.Hash.t(), keyword()) ::
           {:ok, RPC.t()}
-          | {:error, Ecto.Changeset.t()}
-          | no_return()
-  def get_transaction(transaction_hash, options \\ [])
+          | {:error, Error.t()}
+  def get_transaction(tx_hash, options \\ [])
 
-  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
-  def get_transaction(transaction_hash, options) do
-    timeout = options[:wait_for] || 0
-    format = options[:format] || :result
-
-    types = %{
-      txHash: Icon.Types.Hash
+  def get_transaction(tx_hash, options) do
+    schema = %{
+      txHash: :hash,
+      wait_for: {:integer, default: 0},
+      format: {{:enum, [:transaction, :result]}, default: :result}
     }
 
-    {%{}, types}
-    |> Ecto.Changeset.cast(%{txHash: transaction_hash}, [:txHash])
-    |> Ecto.Changeset.validate_required([:txHash])
-    |> Ecto.Changeset.apply_action(:insert)
-    |> case do
-      {:ok, %{txHash: tx_hash}}
-      when timeout == 0 and format == :result ->
-        {:ok, get_transaction_result(tx_hash, types)}
+    case validate(schema, [{:txHash, tx_hash} | options]) do
+      {:ok, %{txHash: tx_hash, wait_for: 0, format: :result}} ->
+        {:ok, get_transaction_result(tx_hash)}
 
-      {:ok, %{txHash: tx_hash}}
-      when timeout == 0 and format == :transaction ->
-        {:ok, get_transaction_by_hash(tx_hash, types)}
+      {:ok, %{txHash: tx_hash, wait_for: 0, format: :transaction}} ->
+        {:ok, get_transaction_by_hash(tx_hash)}
 
-      {:ok, %{txHash: tx_hash}}
+      {:ok, %{txHash: tx_hash, wait_for: timeout, format: format}}
       when timeout > 0 and format in [:result, :transaction] ->
         options = [timeout: timeout, format: format]
-        {:ok, wait_transaction_result(tx_hash, types, options)}
+        {:ok, wait_transaction_result(tx_hash, options)}
 
-      {:ok, _} ->
-        raise ArgumentError, message: "invalid options"
-
-      {:error, %Ecto.Changeset{}} = error ->
+      {:error, %Error{}} = error ->
         error
     end
   end
 
   #########
   # Helpers
+
+  @spec validate(Schema.t(), map() | keyword()) ::
+          {:ok, map()}
+          | {:error, Error.t()}
+  defp validate(schema, params) do
+    schema
+    |> Schema.generate()
+    |> Schema.new(params)
+    |> Schema.load()
+    |> Schema.apply()
+  end
 
   @spec method(method :: method()) :: binary()
   defp method(:get_last_block), do: "icx_getLastBlock"
@@ -206,38 +182,47 @@ defmodule Icon.RPC.Goloop do
     |> RPC.build()
   end
 
-  @spec get_block_by_hash(Icon.Types.Hash.t(), map()) :: RPC.t()
-  defp get_block_by_hash(hash, types) do
+  @spec get_block_by_hash(Icon.Types.Hash.t()) :: RPC.t()
+  defp get_block_by_hash(hash) do
+    schema = %{hash: {:hash, required: true}}
+
     :get_block_by_hash
     |> method()
-    |> RPC.build(%{hash: hash}, types: types)
+    |> RPC.build(%{hash: hash}, schema: schema)
   end
 
-  @spec get_block_by_height(Icon.Types.Integer.t(), map()) :: RPC.t()
-  defp get_block_by_height(height, types) do
+  @spec get_block_by_height(Icon.Types.Integer.t()) :: RPC.t()
+  defp get_block_by_height(height) do
+    schema = %{height: {:integer, required: true}}
+
     :get_block_by_height
     |> method()
-    |> RPC.build(%{height: height}, types: types)
+    |> RPC.build(%{height: height}, schema: schema)
   end
 
-  @spec get_transaction_result(Icon.Types.Hash.t(), map()) :: RPC.t()
-  defp get_transaction_result(tx_hash, types) do
+  @spec get_transaction_result(Icon.Types.Hash.t()) :: RPC.t()
+  defp get_transaction_result(tx_hash) do
+    schema = %{txHash: {:hash, required: true}}
+
     :get_transaction_result
     |> method()
-    |> RPC.build(%{txHash: tx_hash}, types: types)
+    |> RPC.build(%{txHash: tx_hash}, schema: schema)
   end
 
-  @spec get_transaction_by_hash(Icon.Types.Hash.t(), map()) :: RPC.t()
-  defp get_transaction_by_hash(tx_hash, types) do
+  @spec get_transaction_by_hash(Icon.Types.Hash.t()) :: RPC.t()
+  defp get_transaction_by_hash(tx_hash) do
+    schema = %{txHash: {:hash, required: true}}
+
     :get_transaction_by_hash
     |> method()
-    |> RPC.build(%{txHash: tx_hash}, types: types)
+    |> RPC.build(%{txHash: tx_hash}, schema: schema)
   end
 
-  @spec wait_transaction_result(Icon.Types.Hash.t(), map(), keyword()) ::
+  @spec wait_transaction_result(Icon.Types.Hash.t(), keyword()) ::
           RPC.t()
-  defp wait_transaction_result(tx_hash, types, options) do
-    options = Keyword.put(options, :types, types)
+  defp wait_transaction_result(tx_hash, options) do
+    schema = %{txHash: {:hash, required: true}}
+    options = Keyword.put(options, :schema, schema)
 
     :wait_transaction_result
     |> method()

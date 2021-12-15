@@ -53,7 +53,7 @@ defmodule Icon.Types.ErrorTest do
                schema
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
                |> Schema.apply()
     end
 

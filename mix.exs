@@ -32,7 +32,6 @@ defmodule Icon.MixProject do
 
   defp deps do
     [
-      {:ecto, "~> 3.7"},
       {:jason, "~> 1.2"},
       {:ex_doc, "~> 0.26", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},

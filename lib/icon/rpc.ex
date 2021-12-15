@@ -97,8 +97,8 @@ end
 defimpl Jason.Encoder, for: Icon.RPC do
   @moduledoc """
   JSON encoder for an RPC payload. This encoder, uses `dump/1` callback from
-  an `Ecto.Type` to convert the RPC call parameters. The recomended types for
-  converting values to ICON 2.0 representation are the following:
+  an `Icon.Types.Schema.Type` to convert the RPC call parameters. The recomended
+  types for converting values to ICON 2.0 representation are the following:
 
   - `Icon.Types.Integer` for Elixir's `non_neg_integer` type.
   - `Icon.Types.String` for Elixir's `binary` type.
@@ -110,6 +110,8 @@ defimpl Jason.Encoder, for: Icon.RPC do
   - `Icon.Types.Signature` for signatures.
   - `Icon.Types.BinaryData` for binary data.
   """
+  alias Icon.Types.{Error, Schema}
+
   @spec encode(Icon.RPC.t(), Jason.Encode.opts()) :: binary()
   def encode(%Icon.RPC{} = rpc, options) do
     rpc
@@ -118,7 +120,7 @@ defimpl Jason.Encoder, for: Icon.RPC do
     |> Stream.reject(fn {_key, value} -> is_nil(value) end)
     |> Stream.reject(fn {_key, value} -> value == %{} end)
     |> Map.new()
-    |> dump_params(rpc.options[:types])
+    |> dump_params(rpc.options[:schema])
     |> Jason.Encode.map(options)
   end
 
@@ -130,26 +132,18 @@ defimpl Jason.Encoder, for: Icon.RPC do
 
   defp dump_params(payload, nil), do: payload
 
-  defp dump_params(%{params: params} = payload, types)
-       when is_map(params) and is_map(types) do
-    params =
-      params
-      |> Stream.map(fn {key, value} -> {key, dump(key, value, types)} end)
-      |> Map.new()
+  defp dump_params(%{params: params} = payload, schema) when is_map(params) do
+    schema
+    |> Schema.generate()
+    |> Schema.new(params)
+    |> Schema.dump()
+    |> Schema.apply()
+    |> case do
+      {:ok, params} ->
+        %{payload | params: params}
 
-    %{payload | params: params}
-  end
-
-  @spec dump(atom(), any(), map()) :: any()
-  defp dump(key, value, types) do
-    with module when not is_nil(module) <- types[key],
-         {:module, _} <- Code.ensure_compiled(module),
-         true <- function_exported?(module, :dump, 1),
-         {:ok, dumped} <- module.dump(value) do
-      dumped
-    else
-      _ ->
-        value
+      {:error, %Error{message: message}} ->
+        raise ArgumentError, message: message
     end
   end
 end

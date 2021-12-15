@@ -20,7 +20,7 @@ defmodule Icon.Types.SchemaTest do
     end
   end
 
-  describe "validate/1" do
+  describe "load/1" do
     test "parameters can be a keyword list" do
       assert %Schema{
                data: %{integer: 42},
@@ -29,7 +29,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(integer: "0x2a")
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when required field is missing" do
@@ -40,7 +40,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "uses default when field is missing" do
@@ -51,7 +51,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, default: "0x2a"}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "doesn't add an error when the missing field is required, but a default is provided" do
@@ -62,7 +62,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, default: "0x2a", required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "add error when required field is empty string" do
@@ -75,7 +75,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, required: true}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "does not add error when non required field is empty string" do
@@ -88,7 +88,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "when default is an empty string ignores it" do
@@ -99,7 +99,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, default: ""}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when required field has a default that's an empty string" do
@@ -110,7 +110,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: {:integer, default: "", required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "when schema is missing, ignores it" do
@@ -121,7 +121,7 @@ defmodule Icon.Types.SchemaTest do
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "when enum is missing, ignores it" do
@@ -132,7 +132,7 @@ defmodule Icon.Types.SchemaTest do
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "when list is missing, ignores it" do
@@ -143,10 +143,10 @@ defmodule Icon.Types.SchemaTest do
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates address type" do
+    test "loads address type" do
       address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
       params = %{"address" => address}
 
@@ -157,7 +157,7 @@ defmodule Icon.Types.SchemaTest do
                %{address: :address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when address is invalid" do
@@ -170,10 +170,10 @@ defmodule Icon.Types.SchemaTest do
                %{address: :address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates binary_data type" do
+    test "loads binary_data type" do
       binary_data = "0x34b2"
       params = %{"binary_data" => binary_data}
 
@@ -184,7 +184,7 @@ defmodule Icon.Types.SchemaTest do
                %{binary_data: :binary_data}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when binary data is invalid" do
@@ -197,10 +197,10 @@ defmodule Icon.Types.SchemaTest do
                %{binary_data: :binary_data}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates boolean type" do
+    test "loads boolean type" do
       boolean = "0x1"
       params = %{"boolean" => boolean}
 
@@ -211,7 +211,7 @@ defmodule Icon.Types.SchemaTest do
                %{boolean: :boolean}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when boolean is invalid" do
@@ -224,10 +224,10 @@ defmodule Icon.Types.SchemaTest do
                %{boolean: :boolean}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates eoa_address type" do
+    test "loads eoa_address type" do
       eoa_address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
       params = %{"eoa_address" => eoa_address}
 
@@ -238,7 +238,7 @@ defmodule Icon.Types.SchemaTest do
                %{eoa_address: :eoa_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when eoa_address is invalid" do
@@ -251,10 +251,10 @@ defmodule Icon.Types.SchemaTest do
                %{eoa_address: :eoa_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates hash type" do
+    test "loads hash type" do
       hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
@@ -267,7 +267,7 @@ defmodule Icon.Types.SchemaTest do
                %{hash: :hash}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when hash is invalid" do
@@ -280,10 +280,10 @@ defmodule Icon.Types.SchemaTest do
                %{hash: :hash}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates integer type" do
+    test "loads integer type" do
       params = %{"integer" => "0x2a"}
 
       assert %Schema{
@@ -293,7 +293,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when integer is invalid" do
@@ -306,10 +306,10 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates score_address type" do
+    test "loads score_address type" do
       score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       params = %{"score_address" => score_address}
 
@@ -320,7 +320,7 @@ defmodule Icon.Types.SchemaTest do
                %{score_address: :score_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error score_address is invalid" do
@@ -333,10 +333,10 @@ defmodule Icon.Types.SchemaTest do
                %{score_address: :score_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates signature type" do
+    test "loads signature type" do
       signature =
         "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA="
 
@@ -349,7 +349,7 @@ defmodule Icon.Types.SchemaTest do
                %{signature: :signature}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when signature is invalid" do
@@ -362,10 +362,10 @@ defmodule Icon.Types.SchemaTest do
                %{signature: :signature}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates string type" do
+    test "loads string type" do
       string = "ICON 2.0"
       params = %{"string" => string}
 
@@ -376,7 +376,7 @@ defmodule Icon.Types.SchemaTest do
                %{string: :string}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when string is invalid" do
@@ -389,10 +389,10 @@ defmodule Icon.Types.SchemaTest do
                %{string: :string}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "expands enum type" do
+    test "loads enum type as string" do
       params = %{"enum" => "call"}
 
       assert %Schema{
@@ -402,7 +402,20 @@ defmodule Icon.Types.SchemaTest do
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
+    end
+
+    test "loads enum type as atom" do
+      params = %{"enum" => :call}
+
+      assert %Schema{
+               data: %{enum: :call},
+               is_valid?: true
+             } =
+               %{enum: enum([:call, :deploy, :message, :deposit])}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
     end
 
     test "errors when enum type is incorrect" do
@@ -415,7 +428,7 @@ defmodule Icon.Types.SchemaTest do
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "enum values should be atoms" do
@@ -427,7 +440,7 @@ defmodule Icon.Types.SchemaTest do
       end
     end
 
-    test "validates anonymous schema" do
+    test "loads anonymous schema" do
       params = %{"schema" => %{"integer" => "0x2a"}}
 
       assert %Schema{
@@ -437,7 +450,7 @@ defmodule Icon.Types.SchemaTest do
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds anonymous schema errors" do
@@ -450,10 +463,10 @@ defmodule Icon.Types.SchemaTest do
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates a list" do
+    test "loads a list" do
       params = %{"list" => ["0x2a", "0x2b"]}
 
       assert %Schema{
@@ -463,7 +476,7 @@ defmodule Icon.Types.SchemaTest do
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when list is invalid" do
@@ -476,10 +489,10 @@ defmodule Icon.Types.SchemaTest do
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates any type" do
+    test "loads any type" do
       address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 
       params = %{
@@ -503,7 +516,7 @@ defmodule Icon.Types.SchemaTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when any field is invalid" do
@@ -530,7 +543,7 @@ defmodule Icon.Types.SchemaTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "adds error when any field value is not found" do
@@ -554,10 +567,10 @@ defmodule Icon.Types.SchemaTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates delegated module type" do
+    test "loads delegated module type" do
       defmodule Int do
         use Icon.Types.Schema.Type, delegate_to: Icon.Types.Integer
       end
@@ -571,10 +584,10 @@ defmodule Icon.Types.SchemaTest do
                %{integer: Int}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates module type" do
+    test "loads module type" do
       defmodule Bool do
         use Icon.Types.Schema.Type
 
@@ -596,10 +609,10 @@ defmodule Icon.Types.SchemaTest do
                %{boolean: Bool}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
-    test "validates remote schema" do
+    test "loads remote schema" do
       defmodule Remote do
         use Schema
 
@@ -617,7 +630,7 @@ defmodule Icon.Types.SchemaTest do
                %{schema: Remote}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.validate()
+               |> Schema.load()
     end
 
     test "module type must be compiled" do
@@ -635,7 +648,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(integer: "0x2a")
-               |> Schema.validate()
+               |> Schema.load()
                |> Schema.apply()
     end
 
@@ -652,7 +665,7 @@ defmodule Icon.Types.SchemaTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(integer: "INVALID")
-               |> Schema.validate()
+               |> Schema.load()
                |> Schema.apply()
     end
   end

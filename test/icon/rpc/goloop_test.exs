@@ -2,6 +2,7 @@ defmodule Icon.RPC.GoloopTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC
+  alias Icon.Types.Error
 
   describe "get_block/0" do
     test "builds RPC call for icx_getLastBlock" do
@@ -37,12 +38,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getBlockByHash",
-                 options: [
-                   types: %{
-                     hash: Icon.Types.Hash,
-                     height: Icon.Types.Integer
-                   }
-                 ],
+                 options: [schema: %{hash: {:hash, required: true}}],
                  params: %{
                    hash: ^hash
                  }
@@ -76,12 +72,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getBlockByHeight",
-                 options: [
-                   types: %{
-                     hash: Icon.Types.Hash,
-                     height: Icon.Types.Integer
-                   }
-                 ],
+                 options: [schema: %{height: {:integer, required: true}}],
                  params: %{
                    height: ^height
                  }
@@ -117,12 +108,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getBlockByHash",
-                 options: [
-                   types: %{
-                     hash: Icon.Types.Hash,
-                     height: Icon.Types.Integer
-                   }
-                 ],
+                 options: [schema: %{hash: {:hash, required: true}}],
                  params: %{
                    hash: ^hash
                  }
@@ -133,14 +119,14 @@ defmodule Icon.RPC.GoloopTest do
     test "when invalid hash is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [hash: {"is invalid", _}]}
+               %Error{message: "hash is invalid"}
              } = RPC.Goloop.get_block(hash: "0x0")
     end
 
     test "when invalid height is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [height: {"is invalid", _}]}
+               %Error{message: "height is invalid"}
              } = RPC.Goloop.get_block(height: -42)
     end
   end
@@ -153,11 +139,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getBalance",
-                 options: [
-                   types: %{
-                     address: Icon.Types.Address
-                   }
-                 ],
+                 options: [schema: %{address: {:address, required: true}}],
                  params: %{
                    address: ^address
                  }
@@ -190,11 +172,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getBalance",
-                 options: [
-                   types: %{
-                     address: Icon.Types.Address
-                   }
-                 ],
+                 options: [schema: %{address: {:address, required: true}}],
                  params: %{
                    address: ^address
                  }
@@ -223,14 +201,14 @@ defmodule Icon.RPC.GoloopTest do
     test "when invalid EOA address is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+               %Error{message: "address is invalid"}
              } = RPC.Goloop.get_balance("hx0")
     end
 
     test "when invalid SCORE address is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+               %Error{message: "address is invalid"}
              } = RPC.Goloop.get_balance("cx0")
     end
   end
@@ -243,11 +221,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getScoreApi",
-                 options: [
-                   types: %{
-                     address: Icon.Types.SCORE
-                   }
-                 ],
+                 options: [schema: %{address: {:score_address, required: true}}],
                  params: %{
                    address: ^address
                  }
@@ -276,7 +250,7 @@ defmodule Icon.RPC.GoloopTest do
     test "when invalid SCORE address is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+               %Error{message: "address is invalid"}
              } = RPC.Goloop.get_score_api("cx0")
     end
 
@@ -285,7 +259,7 @@ defmodule Icon.RPC.GoloopTest do
 
       assert {
                :error,
-               %Ecto.Changeset{errors: [address: {"is invalid", _}]}
+               %Error{message: "address is invalid"}
              } = RPC.Goloop.get_score_api(address)
     end
   end
@@ -324,11 +298,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getTransactionResult",
-                 options: [
-                   types: %{
-                     txHash: Icon.Types.Hash
-                   }
-                 ],
+                 options: [schema: %{txHash: {:hash, required: true}}],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -406,11 +376,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getTransactionResult",
-                 options: [
-                   types: %{
-                     txHash: Icon.Types.Hash
-                   }
-                 ],
+                 options: [schema: %{txHash: {:hash, required: true}}],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -431,11 +397,7 @@ defmodule Icon.RPC.GoloopTest do
                :ok,
                %RPC{
                  method: "icx_getTransactionByHash",
-                 options: [
-                   types: %{
-                     txHash: Icon.Types.Hash
-                   }
-                 ],
+                 options: [schema: %{txHash: {:hash, required: true}}],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -457,9 +419,7 @@ defmodule Icon.RPC.GoloopTest do
                %RPC{
                  method: "icx_waitTransactionResult",
                  options: [
-                   types: %{
-                     txHash: Icon.Types.Hash
-                   },
+                   schema: %{txHash: {:hash, required: true}},
                    timeout: 5000,
                    format: :result
                  ],
@@ -484,9 +444,7 @@ defmodule Icon.RPC.GoloopTest do
                %RPC{
                  method: "icx_waitTransactionResult",
                  options: [
-                   types: %{
-                     txHash: Icon.Types.Hash
-                   },
+                   schema: %{txHash: {:hash, required: true}},
                    timeout: 5000,
                    format: :transaction
                  ],
@@ -500,7 +458,7 @@ defmodule Icon.RPC.GoloopTest do
     test "when invalid hash is provided, errors" do
       assert {
                :error,
-               %Ecto.Changeset{errors: [txHash: {"is invalid", _}]}
+               %Error{message: "txHash is invalid"}
              } = RPC.Goloop.get_transaction("0x0")
     end
 
@@ -508,18 +466,20 @@ defmodule Icon.RPC.GoloopTest do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
-      assert_raise ArgumentError, fn ->
-        RPC.Goloop.get_transaction(tx_hash, wait_for: -1)
-      end
+      assert {
+               :error,
+               %Error{message: "wait_for is invalid"}
+             } = RPC.Goloop.get_transaction(tx_hash, wait_for: -1)
     end
 
-    test "when invalid format value is provided, raises" do
+    test "when invalid format is provided, errors" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
-      assert_raise ArgumentError, fn ->
-        RPC.Goloop.get_transaction(tx_hash, format: :full)
-      end
+      assert {
+               :error,
+               %Error{message: "format is invalid"}
+             } = RPC.Goloop.get_transaction(tx_hash, format: :full)
     end
   end
 end
