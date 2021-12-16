@@ -110,6 +110,7 @@ defmodule Icon.Schema do
           | :score_address
           | :signature
           | :string
+          | :timestamp
 
   @typedoc """
   Internal types.
@@ -128,6 +129,7 @@ defmodule Icon.Schema do
           | Icon.Schema.Types.SCORE
           | Icon.Schema.Types.Signature
           | Icon.Schema.Types.String
+          | Icon.Schema.Types.Timestamp
           | module()
 
   ##############
@@ -370,6 +372,7 @@ defmodule Icon.Schema do
   defp expand_type(_key, :score_address), do: Icon.Schema.Types.SCORE
   defp expand_type(_key, :signature), do: Icon.Schema.Types.Signature
   defp expand_type(_key, :string), do: Icon.Schema.Types.String
+  defp expand_type(_key, :timestamp), do: Icon.Schema.Types.Timestamp
 
   defp expand_type(key, {:enum, values} = type) when is_list(values) do
     if Enum.all?(values, &is_atom/1) do

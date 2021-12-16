@@ -393,6 +393,34 @@ defmodule Icon.SchemaTest do
                |> Schema.load()
     end
 
+    test "loads timestamp type" do
+      timestamp = 1_639_653_259_594_958
+      params = %{"timestamp" => timestamp}
+      expected = DateTime.from_unix!(timestamp, :microsecond)
+
+      assert %Schema{
+               data: %{timestamp: ^expected},
+               is_valid?: true
+             } =
+               %{timestamp: :timestamp}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when timestamp is invalid" do
+      params = %{"timestamp" => -3_777_051_168_000_000_000}
+
+      assert %Schema{
+               errors: %{timestamp: "is invalid"},
+               is_valid?: false
+             } =
+               %{timestamp: :timestamp}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads enum type as string" do
       params = %{"enum" => "call"}
 
