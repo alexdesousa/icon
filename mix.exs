@@ -84,31 +84,33 @@ defmodule Icon.MixProject do
         Icon
       ],
       "Schema Behaviours": [
-        Icon.Types.Schema,
-        Icon.Types.Schema.Type,
-        Icon.Types.Error
+        Icon.Schema,
+        Icon.Schema.Type,
+        Icon.Schema.Error
       ],
       "Schema Primitive Types": [
-        Icon.Types.Address,
-        Icon.Types.BinaryData,
-        Icon.Types.Boolean,
-        Icon.Types.EOA,
-        Icon.Types.Hash,
-        Icon.Types.Integer,
-        Icon.Types.SCORE,
-        Icon.Types.Signature,
-        Icon.Types.String
+        Icon.Schema.Types.Address,
+        Icon.Schema.Types.BinaryData,
+        Icon.Schema.Types.Boolean,
+        Icon.Schema.Types.EOA,
+        Icon.Schema.Types.Hash,
+        Icon.Schema.Types.Integer,
+        Icon.Schema.Types.Loop,
+        Icon.Schema.Types.SCORE,
+        Icon.Schema.Types.Signature,
+        Icon.Schema.Types.String,
+        Icon.Schema.Types.Timestamp
       ],
-      "JSON RPC v3": [
-        Icon.RPC,
-        Icon.RPC.Goloop
+      "JSON RPC v3 Requests": [
+        Icon.RPC.Request,
+        Icon.RPC.Request.Goloop
       ]
     ]
   end
 
   defp nest_modules_by_prefix do
     [
-      Icon.Types,
+      Icon.Schema,
       Icon.RPC
     ]
   end
