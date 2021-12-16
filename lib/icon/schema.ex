@@ -75,6 +75,7 @@ defmodule Icon.Schema do
   """
   alias __MODULE__, as: Schema
   alias Icon.Schema.Error
+  alias Icon.Schema.Loader
 
   @typedoc """
   Schema.
@@ -152,28 +153,67 @@ defmodule Icon.Schema do
           is_valid?: boolean()
         }
 
+  @doc false
   @spec add_data(state(), atom(), any()) :: state()
-  defp add_data(state, key, value)
+  def add_data(state, key, value)
 
-  defp add_data(%Schema{data: data} = state, key, value) do
+  def add_data(%Schema{data: data} = state, key, value) do
     %{state | data: Map.put(data, key, value)}
   end
 
+  @doc false
   @spec add_error(state(), atom(), :is_required | :is_invalid | map()) ::
           state()
-  defp add_error(state, key, type)
+  def add_error(state, key, type)
 
-  defp add_error(%Schema{errors: errors} = state, key, :is_required) do
+  def add_error(%Schema{errors: errors} = state, key, :is_required) do
     %{state | errors: Map.put(errors, key, "is required"), is_valid?: false}
   end
 
-  defp add_error(%Schema{errors: errors} = state, key, :is_invalid) do
+  def add_error(%Schema{errors: errors} = state, key, :is_invalid) do
     %{state | errors: Map.put(errors, key, "is invalid"), is_valid?: false}
   end
 
-  defp add_error(%Schema{errors: errors} = state, key, inner_errors)
-       when is_map(inner_errors) do
+  def add_error(%Schema{errors: errors} = state, key, inner_errors)
+      when is_map(inner_errors) do
     %{state | errors: Map.put(errors, key, inner_errors), is_valid?: false}
+  end
+
+  @doc false
+  @spec get_value(state(), atom()) :: {:found, any()} | :miss
+  def get_value(%Schema{data: data}, key) do
+    case data[key] do
+      nil -> :miss
+      value -> {:found, value}
+    end
+  end
+
+  @doc false
+  @spec retrieve(atom(), keyword()) :: (state() -> state())
+  def retrieve(key, options) do
+    fn %Schema{} = state ->
+      required? = options[:required] || false
+      default = options[:default]
+
+      state
+      |> get_field(key, default)
+      |> case do
+        nil when required? ->
+          add_error(state, key, :is_required)
+
+        "" when required? ->
+          add_error(state, key, :is_required)
+
+        nil ->
+          state
+
+        "" ->
+          state
+
+        value ->
+          add_data(state, key, value)
+      end
+    end
   end
 
   @spec get_field(state(), binary() | atom(), any()) :: any()
@@ -192,14 +232,6 @@ defmodule Icon.Schema do
 
   defp get_field(%Schema{}, _key, default) do
     default
-  end
-
-  @spec get_value(state(), atom()) :: {:found, any()} | :miss
-  defp get_value(%Schema{data: data}, key) do
-    case data[key] do
-      nil -> :miss
-      value -> {:found, value}
-    end
   end
 
   ############
@@ -352,7 +384,7 @@ defmodule Icon.Schema do
       key,
       %{
         type: type,
-        loader: loader(key, type, options),
+        loader: Loader.loader(key, type, options),
         dumper: dumper(key, type, options)
       }
     }
@@ -413,181 +445,6 @@ defmodule Icon.Schema do
       _ ->
         raise ArgumentError,
           message: "#{key}'s type (#{module}) is not a valid schema or type"
-    end
-  end
-
-  ################
-  # Schema loaders
-
-  @spec loader(atom(), internal_type(), keyword()) :: (t() -> t())
-  defp loader(key, type, options) do
-    fn %Schema{} = state ->
-      state
-      |> retrieve(key, options).()
-      |> load(key, type, options).()
-    end
-  end
-
-  @spec retrieve(atom(), keyword()) :: (t() -> t())
-  defp retrieve(key, options) do
-    fn %Schema{} = state ->
-      required? = options[:required] || false
-      default = options[:default]
-
-      state
-      |> get_field(key, default)
-      |> case do
-        nil when required? ->
-          add_error(state, key, :is_required)
-
-        "" when required? ->
-          add_error(state, key, :is_required)
-
-        nil ->
-          state
-
-        "" ->
-          state
-
-        value ->
-          add_data(state, key, value)
-      end
-    end
-  end
-
-  @spec load(atom(), internal_type(), keyword()) :: (state() -> state())
-  defp load(key, module, options)
-
-  defp load(key, module, _options) when is_atom(module) do
-    fn %Schema{} = state ->
-      if function_exported?(module, :__schema__, 0) do
-        load_schema(state, key, module.__schema__())
-      else
-        load_type(state, key, module)
-      end
-    end
-  end
-
-  defp load(key, {:enum, values}, _options) do
-    fn %Schema{} = state ->
-      load_enum(state, key, values)
-    end
-  end
-
-  defp load(key, {:list, type}, _options) do
-    fn %Schema{} = state ->
-      load_list(state, key, type)
-    end
-  end
-
-  defp load(key, {:any, types, field}, _options) do
-    fn %Schema{} = state ->
-      load_any(state, key, types, field: field)
-    end
-  end
-
-  defp load(key, schema, _options) when is_map(schema) do
-    fn %Schema{} = state ->
-      load_schema(state, key, schema)
-    end
-  end
-
-  @spec load_schema(state(), atom(), t()) :: state()
-  defp load_schema(state, key, schema)
-
-  defp load_schema(%Schema{} = state, key, schema) do
-    validator = fn params ->
-      schema
-      |> new(params)
-      |> load()
-    end
-
-    with {:found, params} <- get_value(state, key),
-         %Schema{data: data, is_valid?: true} = state <- validator.(params) do
-      add_data(state, key, data)
-    else
-      :miss ->
-        state
-
-      %Schema{errors: errors, is_valid?: false} ->
-        add_error(state, key, errors)
-    end
-  end
-
-  @spec load_type(state(), atom(), module()) :: state()
-  defp load_type(%Schema{} = state, key, module) do
-    with {:found, value} <- get_value(state, key),
-         {:ok, loaded} <- module.load(value) do
-      add_data(state, key, loaded)
-    else
-      :miss ->
-        state
-
-      _ ->
-        add_error(state, key, :is_invalid)
-    end
-  end
-
-  @spec load_enum(state(), atom(), [atom()]) :: state()
-  defp load_enum(%Schema{} = state, key, values) do
-    with {:found, value} <- get_value(state, key),
-         choice when not is_nil(choice) <-
-           Enum.find(values, &("#{&1}" == value or &1 == value)) do
-      add_data(state, key, choice)
-    else
-      :miss ->
-        state
-
-      _ ->
-        add_error(state, key, :is_invalid)
-    end
-  end
-
-  @spec load_list(state(), atom(), internal_type()) :: state()
-  defp load_list(state, key, type)
-
-  defp load_list(%Schema{} = state, key, type) do
-    loader = fn value ->
-      %{__value__: type}
-      |> generate()
-      |> new(%{__value__: value})
-      |> load()
-      |> apply()
-      |> case do
-        {:ok, %{__value__: loaded}} ->
-          {:ok, loaded}
-
-        {:error, _} ->
-          :error
-      end
-    end
-
-    with {:found, values} <- get_value(state, key),
-         loaded = Enum.map(values, loader),
-         false <- Enum.any?(loaded, &(&1 == :error)) do
-      loaded = Enum.map(loaded, &elem(&1, 1))
-
-      add_data(state, key, loaded)
-    else
-      :miss ->
-        state
-
-      _ ->
-        add_error(state, key, :is_invalid)
-    end
-  end
-
-  @spec load_any(state(), atom(), keyword(), keyword()) :: state()
-  defp load_any(%Schema{} = state, key, choices, options) do
-    with field when not is_nil(field) <- options[:field],
-         loader = state.schema[field].loader,
-         %Schema{data: data, is_valid?: true} <- loader.(state),
-         value = data[field],
-         type when not is_nil(type) <- choices[value] do
-      load(key, type, options).(state)
-    else
-      _ ->
-        add_error(state, key, :is_invalid)
     end
   end
 
