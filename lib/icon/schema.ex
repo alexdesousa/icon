@@ -23,14 +23,7 @@ defmodule Icon.Schema do
         to: {:address, required: true},
         value: :integer
         dataType: {enum([:call, :deploy]), required: true},
-        data: any(
-          [
-            call: CallSchema,
-            deploy: DeploySchema
-          ],
-          field: :dataType,
-          required: true
-        )
+        data: {any([call: CallSchema, deploy: DeploySchema], :dataType), required: true}
       }
     end
   end
@@ -54,8 +47,8 @@ defmodule Icon.Schema do
 
   - Anonymous schema: `t()`.
   - A homogeneous list of type `t`: `list(t)`.
-  - Any of the types listed in the list: `any([{atom(), t}])`. This type depends on the
-  option `field` for choosing the right type.
+  - Any of the types listed in the list: `any([{atom(), t}], atom())`. The first
+  atom is the value of the second atom in the params.
 
   Additionally, we can implement our own primite types and named schemas with
   the `Icon.Schema.Type` behaviour and this behaviour respectively. The
@@ -99,7 +92,7 @@ defmodule Icon.Schema do
   @type external_type ::
           internal_type()
           | {:list, external_type()}
-          | {:any, [{atom(), external_type()}]}
+          | {:any, [{atom(), external_type()}], atom()}
           | {:enum, [atom()]}
           | :address
           | :binary_data
@@ -117,7 +110,7 @@ defmodule Icon.Schema do
   """
   @type internal_type ::
           {:list, internal_type()}
-          | {:any, [{atom(), internal_type()}]}
+          | {:any, [{atom(), internal_type()}], atom()}
           | {:enum, [atom()]}
           | t()
           | Icon.Schema.Types.Address
@@ -220,7 +213,7 @@ defmodule Icon.Schema do
   defmacro __using__(_) do
     quote do
       @behaviour Schema
-      import Schema, only: [list: 1, any: 1, enum: 1]
+      import Schema, only: [list: 1, any: 2, enum: 1]
 
       @spec __schema__() :: Schema.t()
       def __schema__ do
@@ -316,8 +309,8 @@ defmodule Icon.Schema do
   @doc """
   Generates a union of types.
   """
-  @spec any([external_type()]) :: {:any, [external_type()]}
-  def any(types), do: {:any, types}
+  @spec any([external_type()], atom()) :: {:any, [external_type()], atom()}
+  def any(types, field), do: {:any, types, field}
 
   @doc """
   Generates an enum type.
@@ -336,6 +329,7 @@ defmodule Icon.Schema do
 
   defp expand(key, {:list, _type} = type), do: expand(key, {type, []})
   defp expand(key, {:enum, _values} = type), do: expand(key, {type, []})
+  defp expand(key, {:any, _types, _field} = type), do: expand(key, {type, []})
   defp expand(key, schema) when is_map(schema), do: expand(key, {schema, []})
   defp expand(key, type) when is_atom(type), do: expand(key, {type, []})
 
@@ -387,16 +381,23 @@ defmodule Icon.Schema do
   end
 
   defp expand_type(key, {:list, type}) do
-    {:list, expand_type(key, type)}
+    case expand_type(key, type) do
+      {:any, _, _} ->
+        raise ArgumentError, message: "Lists do not support any/3 as type"
+
+      expanded_type ->
+        {:list, expanded_type}
+    end
   end
 
-  defp expand_type(key, {:any, types}) when is_list(types) do
+  defp expand_type(key, {:any, types, field})
+       when is_list(types) and is_atom(field) do
     types =
       Enum.map(types, fn {value, type} ->
         {value, expand_type(key, type)}
       end)
 
-    {:any, types}
+    {:any, types, field}
   end
 
   defp expand_type(key, module) when is_atom(module) do
@@ -468,15 +469,15 @@ defmodule Icon.Schema do
     end
   end
 
-  defp load(key, {:list, module}, _options) do
+  defp load(key, {:list, type}, _options) do
     fn %Schema{} = state ->
-      load_list(state, key, module)
+      load_list(state, key, type)
     end
   end
 
-  defp load(key, {:any, types}, options) do
+  defp load(key, {:any, types, field}, _options) do
     fn %Schema{} = state ->
-      load_any(state, key, types, options)
+      load_any(state, key, types, field: field)
     end
   end
 
@@ -537,10 +538,27 @@ defmodule Icon.Schema do
     end
   end
 
-  @spec load_list(state(), atom(), module()) :: state()
-  defp load_list(%Schema{} = state, key, module) do
+  @spec load_list(state(), atom(), internal_type()) :: state()
+  defp load_list(state, key, type)
+
+  defp load_list(%Schema{} = state, key, type) do
+    loader = fn value ->
+      %{__value__: type}
+      |> generate()
+      |> new(%{__value__: value})
+      |> load()
+      |> apply()
+      |> case do
+        {:ok, %{__value__: loaded}} ->
+          {:ok, loaded}
+
+        {:error, _} ->
+          :error
+      end
+    end
+
     with {:found, values} <- get_value(state, key),
-         loaded = Enum.map(values, &module.load/1),
+         loaded = Enum.map(values, loader),
          false <- Enum.any?(loaded, &(&1 == :error)) do
       loaded = Enum.map(loaded, &elem(&1, 1))
 
@@ -605,9 +623,9 @@ defmodule Icon.Schema do
     end
   end
 
-  defp dump(key, {:any, types}, options) do
+  defp dump(key, {:any, types, field}, _options) do
     fn %Schema{} = state ->
-      dump_any(state, key, types, options)
+      dump_any(state, key, types, field: field)
     end
   end
 
@@ -664,10 +682,27 @@ defmodule Icon.Schema do
     end
   end
 
-  @spec dump_list(state(), atom(), module()) :: state()
-  defp dump_list(%Schema{} = state, key, module) do
+  @spec dump_list(state(), atom(), internal_type()) :: state()
+  defp dump_list(state, key, type)
+
+  defp dump_list(%Schema{} = state, key, type) do
+    dumper = fn value ->
+      %{__value__: type}
+      |> generate()
+      |> new(%{__value__: value})
+      |> dump()
+      |> apply()
+      |> case do
+        {:ok, %{__value__: dumped}} ->
+          {:ok, dumped}
+
+        {:error, _} ->
+          :error
+      end
+    end
+
     with {:found, values} <- get_value(state, key),
-         dumped = Enum.map(values, &module.dump/1),
+         dumped = Enum.map(values, dumper),
          false <- Enum.any?(dumped, &(&1 == :error)) do
       dumped = Enum.map(dumped, &elem(&1, 1))
 

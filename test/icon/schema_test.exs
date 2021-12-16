@@ -1,6 +1,6 @@
 defmodule Icon.SchemaTest do
   use ExUnit.Case, async: true
-  import Icon.Schema, only: [list: 1, any: 1, enum: 1]
+  import Icon.Schema, only: [list: 1, any: 2, enum: 1]
 
   alias Icon.Schema
   alias Icon.Schema.Error
@@ -10,9 +10,9 @@ defmodule Icon.SchemaTest do
       assert {:list, :address} = Schema.list(:address)
     end
 
-    test "any/1 expands a any type" do
-      assert {:any, [:eoa_address, :score_address]} =
-               Schema.any([:eoa_address, :score_address])
+    test "any/2 expands a any type" do
+      assert {:any, [eoa: :eoa_address, score: :score_address], :type} =
+               Schema.any([eoa: :eoa_address, score: :score_address], :type)
     end
 
     test "enum/1 expands a any type" do
@@ -495,7 +495,7 @@ defmodule Icon.SchemaTest do
                |> Schema.load()
     end
 
-    test "loads a list" do
+    test "loads a list with primitive types" do
       params = %{"list" => ["0x2a", "0x2b"]}
 
       assert %Schema{
@@ -506,6 +506,38 @@ defmodule Icon.SchemaTest do
                |> Schema.generate()
                |> Schema.new(params)
                |> Schema.load()
+    end
+
+    test "loads a list with enum type" do
+      params = %{"list" => ["call", "deploy"]}
+
+      assert %Schema{
+               data: %{list: [:call, :deploy]},
+               is_valid?: true
+             } =
+               %{list: list(enum([:call, :deploy, :message, :deposit]))}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "raises when a list hash any type" do
+      params = %{
+        "type" => "bool",
+        "list" => ["0x0", "0x1"]
+      }
+
+      schema = %{
+        type: enum([:int, :bool]),
+        list: list(any([int: :integer, boo: :boolean], :type))
+      }
+
+      assert_raise ArgumentError, fn ->
+               schema
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+      end
     end
 
     test "adds error when list is invalid" do
@@ -538,10 +570,7 @@ defmodule Icon.SchemaTest do
              } =
                %{
                  type: enum([:score, :eoa]),
-                 address: {
-                   any(score: :score_address, eoa: :eoa_address),
-                   field: :type
-                 }
+                 address: any([score: :score_address, eoa: :eoa_address], :type)
                }
                |> Schema.generate()
                |> Schema.new(params)
@@ -565,10 +594,7 @@ defmodule Icon.SchemaTest do
              } =
                %{
                  type: enum([:score, :eoa]),
-                 address: {
-                   any(score: :score_address, eoa: :eoa_address),
-                   field: :type
-                 }
+                 address: any([score: :score_address, eoa: :eoa_address], :type)
                }
                |> Schema.generate()
                |> Schema.new(params)
@@ -589,10 +615,7 @@ defmodule Icon.SchemaTest do
              } =
                %{
                  type: enum([:score, :eoa]),
-                 address: {
-                   any(score: :score_address, hash: :hash),
-                   field: :type
-                 }
+                 address: any([score: :score_address, hash: :hash], :type)
                }
                |> Schema.generate()
                |> Schema.new(params)
