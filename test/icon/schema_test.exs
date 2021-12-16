@@ -310,6 +310,32 @@ defmodule Icon.SchemaTest do
                |> Schema.load()
     end
 
+    test "loads loop type" do
+      params = %{"loop" => "0x2a"}
+
+      assert %Schema{
+               data: %{loop: 42},
+               is_valid?: true
+             } =
+               %{loop: :loop}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when loop is invalid" do
+      params = %{"loop" => "INVALID"}
+
+      assert %Schema{
+               errors: %{loop: "is invalid"},
+               is_valid?: false
+             } =
+               %{loop: :loop}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads score_address type" do
       score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       params = %{"score_address" => score_address}
@@ -533,10 +559,10 @@ defmodule Icon.SchemaTest do
       }
 
       assert_raise ArgumentError, fn ->
-               schema
-               |> Schema.generate()
-               |> Schema.new(params)
-               |> Schema.load()
+        schema
+        |> Schema.generate()
+        |> Schema.new(params)
+        |> Schema.load()
       end
     end
 
