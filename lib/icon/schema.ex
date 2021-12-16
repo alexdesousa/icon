@@ -75,7 +75,7 @@ defmodule Icon.Schema do
   """
   alias __MODULE__, as: Schema
   alias Icon.Schema.Error
-  alias Icon.Schema.Loader
+  alias Icon.Schema.{Dumper, Loader}
 
   @typedoc """
   Schema.
@@ -385,7 +385,7 @@ defmodule Icon.Schema do
       %{
         type: type,
         loader: Loader.loader(key, type, options),
-        dumper: dumper(key, type, options)
+        dumper: Dumper.dumper(key, type, options)
       }
     }
   end
@@ -445,150 +445,6 @@ defmodule Icon.Schema do
       _ ->
         raise ArgumentError,
           message: "#{key}'s type (#{module}) is not a valid schema or type"
-    end
-  end
-
-  ################
-  # Schema dumpers
-
-  @spec dumper(atom(), internal_type(), keyword()) :: (t() -> t())
-  defp dumper(key, type, options) do
-    fn %Schema{} = state ->
-      state
-      |> retrieve(key, options).()
-      |> dump(key, type, options).()
-    end
-  end
-
-  @spec dump(atom(), internal_type(), keyword()) :: (state() -> state())
-  defp dump(key, module, options)
-
-  defp dump(key, module, _options) when is_atom(module) do
-    fn %Schema{} = state ->
-      if function_exported?(module, :__schema__, 0) do
-        dump_schema(state, key, module.__schema__())
-      else
-        dump_type(state, key, module)
-      end
-    end
-  end
-
-  defp dump(key, {:enum, _}, _options) do
-    fn %Schema{} = state ->
-      dump_enum(state, key)
-    end
-  end
-
-  defp dump(key, {:list, module}, _options) do
-    fn %Schema{} = state ->
-      dump_list(state, key, module)
-    end
-  end
-
-  defp dump(key, {:any, types, field}, _options) do
-    fn %Schema{} = state ->
-      dump_any(state, key, types, field: field)
-    end
-  end
-
-  defp dump(key, schema, _options) when is_map(schema) do
-    fn %Schema{} = state ->
-      dump_schema(state, key, schema)
-    end
-  end
-
-  @spec dump_schema(state(), atom(), t()) :: state()
-  defp dump_schema(state, key, schema)
-
-  defp dump_schema(%Schema{} = state, key, schema) do
-    validator = fn params ->
-      schema
-      |> new(params)
-      |> dump()
-    end
-
-    with {:found, params} <- get_value(state, key),
-         %Schema{data: data, is_valid?: true} = state <- validator.(params) do
-      add_data(state, key, data)
-    else
-      :miss ->
-        state
-
-      %Schema{errors: errors, is_valid?: false} ->
-        add_error(state, key, errors)
-    end
-  end
-
-  @spec dump_type(state(), atom(), module()) :: state()
-  defp dump_type(%Schema{} = state, key, module) do
-    with {:found, value} <- get_value(state, key),
-         {:ok, dumped} <- module.dump(value) do
-      add_data(state, key, dumped)
-    else
-      :miss ->
-        state
-
-      _ ->
-        add_error(state, key, :is_invalid)
-    end
-  end
-
-  @spec dump_enum(state(), atom()) :: state()
-  defp dump_enum(%Schema{} = state, key) do
-    case get_value(state, key) do
-      {:found, value} ->
-        add_data(state, key, "#{value}")
-
-      :miss ->
-        state
-    end
-  end
-
-  @spec dump_list(state(), atom(), internal_type()) :: state()
-  defp dump_list(state, key, type)
-
-  defp dump_list(%Schema{} = state, key, type) do
-    dumper = fn value ->
-      %{__value__: type}
-      |> generate()
-      |> new(%{__value__: value})
-      |> dump()
-      |> apply()
-      |> case do
-        {:ok, %{__value__: dumped}} ->
-          {:ok, dumped}
-
-        {:error, _} ->
-          :error
-      end
-    end
-
-    with {:found, values} <- get_value(state, key),
-         dumped = Enum.map(values, dumper),
-         false <- Enum.any?(dumped, &(&1 == :error)) do
-      dumped = Enum.map(dumped, &elem(&1, 1))
-
-      add_data(state, key, dumped)
-    else
-      :miss ->
-        state
-
-      _ ->
-        add_error(state, key, :is_invalid)
-    end
-  end
-
-  @spec dump_any(state(), atom(), keyword(), keyword()) :: state()
-  defp dump_any(%Schema{} = state, key, choices, options) do
-    with field when not is_nil(field) <- options[:field],
-         loader = state.schema[field].loader,
-         %Schema{data: data, is_valid?: true} <- loader.(state),
-         value = data[field],
-         type when not is_nil(type) <- choices[value] do
-      dump(key, type, options).(state)
-    else
-      _ ->
-        add_error(state, key, :is_invalid)
     end
   end
 end

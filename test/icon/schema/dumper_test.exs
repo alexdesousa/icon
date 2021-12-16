@@ -1,20 +1,20 @@
-defmodule Icon.Schema.LoaderTest do
+defmodule Icon.Schema.DumperTest do
   use ExUnit.Case, async: true
   import Icon.Schema, only: [list: 1, any: 2, enum: 1]
 
   alias Icon.Schema
   alias Icon.Schema.Error
 
-  describe "Icon.Schema.load/1" do
+  describe "Icon.Schema.dump/1" do
     test "parameters can be a keyword list" do
       assert %Schema{
-               data: %{integer: 42},
+               data: %{integer: "0x2a"},
                is_valid?: true
              } =
                %{integer: :integer}
                |> Schema.generate()
-               |> Schema.new(integer: "0x2a")
-               |> Schema.load()
+               |> Schema.new(integer: 42)
+               |> Schema.dump()
     end
 
     test "adds error when required field is missing" do
@@ -25,29 +25,29 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: {:integer, required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "uses default when field is missing" do
       assert %Schema{
-               data: %{integer: 42},
+               data: %{integer: "0x2a"},
                is_valid?: true
              } =
-               %{integer: {:integer, default: "0x2a"}}
+               %{integer: {:integer, default: 42}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "doesn't add an error when the missing field is required, but a default is provided" do
       assert %Schema{
-               data: %{integer: 42},
+               data: %{integer: "0x2a"},
                is_valid?: true
              } =
-               %{integer: {:integer, default: "0x2a", required: true}}
+               %{integer: {:integer, default: 42, required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "add error when required field is empty string" do
@@ -60,7 +60,7 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: {:integer, required: true}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "does not add error when non required field is empty string" do
@@ -73,7 +73,7 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "when default is an empty string ignores it" do
@@ -84,7 +84,7 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: {:integer, default: ""}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when required field has a default that's an empty string" do
@@ -95,7 +95,7 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: {:integer, default: "", required: true}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "when schema is missing, ignores it" do
@@ -106,7 +106,7 @@ defmodule Icon.Schema.LoaderTest do
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "when enum is missing, ignores it" do
@@ -117,7 +117,7 @@ defmodule Icon.Schema.LoaderTest do
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "when list is missing, ignores it" do
@@ -128,10 +128,10 @@ defmodule Icon.Schema.LoaderTest do
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(%{})
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads address type" do
+    test "dumps address type" do
       address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
       params = %{"address" => address}
 
@@ -142,7 +142,7 @@ defmodule Icon.Schema.LoaderTest do
                %{address: :address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when address is invalid" do
@@ -155,10 +155,10 @@ defmodule Icon.Schema.LoaderTest do
                %{address: :address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads binary_data type" do
+    test "dumps binary_data type" do
       binary_data = "0x34b2"
       params = %{"binary_data" => binary_data}
 
@@ -169,7 +169,7 @@ defmodule Icon.Schema.LoaderTest do
                %{binary_data: :binary_data}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when binary data is invalid" do
@@ -182,25 +182,24 @@ defmodule Icon.Schema.LoaderTest do
                %{binary_data: :binary_data}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads boolean type" do
-      boolean = "0x1"
-      params = %{"boolean" => boolean}
+    test "dumps boolean type" do
+      params = %{"boolean" => true}
 
       assert %Schema{
-               data: %{boolean: true},
+               data: %{boolean: "0x1"},
                is_valid?: true
              } =
                %{boolean: :boolean}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when boolean is invalid" do
-      params = %{"boolean" => "0x3"}
+      params = %{"boolean" => :invalid}
 
       assert %Schema{
                errors: %{boolean: "is invalid"},
@@ -209,10 +208,10 @@ defmodule Icon.Schema.LoaderTest do
                %{boolean: :boolean}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads eoa_address type" do
+    test "dumps eoa_address type" do
       eoa_address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
       params = %{"eoa_address" => eoa_address}
 
@@ -223,7 +222,7 @@ defmodule Icon.Schema.LoaderTest do
                %{eoa_address: :eoa_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when eoa_address is invalid" do
@@ -236,10 +235,10 @@ defmodule Icon.Schema.LoaderTest do
                %{eoa_address: :eoa_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads hash type" do
+    test "dumps hash type" do
       hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
 
@@ -252,7 +251,7 @@ defmodule Icon.Schema.LoaderTest do
                %{hash: :hash}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when hash is invalid" do
@@ -265,24 +264,24 @@ defmodule Icon.Schema.LoaderTest do
                %{hash: :hash}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads integer type" do
-      params = %{"integer" => "0x2a"}
+    test "dumps integer type" do
+      params = %{"integer" => 42}
 
       assert %Schema{
-               data: %{integer: 42},
+               data: %{integer: "0x2a"},
                is_valid?: true
              } =
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when integer is invalid" do
-      params = %{"integer" => "INVALID"}
+      params = %{"integer" => -42}
 
       assert %Schema{
                errors: %{integer: "is invalid"},
@@ -291,24 +290,24 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads loop type" do
-      params = %{"loop" => "0x2a"}
+    test "dumps loop type" do
+      params = %{"loop" => 42}
 
       assert %Schema{
-               data: %{loop: 42},
+               data: %{loop: "0x2a"},
                is_valid?: true
              } =
                %{loop: :loop}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when loop is invalid" do
-      params = %{"loop" => "INVALID"}
+      params = %{"loop" => -42}
 
       assert %Schema{
                errors: %{loop: "is invalid"},
@@ -317,10 +316,10 @@ defmodule Icon.Schema.LoaderTest do
                %{loop: :loop}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads score_address type" do
+    test "dumps score_address type" do
       score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       params = %{"score_address" => score_address}
 
@@ -331,7 +330,7 @@ defmodule Icon.Schema.LoaderTest do
                %{score_address: :score_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error score_address is invalid" do
@@ -344,10 +343,10 @@ defmodule Icon.Schema.LoaderTest do
                %{score_address: :score_address}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads signature type" do
+    test "dumps signature type" do
       signature =
         "VAia7YZ2Ji6igKWzjR2YsGa2m53nKPrfK7uXYW78QLE+ATehAVZPC40szvAiA6NEU5gCYB4c4qaQzqDh2ugcHgA="
 
@@ -360,7 +359,7 @@ defmodule Icon.Schema.LoaderTest do
                %{signature: :signature}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when signature is invalid" do
@@ -373,10 +372,10 @@ defmodule Icon.Schema.LoaderTest do
                %{signature: :signature}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads string type" do
+    test "dumps string type" do
       string = "ICON 2.0"
       params = %{"string" => string}
 
@@ -387,7 +386,7 @@ defmodule Icon.Schema.LoaderTest do
                %{string: :string}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when string is invalid" do
@@ -400,13 +399,13 @@ defmodule Icon.Schema.LoaderTest do
                %{string: :string}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads timestamp type" do
-      timestamp = 1_639_653_259_594_958
-      params = %{"timestamp" => timestamp}
-      expected = DateTime.from_unix!(timestamp, :microsecond)
+    test "dumps timestamp type" do
+      expected = 1_639_653_259_594_958
+      datetime = DateTime.from_unix!(expected, :microsecond)
+      params = %{"timestamp" => datetime}
 
       assert %Schema{
                data: %{timestamp: ^expected},
@@ -415,11 +414,11 @@ defmodule Icon.Schema.LoaderTest do
                %{timestamp: :timestamp}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when timestamp is invalid" do
-      params = %{"timestamp" => -3_777_051_168_000_000_000}
+      params = %{"timestamp" => -377_705_116_800_000_001}
 
       assert %Schema{
                errors: %{timestamp: "is invalid"},
@@ -428,37 +427,37 @@ defmodule Icon.Schema.LoaderTest do
                %{timestamp: :timestamp}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads enum type as string" do
+    test "dumps enum type as string" do
       params = %{"enum" => "call"}
 
       assert %Schema{
-               data: %{enum: :call},
+               data: %{enum: "call"},
                is_valid?: true
              } =
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads enum type as atom" do
+    test "dumps enum type as atom" do
       params = %{"enum" => :call}
 
       assert %Schema{
-               data: %{enum: :call},
+               data: %{enum: "call"},
                is_valid?: true
              } =
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "errors when enum type is incorrect" do
-      params = %{"enum" => "invalid"}
+      params = %{"enum" => :invalid}
 
       assert %Schema{
                errors: %{enum: "is invalid"},
@@ -467,29 +466,20 @@ defmodule Icon.Schema.LoaderTest do
                %{enum: enum([:call, :deploy, :message, :deposit])}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "enum values should be atoms" do
-      values = ["call", "deploy", "message", "deposit"]
-      schema = %{data_type: {:enum, values}}
-
-      assert_raise ArgumentError, fn ->
-        Schema.generate(schema)
-      end
-    end
-
-    test "loads anonymous schema" do
-      params = %{"schema" => %{"integer" => "0x2a"}}
+    test "dumps anonymous schema" do
+      params = %{"schema" => %{"integer" => 42}}
 
       assert %Schema{
-               data: %{schema: %{integer: 42}},
+               data: %{schema: %{integer: "0x2a"}},
                is_valid?: true
              } =
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds anonymous schema errors" do
@@ -502,39 +492,39 @@ defmodule Icon.Schema.LoaderTest do
                %{schema: %{integer: :integer}}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads a list with primitive types" do
-      params = %{"list" => ["0x2a", "0x2b"]}
+    test "dumps a list with primitive types" do
+      params = %{"list" => [42, 43]}
 
       assert %Schema{
-               data: %{list: [42, 43]},
+               data: %{list: ["0x2a", "0x2b"]},
                is_valid?: true
              } =
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads a list with enum type" do
-      params = %{"list" => ["call", "deploy"]}
+    test "dumps a list with enum type" do
+      params = %{"list" => [:call, :deploy]}
 
       assert %Schema{
-               data: %{list: [:call, :deploy]},
+               data: %{list: ["call", "deploy"]},
                is_valid?: true
              } =
                %{list: list(enum([:call, :deploy, :message, :deposit]))}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "raises when a list has any type" do
       params = %{
-        "type" => "bool",
-        "list" => ["0x0", "0x1"]
+        "type" => :bool,
+        "list" => [false, true]
       }
 
       schema = %{
@@ -546,12 +536,12 @@ defmodule Icon.Schema.LoaderTest do
         schema
         |> Schema.generate()
         |> Schema.new(params)
-        |> Schema.load()
+        |> Schema.dump()
       end
     end
 
     test "adds error when list is invalid" do
-      params = %{"list" => ["0x2a", "INVALID"]}
+      params = %{"list" => [42, "INVALID"]}
 
       assert %Schema{
                errors: %{list: "is invalid"},
@@ -560,20 +550,20 @@ defmodule Icon.Schema.LoaderTest do
                %{list: list(:integer)}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads any type" do
+    test "dumps any type" do
       address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 
       params = %{
-        "type" => "score",
+        "type" => :score,
         "address" => address
       }
 
       assert %Schema{
                data: %{
-                 type: :score,
+                 type: "score",
                  address: ^address
                },
                is_valid?: true
@@ -584,14 +574,14 @@ defmodule Icon.Schema.LoaderTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when any field is invalid" do
       address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 
       params = %{
-        "type" => "invalid",
+        "type" => :invalid,
         "address" => address
       }
 
@@ -608,14 +598,14 @@ defmodule Icon.Schema.LoaderTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "adds error when any field value is not found" do
       address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 
       params = %{
-        "type" => "eoa",
+        "type" => :eoa,
         "address" => address
       }
 
@@ -629,27 +619,27 @@ defmodule Icon.Schema.LoaderTest do
                }
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads delegated module type" do
+    test "dumps delegated module type" do
       defmodule Int do
         use Icon.Schema.Type, delegate_to: Icon.Schema.Types.Integer
       end
 
-      params = %{"integer" => "0x2a"}
+      params = %{"integer" => 42}
 
       assert %Schema{
-               data: %{integer: 42},
+               data: %{integer: "0x2a"},
                is_valid?: true
              } =
                %{integer: Int}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads module type" do
+    test "dumps module type" do
       defmodule Bool do
         use Icon.Schema.Type
 
@@ -662,19 +652,19 @@ defmodule Icon.Schema.LoaderTest do
         def dump(_), do: :error
       end
 
-      params = %{"boolean" => 1}
+      params = %{"boolean" => true}
 
       assert %Schema{
-               data: %{boolean: true},
+               data: %{boolean: 1},
                is_valid?: true
              } =
                %{boolean: Bool}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
-    test "loads remote schema" do
+    test "dumps remote schema" do
       defmodule Remote do
         use Schema
 
@@ -683,16 +673,16 @@ defmodule Icon.Schema.LoaderTest do
         end
       end
 
-      params = %{"schema" => %{"integer" => "0x2a"}}
+      params = %{"schema" => %{"integer" => 42}}
 
       assert %Schema{
-               data: %{schema: %{integer: 42}},
+               data: %{schema: %{integer: "0x2a"}},
                is_valid?: true
              } =
                %{schema: Remote}
                |> Schema.generate()
                |> Schema.new(params)
-               |> Schema.load()
+               |> Schema.dump()
     end
 
     test "module type must be compiled" do
@@ -706,11 +696,11 @@ defmodule Icon.Schema.LoaderTest do
 
   describe "apply/1" do
     test "returns data when state is valid" do
-      assert {:ok, %{integer: 42}} =
+      assert {:ok, %{integer: "0x2a"}} =
                %{integer: :integer}
                |> Schema.generate()
-               |> Schema.new(integer: "0x2a")
-               |> Schema.load()
+               |> Schema.new(integer: 42)
+               |> Schema.dump()
                |> Schema.apply()
     end
 
@@ -727,7 +717,7 @@ defmodule Icon.Schema.LoaderTest do
                %{integer: :integer}
                |> Schema.generate()
                |> Schema.new(integer: "INVALID")
-               |> Schema.load()
+               |> Schema.dump()
                |> Schema.apply()
     end
   end

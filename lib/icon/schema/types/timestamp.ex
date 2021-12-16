@@ -29,5 +29,18 @@ defmodule Icon.Schema.Types.Timestamp do
 
   @spec dump(any()) :: {:ok, t()} | :error
   @impl Icon.Schema.Type
-  defdelegate dump(timestamp), to: __MODULE__, as: :load
+  def dump(value)
+
+  def dump(%DateTime{} = datetime) do
+    {:ok, DateTime.to_unix(datetime, :microsecond)}
+  end
+
+  def dump(timestamp)
+      when is_integer(timestamp) and timestamp >= -377_705_116_800_000_000 do
+    {:ok, timestamp}
+  end
+
+  def dump(_) do
+    :error
+  end
 end

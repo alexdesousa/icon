@@ -1,9 +1,6 @@
 defmodule Icon.SchemaTest do
   use ExUnit.Case, async: true
-  import Icon.Schema, only: [list: 1, any: 2, enum: 1]
-
   alias Icon.Schema
-  alias Icon.Schema.Error
 
   describe "schema helpers" do
     test "list/1 expands a list type" do
