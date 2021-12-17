@@ -8,24 +8,18 @@ defmodule Icon.Schema do
   ## Defining Schemas
 
   A schema can be either anonymous or not. For non-anonymous schemas, we need to
-  `use` this module and define the callback `init/1` e.g. the following is an
-  (incomplete) transaction.
+  `use` this module and define a schema using `defschema/1` e.g. the following is
+  an (incomplete) transaction.
 
   ```elixir
   defmodule Transaction do
     use Icon.Schema
 
-    @spec Icon.Schema
-    def init do
-      %{
-        version: {:string, default: "2.0"},
-        from: {:eoa_address, required: true},
-        to: {:address, required: true},
-        value: :integer
-        dataType: {enum([:call, :deploy]), required: true},
-        data: {any([call: CallSchema, deploy: DeploySchema], :dataType), required: true}
-      }
-    end
+    defschema(%{
+      from: {:eoa_address, required: true},
+      to: {:address, required: true},
+      value: {:loop, default: 0}
+    })
   end
   ```
 
@@ -72,6 +66,56 @@ defmodule Icon.Schema do
   as a `:persistent_term` in order to avoid generating the same thing twice.
   This makes the first schema generation slower, but accessing the generated
   schema should be then quite fast.
+
+  ## Schema Struct
+
+  When defining a schema with `use Icon.Schema`, we can use the `apply/2`
+  function to put the loaded data into the struct e.g. for the following schema:
+
+  ```elixir
+  defmodule Block do
+    use Icon.Schema
+
+    defschema(%{
+      height: :integer,
+      hash: :hash
+      transactions: list(Transaction)
+    })
+  end
+  ```
+
+  we can then validate a payload with the following:
+
+  ```elixir
+  payload = %{
+    "height" => "0x2a",
+    "hash" => "c71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    "transactions" => [
+      %{
+        "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        "value" => "0x2a"
+      }
+    ]
+  }
+
+  %Block{
+    height: 42,
+    hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    transactions: [
+      %Transaction{
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42
+      }
+    ]
+  } =
+    Block
+    |> Icon.Schema.generate()
+    |> Icon.Schema.new(payload)
+    |> Icon.Schema.load()
+    |> Icon.Schema.apply(into: Block)
+  ```
   """
   alias __MODULE__, as: Schema
   alias Icon.Schema.Error
@@ -249,12 +293,31 @@ defmodule Icon.Schema do
   defmacro __using__(_) do
     quote do
       @behaviour Schema
-      import Schema, only: [list: 1, any: 2, enum: 1]
+      import Schema, only: [list: 1, any: 2, enum: 1, defschema: 1]
 
       @spec __schema__() :: Schema.t()
       def __schema__ do
         __MODULE__.init()
         |> Schema.generate()
+      end
+    end
+  end
+
+  @doc """
+  Generates a schema and its struct.
+  """
+  @spec defschema(map()) :: Macro.t()
+  defmacro defschema(map) do
+    quote do
+      @keys Map.keys(unquote(map))
+
+      defstruct @keys
+
+      @type t :: %__MODULE__{}
+
+      @impl Schema
+      def init do
+        unquote(map)
       end
     end
   end
@@ -337,13 +400,22 @@ defmodule Icon.Schema do
   @spec apply(state()) ::
           {:ok, map()}
           | {:error, Error.t()}
-  def apply(state)
+  @spec apply(state(), keyword()) ::
+          {:ok, map()}
+          | {:error, Error.t()}
+  def apply(state, options \\ [])
 
-  def apply(%Schema{is_valid?: true, data: data}) do
-    {:ok, data}
+  def apply(%Schema{is_valid?: true, data: data}, options) do
+    case options[:into] do
+      nil ->
+        {:ok, data}
+
+      module ->
+        {:ok, into(data, module)}
+    end
   end
 
-  def apply(%Schema{is_valid?: false} = state) do
+  def apply(%Schema{is_valid?: false} = state, _options) do
     {:error, Error.new(state)}
   end
 
@@ -459,6 +531,39 @@ defmodule Icon.Schema do
       _ ->
         raise ArgumentError,
           message: "#{key}'s type (#{module}) is not a valid schema or type"
+    end
+  end
+
+  @spec into(map(), any()) :: map() | struct() | no_return()
+  defp into(data, value)
+
+  defp into(data, value) when is_atom(value) do
+    with data when is_map(data) <- data,
+         {:module, module} <- Code.ensure_compiled(value),
+         true <- function_exported?(module, :__schema__, 0),
+         true <- function_exported?(module, :init, 0),
+         true <- function_exported?(module, :__struct__, 1) do
+      module.init()
+      |> Enum.map(fn
+        {key, {:list, type}} when is_atom(type) ->
+          {key, Enum.map(data[key], fn value -> into(value, type) end)}
+
+        {key, {{:list, type}, _}} when is_atom(type) ->
+          {key, Enum.map(data[key], fn value -> into(value, type) end)}
+
+        {key, type} when is_atom(type) ->
+          {key, into(data[key], type)}
+
+        {key, {type, _}} when is_atom(type) ->
+          {key, into(data[key], type)}
+
+        {key, _type} ->
+          {key, data[key]}
+      end)
+      |> module.__struct__()
+    else
+      _ ->
+        data
     end
   end
 end

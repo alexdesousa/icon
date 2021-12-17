@@ -65,7 +65,7 @@ defmodule Icon.Schema.Loader do
     end
 
     with {:found, params} <- Schema.get_value(state, key),
-         %Schema{data: data, is_valid?: true} = state <- validator.(params) do
+         %Schema{data: data, is_valid?: true} <- validator.(params) do
       Schema.add_data(state, key, data)
     else
       :miss ->

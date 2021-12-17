@@ -678,9 +678,7 @@ defmodule Icon.Schema.LoaderTest do
       defmodule Remote do
         use Schema
 
-        def init do
-          %{integer: :integer}
-        end
+        defschema(%{integer: :integer})
       end
 
       assert %Schema{
@@ -721,6 +719,79 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.new(integer: "0x2a")
                |> Schema.load()
                |> Schema.apply()
+    end
+
+    test "returns data in struct when state is valid" do
+      defmodule Inner do
+        use Schema
+
+        defschema(%{
+          loop: :loop
+        })
+      end
+
+      defmodule Outer do
+        use Schema
+
+        defschema(%{
+          required_integer: {:integer, required: true},
+          required_enum: {enum([:foo, :bar]), required: true},
+          required_list: {list(:boolean), required: true},
+          required_schema: {Icon.Schema.LoaderTest.Inner, required: true},
+          integer: :integer,
+          enum: enum([:foo, :bar]),
+          list: list(:boolean),
+          schema: Icon.Schema.LoaderTest.Inner,
+          anonymous: %{
+            boolean: :boolean
+          }
+        })
+      end
+
+      params = %{
+        "required_integer" => "0x2a",
+        "required_enum" => "foo",
+        "required_list" => ["0x1", "0x0"],
+        "required_schema" => %{
+          "loop" => "0x2a"
+        },
+        "integer" => "0x2b",
+        "enum" => "bar",
+        "list" => ["0x0", "0x1"],
+        "schema" => %{
+          "loop" => "0x2b"
+        },
+        "anonymous" => %{
+          "boolean" => "0x1"
+        }
+      }
+
+      assert {:ok,
+              %{
+                __struct__: Outer,
+                required_integer: 42,
+                required_enum: :foo,
+                required_list: [true, false],
+                required_schema: %{
+                  __struct__: Inner,
+                  loop: 42
+                },
+                integer: 43,
+                enum: :bar,
+                list: [false, true],
+                schema: %{
+                  __struct__: Inner,
+                  loop: 43
+                },
+                anonymous: %{
+                  boolean: true
+                }
+              }} =
+               Outer
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+               |> Schema.apply(into: Outer)
     end
 
     test "returns error when state is invalid" do
