@@ -9,18 +9,18 @@ defmodule Icon.Schema.Loader do
     fn %Schema{} = state ->
       state
       |> Schema.retrieve(key, options).()
-      |> load(key, type, options).()
+      |> load(key, type).()
     end
   end
 
   #########
   # Helpers
 
-  @spec load(atom(), Schema.internal_type(), keyword()) ::
+  @spec load(atom(), Schema.internal_type()) ::
           (Schema.state() -> Schema.state())
-  defp load(key, module, options)
+  defp load(key, module)
 
-  defp load(key, module, _options) when is_atom(module) do
+  defp load(key, module) when is_atom(module) do
     fn %Schema{} = state ->
       if function_exported?(module, :__schema__, 0) do
         load_schema(state, key, module.__schema__())
@@ -30,25 +30,25 @@ defmodule Icon.Schema.Loader do
     end
   end
 
-  defp load(key, {:enum, values}, _options) do
+  defp load(key, {:enum, values}) do
     fn %Schema{} = state ->
       load_enum(state, key, values)
     end
   end
 
-  defp load(key, {:list, type}, _options) do
+  defp load(key, {:list, type}) do
     fn %Schema{} = state ->
       load_list(state, key, type)
     end
   end
 
-  defp load(key, {:any, types, field}, _options) do
+  defp load(key, {:any, types, field}) do
     fn %Schema{} = state ->
       load_any(state, key, types, field: field)
     end
   end
 
-  defp load(key, schema, _options) when is_map(schema) do
+  defp load(key, schema) when is_map(schema) do
     fn %Schema{} = state ->
       load_schema(state, key, schema)
     end
@@ -147,7 +147,7 @@ defmodule Icon.Schema.Loader do
          %Schema{data: data, is_valid?: true} <- loader.(state),
          value = data[field],
          type when not is_nil(type) <- choices[value] do
-      load(key, type, options).(state)
+      load(key, type).(state)
     else
       _ ->
         Schema.add_error(state, key, :is_invalid)

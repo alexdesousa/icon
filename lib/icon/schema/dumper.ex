@@ -8,18 +8,18 @@ defmodule Icon.Schema.Dumper do
     fn %Schema{} = state ->
       state
       |> Schema.retrieve(key, options).()
-      |> dump(key, type, options).()
+      |> dump(key, type).()
     end
   end
 
   #########
   # Helpers
 
-  @spec dump(atom(), Schema.internal_type(), keyword()) ::
+  @spec dump(atom(), Schema.internal_type()) ::
           (Schema.state() -> Schema.state())
-  defp dump(key, module, options)
+  defp dump(key, module)
 
-  defp dump(key, module, _options) when is_atom(module) do
+  defp dump(key, module) when is_atom(module) do
     fn %Schema{} = state ->
       if function_exported?(module, :__schema__, 0) do
         dump_schema(state, key, module.__schema__())
@@ -29,25 +29,25 @@ defmodule Icon.Schema.Dumper do
     end
   end
 
-  defp dump(key, {:enum, values}, _options) do
+  defp dump(key, {:enum, values}) do
     fn %Schema{} = state ->
       dump_enum(state, key, values)
     end
   end
 
-  defp dump(key, {:list, module}, _options) do
+  defp dump(key, {:list, type}) do
     fn %Schema{} = state ->
-      dump_list(state, key, module)
+      dump_list(state, key, type)
     end
   end
 
-  defp dump(key, {:any, types, field}, _options) do
+  defp dump(key, {:any, types, field}) do
     fn %Schema{} = state ->
       dump_any(state, key, types, field: field)
     end
   end
 
-  defp dump(key, schema, _options) when is_map(schema) do
+  defp dump(key, schema) when is_map(schema) do
     fn %Schema{} = state ->
       dump_schema(state, key, schema)
     end
@@ -145,7 +145,7 @@ defmodule Icon.Schema.Dumper do
          %Schema{data: data, is_valid?: true} <- loader.(state),
          value = data[field],
          type when not is_nil(type) <- choices[value] do
-      dump(key, type, options).(state)
+      dump(key, type).(state)
     else
       _ ->
         Schema.add_error(state, key, :is_invalid)

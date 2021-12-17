@@ -80,7 +80,7 @@ defmodule Icon.Schema do
   @typedoc """
   Schema.
   """
-  @type t :: map()
+  @type t :: module() | map()
 
   @typedoc """
   Type.
@@ -301,8 +301,22 @@ defmodule Icon.Schema do
   Generates a full `schema`, given a schema definition. It caches the generated
   schema, to avoid regenarating the same every time.
   """
-  @spec generate(t()) :: t()
-  def generate(schema) do
+  @spec generate(t()) :: t() | no_return()
+  def generate(schema)
+
+  def generate(schema) when is_atom(schema) do
+    with {:module, module} <- Code.ensure_compiled(schema),
+         true <- function_exported?(module, :__schema__, 0),
+         true <- function_exported?(module, :init, 0) do
+      module.init()
+      |> generate()
+    else
+      _ ->
+        raise ArgumentError, message: "Schema #{schema} not found"
+    end
+  end
+
+  def generate(schema) when is_map(schema) do
     key = {__MODULE__, :erlang.phash2(schema)}
 
     with :miss <- :persistent_term.get(key, :miss) do

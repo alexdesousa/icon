@@ -683,23 +683,32 @@ defmodule Icon.Schema.LoaderTest do
         end
       end
 
-      params = %{"schema" => %{"integer" => "0x2a"}}
-
       assert %Schema{
                data: %{schema: %{integer: 42}},
                is_valid?: true
              } =
                %{schema: Remote}
                |> Schema.generate()
-               |> Schema.new(params)
+               |> Schema.new(%{schema: %{integer: "0x2a"}})
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{integer: 42},
+               is_valid?: true
+             } =
+               Remote
+               |> Schema.generate()
+               |> Schema.new(integer: "0x2a")
                |> Schema.load()
     end
 
     test "module type must be compiled" do
-      schema = %{module: UnexistentModule}
+      assert_raise ArgumentError, fn ->
+        Schema.generate(%{module: UnexistentModule})
+      end
 
       assert_raise ArgumentError, fn ->
-        Schema.generate(schema)
+        Schema.generate(UnexistentModule)
       end
     end
   end
