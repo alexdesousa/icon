@@ -26,13 +26,17 @@ defmodule Icon.MixProject do
 
   def application do
     [
+      mod: {Icon.Application, []},
       extra_applications: [:logger]
     ]
   end
 
   defp deps do
     [
+      {:finch, "~> 0.10"},
       {:jason, "~> 1.2"},
+      {:skogsra, "~> 2.3"},
+      {:bypass, "~> 2.1", only: :test},
       {:ex_doc, "~> 0.26", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false}
@@ -81,7 +85,13 @@ defmodule Icon.MixProject do
   defp groups_for_modules do
     [
       "ICON 2.0 SDK": [
-        Icon
+        Icon,
+        Icon.Config
+      ],
+      "JSON RPC v3": [
+        Icon.RPC.HTTP,
+        Icon.RPC.Request,
+        Icon.RPC.Request.Goloop
       ],
       "Schema Behaviours": [
         Icon.Schema,
@@ -100,10 +110,6 @@ defmodule Icon.MixProject do
         Icon.Schema.Types.Signature,
         Icon.Schema.Types.String,
         Icon.Schema.Types.Timestamp
-      ],
-      "JSON RPC v3 Requests": [
-        Icon.RPC.Request,
-        Icon.RPC.Request.Goloop
       ]
     ]
   end
