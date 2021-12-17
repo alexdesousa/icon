@@ -15,6 +15,13 @@ defmodule Icon.MixProject do
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       dialyzer: dialyzer(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "coveralls.github": :test
+      ],
       package: package(),
       deps: deps(),
       docs: docs()
@@ -39,7 +46,8 @@ defmodule Icon.MixProject do
       {:bypass, "~> 2.1", only: :test},
       {:ex_doc, "~> 0.26", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.14", only: :test, runtime: false}
     ]
   end
 
