@@ -2,6 +2,8 @@ defmodule Icon.URLBuilder do
   @moduledoc false
   use GenServer
 
+  alias Icon.RPC.Request
+
   @spec start_link() :: GenServer.on_start()
   def start_link do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -14,7 +16,7 @@ defmodule Icon.URLBuilder do
         "http://localhost:#{port}/api/v3"
 
       :miss ->
-        Icon.RPC.Request.build_url()
+        Request.build_url()
     end
   end
 

@@ -4,12 +4,13 @@ defmodule Icon.RPC.HTTPTest do
   alias Icon.RPC.{HTTP, Request, Request.Goloop}
   alias Icon.Schema.Error
 
-  setup do
-    bypass = Bypass.open()
-    {:ok, bypass: bypass}
-  end
+  describe "request/2 with mocked API" do
+    setup do
+      bypass = Bypass.open()
+      Icon.URLBuilder.put_bypass(bypass)
+      {:ok, bypass: bypass}
+    end
 
-  describe "request/2" do
     test "decodes result on successful call", %{bypass: bypass} do
       expected = %{
         "height" => "0x2a",
@@ -24,8 +25,7 @@ defmodule Icon.RPC.HTTPTest do
 
       assert {:ok, %Request{} = rpc} = Goloop.get_block()
 
-      assert {:ok, ^expected} =
-               HTTP.request("http://localhost:#{bypass.port}", rpc)
+      assert {:ok, ^expected} = HTTP.request(rpc)
     end
 
     test "when there's no timeout, then there's no special Icon header", %{
@@ -46,7 +46,7 @@ defmodule Icon.RPC.HTTPTest do
 
       assert {:ok, %Request{} = rpc} = Goloop.get_transaction(tx_hash)
 
-      assert {:ok, _} = HTTP.request("http://localhost:#{bypass.port}", rpc)
+      assert {:ok, _} = HTTP.request(rpc)
     end
 
     test "when there's timeout, then there's special Icon header", %{
@@ -68,11 +68,14 @@ defmodule Icon.RPC.HTTPTest do
       assert {:ok, %Request{} = rpc} =
                Goloop.get_transaction(tx_hash, wait_for: 5_000)
 
-      assert {:ok, _} = HTTP.request("http://localhost:#{bypass.port}", rpc)
+      assert {:ok, _} = HTTP.request(rpc)
     end
 
     test "when there's no connection, errors" do
+      url = "http://unexistent"
       assert {:ok, %Request{} = rpc} = Goloop.get_block()
+
+      rpc = %{rpc | options: Keyword.put(rpc.options, :url, url)}
 
       assert {:error,
               %Error{
@@ -81,7 +84,7 @@ defmodule Icon.RPC.HTTPTest do
                 domain: :request,
                 message: "System error",
                 reason: :system_error
-              }} = HTTP.request("http://localhost:1", rpc)
+              }} = HTTP.request(rpc)
     end
 
     test "when the API returns an error, errors", %{bypass: bypass} do
@@ -104,7 +107,7 @@ defmodule Icon.RPC.HTTPTest do
                 domain: :request,
                 message: "Not found",
                 reason: :not_found
-              }} = HTTP.request("http://localhost:#{bypass.port}", rpc)
+              }} = HTTP.request(rpc)
     end
 
     test "when payload does not conform with API, errors", %{bypass: bypass} do
@@ -121,9 +124,11 @@ defmodule Icon.RPC.HTTPTest do
                 domain: :request,
                 message: "System error",
                 reason: :system_error
-              }} = HTTP.request("http://localhost:#{bypass.port}", rpc)
+              }} = HTTP.request(rpc)
     end
+  end
 
+  describe "request/1 without mocked API" do
     test "connects with default node" do
       assert {:ok, %Request{} = rpc} = Goloop.get_block()
       assert {:ok, block} = HTTP.request(rpc)

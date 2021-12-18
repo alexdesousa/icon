@@ -3,7 +3,6 @@ defmodule Icon.RPC.HTTP do
   This module defines functions for performing remote producedure calls on an
   ICON 2.0 node.
   """
-  alias Icon.Config
   alias Icon.RPC.Request
   alias Icon.Schema.Error
 
@@ -16,13 +15,10 @@ defmodule Icon.RPC.HTTP do
   Sends a remote procedure call to an ICON 2.0 node.
   """
   @spec request(Request.t()) :: {:ok, result()} | {:error, Error.t()}
-  @spec request(nil | binary(), Request.t()) ::
-          {:ok, map()}
-          | {:error, Error.t()}
-  def request(url \\ nil, request)
+  def request(request)
 
-  def request(url, %Request{} = request) do
-    url = "#{url || Config.url!()}/api/v3"
+  def request(%Request{options: options} = request) do
+    url = options[:url]
     payload = Jason.encode!(request)
 
     :post
