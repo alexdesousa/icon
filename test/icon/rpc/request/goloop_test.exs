@@ -10,7 +10,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getLastBlock",
-                 options: [],
+                 options: [url: _],
                  params: %{}
                }
              } = Request.Goloop.get_block()
@@ -38,7 +38,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getBlockByHash",
-                 options: [schema: %{hash: {:hash, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{hash: {:hash, required: true}}
+                 ],
                  params: %{
                    hash: ^hash
                  }
@@ -72,7 +75,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getBlockByHeight",
-                 options: [schema: %{height: {:integer, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{height: {:integer, required: true}}
+                 ],
                  params: %{
                    height: ^height
                  }
@@ -108,7 +114,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getBlockByHash",
-                 options: [schema: %{hash: {:hash, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{hash: {:hash, required: true}}
+                 ],
                  params: %{
                    hash: ^hash
                  }
@@ -139,7 +148,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getBalance",
-                 options: [schema: %{address: {:address, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{address: {:address, required: true}}
+                 ],
                  params: %{
                    address: ^address
                  }
@@ -172,7 +184,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getBalance",
-                 options: [schema: %{address: {:address, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{address: {:address, required: true}}
+                 ],
                  params: %{
                    address: ^address
                  }
@@ -221,7 +236,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getScoreApi",
-                 options: [schema: %{address: {:score_address, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{address: {:score_address, required: true}}
+                 ],
                  params: %{
                    address: ^address
                  }
@@ -270,7 +288,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getTotalSupply",
-                 options: [],
+                 options: [url: _],
                  params: %{}
                }
              } = Request.Goloop.get_total_supply()
@@ -298,7 +316,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getTransactionResult",
-                 options: [schema: %{txHash: {:hash, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{txHash: {:hash, required: true}}
+                 ],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -376,7 +397,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getTransactionResult",
-                 options: [schema: %{txHash: {:hash, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{txHash: {:hash, required: true}}
+                 ],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -397,7 +421,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_getTransactionByHash",
-                 options: [schema: %{txHash: {:hash, required: true}}],
+                 options: [
+                   url: _,
+                   schema: %{txHash: {:hash, required: true}}
+                 ],
                  params: %{
                    txHash: ^tx_hash
                  }
@@ -419,6 +446,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                %Request{
                  method: "icx_waitTransactionResult",
                  options: [
+                   url: _,
                    schema: %{txHash: {:hash, required: true}},
                    timeout: 5000,
                    format: :result
@@ -444,6 +472,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                %Request{
                  method: "icx_waitTransactionResult",
                  options: [
+                   url: _,
                    schema: %{txHash: {:hash, required: true}},
                    timeout: 5000,
                    format: :transaction

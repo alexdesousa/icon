@@ -1,6 +1,7 @@
 defmodule Icon.RPC.RequestTest do
   use ExUnit.Case, async: true
 
+  alias Icon.Config
   alias Icon.RPC.Request
 
   describe "build/1" do
@@ -18,8 +19,9 @@ defmodule Icon.RPC.RequestTest do
       assert params == %{}
     end
 
-    test "sets empty options" do
-      assert %Request{options: []} = Request.build("method")
+    test "sets at least the url option" do
+      url = Config.url!()
+      assert %Request{options: [url: ^url]} = Request.build("method")
     end
   end
 
@@ -41,8 +43,9 @@ defmodule Icon.RPC.RequestTest do
     test "sets options" do
       params = %{int: 42}
       options = [schema: %{int: :integer}]
+      expected = Keyword.put(options, :url, Config.url!())
 
-      assert %Request{options: ^options} =
+      assert %Request{options: ^expected} =
                Request.build("method", params, options)
     end
   end
@@ -145,11 +148,23 @@ defmodule Icon.RPC.RequestTest do
     end
 
     test "ignores value when the type is not found in the options" do
-      assert %{"params" => %{}} =
+      schema = %{boolean: {:boolean, default: true}}
+
+      assert %{"params" => %{"boolean" => "0x1"}} =
                "icx_method"
-               |> Request.build(%{integer: 42}, schema: %{})
+               |> Request.build(%{integer: 42}, schema: schema)
                |> Jason.encode!()
                |> Jason.decode!()
+    end
+
+    test "ignores params when it's empty" do
+      payload =
+        "icx_method"
+        |> Request.build(%{integer: 42}, schema: %{})
+        |> Jason.encode!()
+        |> Jason.decode!()
+
+      assert :miss = Map.get(payload, "params", :miss)
     end
 
     test "raises when the schema cannot be dumped" do

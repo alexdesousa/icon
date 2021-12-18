@@ -25,7 +25,11 @@ defmodule Icon.RPC.Request do
   @typedoc """
   RPC option.
   """
-  @type option :: {:types, map()} | {atom(), any()}
+  @type option ::
+          {:schema, module() | map()}
+          | {:timeout, non_neg_integer()}
+          | {:format, :result | :transaction}
+          | {:url, binary()}
 
   @typedoc """
   RPC options.
@@ -58,15 +62,18 @@ defmodule Icon.RPC.Request do
   convert any type to ICON 2.0's internal representation. The following are the
   recommended types:
 
-  - `Icon.Schema.Types.Integer` for Elixir's `non_neg_integer` type.
-  - `Icon.Schema.Types.String` for Elixir's `binary` type.
+  - `Icon.Schema.Types.Address` for both EOA and SCORE addresses.
+  - `Icon.Schema.Types.BinaryData` for binary data.
   - `Icon.Schema.Types.Boolean` for Elixir's `boolean` type.
   - `Icon.Schema.Types.EOA` for Externally Owned Account (EOA) addresses.
-  - `Icon.Schema.Types.SCORE` for SCORE addresses.
-  - `Icon.Schema.Types.Address` for both EOA and SCORE addresses.
   - `Icon.Schema.Types.Hash` for hashes e.g. block hash.
+  - `Icon.Schema.Types.Integer` for Elixir's `non_neg_integer` type.
+  - `Icon.Schema.Types.Loop` for loop (1 ICX = 10¹⁸ loop) which is a
+    `non_neg_integer` type.
+  - `Icon.Schema.Types.SCORE` for SCORE addresses.
   - `Icon.Schema.Types.Signature` for signatures.
-  - `Icon.Schema.Types.BinaryData` for binary data.
+  - `Icon.Schema.Types.String` for Elixir's `binary` type.
+  - `Icon.Schema.Types.Timestamp` for Elixir's `DateTime`.
 
   ### Example
 
@@ -78,7 +85,10 @@ defmodule Icon.RPC.Request do
   %Icon.RPC.Request{
     id: 1639382704065742380,
     method: "icx_getBlockByHeight",
-    options: [schema: %{height: :integer}],
+    options: [
+      schema: %{height: :integer},
+      url: "https://ctz.solidwallet.io"
+    ],
     params: %{height: 42}
   }
   ```
@@ -86,6 +96,8 @@ defmodule Icon.RPC.Request do
   @spec build(method(), params(), options()) :: t()
   def build(method, params, options)
       when is_binary(method) and is_map(params) and is_list(options) do
+    options = Keyword.put(options, :url, Icon.Config.url!())
+
     %__MODULE__{
       id: :erlang.system_time(),
       method: method,
@@ -144,7 +156,10 @@ defimpl Jason.Encoder, for: Icon.RPC.Request do
     |> Schema.dump()
     |> Schema.apply()
     |> case do
-      {:ok, params} ->
+      {:ok, params} when is_map(params) and params == %{} ->
+        Map.delete(payload, :params)
+
+      {:ok, params} when is_map(params) ->
         %{payload | params: params}
 
       {:error, %Error{message: message}} ->
