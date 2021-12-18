@@ -1,7 +1,6 @@
 defmodule Icon.RPC.RequestTest do
   use ExUnit.Case, async: true
 
-  alias Icon.Config
   alias Icon.RPC.Request
 
   describe "build/1" do
@@ -20,7 +19,7 @@ defmodule Icon.RPC.RequestTest do
     end
 
     test "sets at least the url option" do
-      url = Config.url!()
+      url = Request.build_url()
       assert %Request{options: [url: ^url]} = Request.build("method")
     end
   end
@@ -43,7 +42,7 @@ defmodule Icon.RPC.RequestTest do
     test "sets options" do
       params = %{int: 42}
       options = [schema: %{int: :integer}]
-      expected = Keyword.put(options, :url, Config.url!())
+      expected = Keyword.put(options, :url, Request.build_url())
 
       assert %Request{options: ^expected} =
                Request.build("method", params, options)

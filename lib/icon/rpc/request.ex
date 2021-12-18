@@ -96,7 +96,7 @@ defmodule Icon.RPC.Request do
   @spec build(method(), params(), options()) :: t()
   def build(method, params, options)
       when is_binary(method) and is_map(params) and is_list(options) do
-    options = Keyword.put(options, :url, Icon.Config.url!())
+    options = Keyword.put(options, :url, url())
 
     %__MODULE__{
       id: :erlang.system_time(),
@@ -104,6 +104,21 @@ defmodule Icon.RPC.Request do
       params: params,
       options: options
     }
+  end
+
+  #############
+  # URL builder
+
+  @spec url() :: binary()
+  defp url do
+    module = Icon.Config.url_builder!()
+    module.build_url()
+  end
+
+  @doc false
+  @spec build_url() :: binary()
+  def build_url do
+    "#{Icon.Config.url!()}/api/v3"
   end
 end
 
