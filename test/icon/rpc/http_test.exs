@@ -23,7 +23,7 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
 
       assert {:ok, ^expected} = HTTP.request(rpc)
     end
@@ -44,7 +44,7 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_transaction(tx_hash)
+      assert {:ok, %Request{} = rpc} = Goloop.get_transaction_result(tx_hash)
 
       assert {:ok, _} = HTTP.request(rpc)
     end
@@ -66,14 +66,14 @@ defmodule Icon.RPC.HTTPTest do
       end)
 
       assert {:ok, %Request{} = rpc} =
-               Goloop.get_transaction(tx_hash, wait_for: 5_000)
+               Goloop.wait_transaction_result(tx_hash, 5_000)
 
       assert {:ok, _} = HTTP.request(rpc)
     end
 
     test "when there's no connection, errors" do
       url = "http://unexistent"
-      assert {:ok, %Request{} = rpc} = Goloop.get_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
 
       rpc = %{rpc | options: Keyword.put(rpc.options, :url, url)}
 
@@ -98,7 +98,7 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 404, error)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
 
       assert {:error,
               %Error{
@@ -115,7 +115,7 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 200, "")
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
 
       assert {:error,
               %Error{
@@ -130,7 +130,7 @@ defmodule Icon.RPC.HTTPTest do
 
   describe "request/1 without mocked API" do
     test "connects with default node" do
-      assert {:ok, %Request{} = rpc} = Goloop.get_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
       assert {:ok, block} = HTTP.request(rpc)
       assert is_map(block)
     end

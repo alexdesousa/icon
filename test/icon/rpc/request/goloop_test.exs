@@ -4,7 +4,7 @@ defmodule Icon.RPC.Request.GoloopTest do
   alias Icon.RPC.Request
   alias Icon.Schema.Error
 
-  describe "get_block/0" do
+  describe "get_last_block/0" do
     test "builds RPC call for icx_getLastBlock" do
       assert {
                :ok,
@@ -13,62 +13,12 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: [url: _],
                  params: %{}
                }
-             } = Request.Goloop.get_block()
-    end
-
-    test "it is encoded correctly" do
-      assert %{
-               "id" => _id,
-               "jsonrpc" => "2.0",
-               "method" => "icx_getLastBlock"
-             } =
-               Request.Goloop.get_block()
-               |> elem(1)
-               |> Jason.encode!()
-               |> Jason.decode!()
+             } = Request.Goloop.get_last_block()
     end
   end
 
-  describe "get_block/1" do
-    test "when hash provided, builds RPC call for icx_getBlockByHash" do
-      hash =
-        "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
-
-      assert {
-               :ok,
-               %Request{
-                 method: "icx_getBlockByHash",
-                 options: [
-                   url: _,
-                   schema: %{hash: {:hash, required: true}}
-                 ],
-                 params: %{
-                   hash: ^hash
-                 }
-               }
-             } = Request.Goloop.get_block(hash: hash)
-    end
-
-    test "encodes hash correctly" do
-      hash = "8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
-
-      assert %{
-               "id" => _id,
-               "jsonrpc" => "2.0",
-               "method" => "icx_getBlockByHash",
-               "params" => %{
-                 "hash" =>
-                   "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
-               }
-             } =
-               [hash: hash]
-               |> Request.Goloop.get_block()
-               |> elem(1)
-               |> Jason.encode!()
-               |> Jason.decode!()
-    end
-
-    test "when height provided, builds RPC call for icx_getBlockByHeight" do
+  describe "get_block_by_height/1" do
+    test "builds RPC call for icx_getBlockByHeight" do
       height = 42
 
       assert {
@@ -83,7 +33,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                    height: ^height
                  }
                }
-             } = Request.Goloop.get_block(height: height)
+             } = Request.Goloop.get_block_by_height(height)
     end
 
     test "encodes height correctly" do
@@ -97,18 +47,25 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "height" => "0x2a"
                }
              } =
-               [height: height]
-               |> Request.Goloop.get_block()
+               height
+               |> Request.Goloop.get_block_by_height()
                |> elem(1)
                |> Jason.encode!()
                |> Jason.decode!()
     end
 
-    test "when hash and height are provided, builds RPC call for icx_getBlockByHash" do
+    test "when invalid height is provided, errors" do
+      assert {
+               :error,
+               %Error{message: "height is invalid"}
+             } = Request.Goloop.get_block_by_height(-42)
+    end
+  end
+
+  describe "get_block_by_hash/1" do
+    test "builds RPC call for icx_getBlockByHash" do
       hash =
         "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
-
-      height = 42
 
       assert {
                :ok,
@@ -122,21 +79,244 @@ defmodule Icon.RPC.Request.GoloopTest do
                    hash: ^hash
                  }
                }
-             } = Request.Goloop.get_block(hash: hash, height: height)
+             } = Request.Goloop.get_block_by_hash(hash)
+    end
+
+    test "encodes hash correctly" do
+      hash =
+        "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getBlockByHash",
+               "params" => %{
+                 "hash" => ^hash
+               }
+             } =
+               hash
+               |> Request.Goloop.get_block_by_hash()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
     end
 
     test "when invalid hash is provided, errors" do
       assert {
                :error,
                %Error{message: "hash is invalid"}
-             } = Request.Goloop.get_block(hash: "0x0")
+             } = Request.Goloop.get_block_by_hash("0x0")
+    end
+  end
+
+  describe "call/1" do
+    test "when a valid, builds RPC call for icx_call" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_call",
+                 options: [
+                   url: _,
+                   schema: %{
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     dataType: {:string, default: "call"},
+                     data: %{
+                       method: {:string, required: true},
+                       params: {
+                         %{address: {:address, required: true}},
+                         required: true
+                       }
+                     }
+                   }
+                 ],
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   dataType: "call",
+                   data: %{
+                     method: "getBalance",
+                     params: %{
+                       address: ^from
+                     }
+                   }
+                 }
+               }
+             } = Request.Goloop.call(from, to, options)
     end
 
-    test "when invalid height is provided, errors" do
+    test "when params schema is empty, ignores parameters" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        }
+      ]
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_call",
+                 options: [
+                   url: _,
+                   schema: %{
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     dataType: {:string, default: "call"},
+                     data: %{
+                       method: {:string, required: true}
+                     }
+                   }
+                 ],
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   dataType: "call",
+                   data: %{
+                     method: "getBalance"
+                   }
+                 }
+               }
+             } = Request.Goloop.call(from, to, options)
+    end
+
+    test "encodes it correctly" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_call",
+               "params" => %{
+                 "from" => ^from,
+                 "to" => ^to,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => "getBalance",
+                   "params" => %{
+                     "address" => ^from
+                   }
+                 }
+               }
+             } =
+               from
+               |> Request.Goloop.call(to, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when from address is invalid, errors" do
+      from = "hx0"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: to
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
       assert {
                :error,
-               %Error{message: "height is invalid"}
-             } = Request.Goloop.get_block(height: -42)
+               %Error{message: "from is invalid"}
+             } = Request.Goloop.call(from, to, options)
+    end
+
+    test "when from is a SCORE address, errors" do
+      from = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert {
+               :error,
+               %Error{message: "from is invalid"}
+             } = Request.Goloop.call(from, to, options)
+    end
+
+    test "when to address is invalid, errors" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "cx0"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert {
+               :error,
+               %Error{message: "to is invalid"}
+             } = Request.Goloop.call(from, to, options)
+    end
+
+    test "when to is a EOA address, errors" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: from
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert {
+               :error,
+               %Error{message: "to is invalid"}
+             } = Request.Goloop.call(from, to, options)
+    end
+
+    test "when params is invalid, errors" do
+      from = "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        method: "getBalance",
+        params: %{
+          address: "hx0"
+        },
+        schema: %{address: {:address, required: true}}
+      ]
+
+      assert {
+               :error,
+               %Error{message: "data.params.address is invalid"}
+             } = Request.Goloop.call(from, to, options)
     end
   end
 
@@ -294,7 +474,7 @@ defmodule Icon.RPC.Request.GoloopTest do
              } = Request.Goloop.get_total_supply()
     end
 
-    test "it is encoded correctly" do
+    test "encodes it correctly" do
       assert %{
                "id" => _id,
                "jsonrpc" => "2.0",
@@ -307,8 +487,8 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
-  describe "get_transaction/1" do
-    test "when no options are provided, builds RPC call for icx_getTransactionResult" do
+  describe "get_transaction_result/1" do
+    test "builds RPC call for icx_getTransactionResult" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
@@ -324,10 +504,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                    txHash: ^tx_hash
                  }
                }
-             } = Request.Goloop.get_transaction(tx_hash)
+             } = Request.Goloop.get_transaction_result(tx_hash)
     end
 
-    test "it is encoded correctly for icx_getTransactionResult" do
+    test "encodes it correctly" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
@@ -340,82 +520,24 @@ defmodule Icon.RPC.Request.GoloopTest do
                }
              } =
                tx_hash
-               |> Request.Goloop.get_transaction()
+               |> Request.Goloop.get_transaction_result()
                |> elem(1)
                |> Jason.encode!()
                |> Jason.decode!()
     end
 
-    test "it is encoded correctly for icx_getTransactionByHash" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      assert %{
-               "id" => _id,
-               "jsonrpc" => "2.0",
-               "method" => "icx_getTransactionByHash",
-               "params" => %{
-                 "txHash" => ^tx_hash
-               }
-             } =
-               tx_hash
-               |> Request.Goloop.get_transaction(format: :transaction)
-               |> elem(1)
-               |> Jason.encode!()
-               |> Jason.decode!()
-    end
-
-    test "it is encoded correctly for icx_waitTransactionResult" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      assert %{
-               "id" => _id,
-               "jsonrpc" => "2.0",
-               "method" => "icx_waitTransactionResult",
-               "params" => %{
-                 "txHash" => ^tx_hash
-               }
-             } =
-               tx_hash
-               |> Request.Goloop.get_transaction(wait_for: 5000)
-               |> elem(1)
-               |> Jason.encode!()
-               |> Jason.decode!()
-    end
-
-    test "when wait_for=0 and format=:result, builds RPC call for icx_getTransactionResult" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      options = [
-        wait_for: 0,
-        format: :result
-      ]
-
+    test "when invalid hash is provided, errors" do
       assert {
-               :ok,
-               %Request{
-                 method: "icx_getTransactionResult",
-                 options: [
-                   url: _,
-                   schema: %{txHash: {:hash, required: true}}
-                 ],
-                 params: %{
-                   txHash: ^tx_hash
-                 }
-               }
-             } = Request.Goloop.get_transaction(tx_hash, options)
+               :error,
+               %Error{message: "txHash is invalid"}
+             } = Request.Goloop.get_transaction_result("0x0")
     end
+  end
 
-    test "when wait_for=0 and format=:transaction, builds RPC call for icx_getTransactionByHash" do
+  describe "get_transaction_by_hash/1" do
+    test "builds RPC call for icx_getTransactionByHash" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      options = [
-        wait_for: 0,
-        format: :transaction
-      ]
 
       assert {
                :ok,
@@ -429,86 +551,92 @@ defmodule Icon.RPC.Request.GoloopTest do
                    txHash: ^tx_hash
                  }
                }
-             } = Request.Goloop.get_transaction(tx_hash, options)
+             } = Request.Goloop.get_transaction_by_hash(tx_hash)
     end
 
-    test "when wait_for>0 and format=:result, builds RPC call for icx_waitTransactionResult" do
+    test "encodes it correctly" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
-      options = [
-        wait_for: 5000,
-        format: :result
-      ]
-
-      assert {
-               :ok,
-               %Request{
-                 method: "icx_waitTransactionResult",
-                 options: [
-                   url: _,
-                   schema: %{txHash: {:hash, required: true}},
-                   timeout: 5000,
-                   format: :result
-                 ],
-                 params: %{
-                   txHash: ^tx_hash
-                 }
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_getTransactionByHash",
+               "params" => %{
+                 "txHash" => ^tx_hash
                }
-             } = Request.Goloop.get_transaction(tx_hash, options)
-    end
-
-    test "when wait_for>0 and format=:transaction, builds RPC call for icx_waitTransactionResult" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      options = [
-        wait_for: 5000,
-        format: :transaction
-      ]
-
-      assert {
-               :ok,
-               %Request{
-                 method: "icx_waitTransactionResult",
-                 options: [
-                   url: _,
-                   schema: %{txHash: {:hash, required: true}},
-                   timeout: 5000,
-                   format: :transaction
-                 ],
-                 params: %{
-                   txHash: ^tx_hash
-                 }
-               }
-             } = Request.Goloop.get_transaction(tx_hash, options)
+             } =
+               tx_hash
+               |> Request.Goloop.get_transaction_by_hash()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
     end
 
     test "when invalid hash is provided, errors" do
       assert {
                :error,
                %Error{message: "txHash is invalid"}
-             } = Request.Goloop.get_transaction("0x0")
+             } = Request.Goloop.get_transaction_by_hash("0x0")
     end
+  end
 
-    test "when invalid wait_for value is provided, raises" do
+  describe "wait_transaction_result/1" do
+    test "builds RPC call for icx_waitTransactionResult" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
+      timeout = 5_000
+
       assert {
-               :error,
-               %Error{message: "wait_for is invalid"}
-             } = Request.Goloop.get_transaction(tx_hash, wait_for: -1)
+               :ok,
+               %Request{
+                 method: "icx_waitTransactionResult",
+                 options: [
+                   url: _,
+                   schema: %{txHash: {:hash, required: true}},
+                   timeout: ^timeout
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = Request.Goloop.wait_transaction_result(tx_hash, timeout)
     end
 
-    test "when invalid format is provided, errors" do
+    test "encodes it correctly" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
 
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_waitTransactionResult",
+               "params" => %{
+                 "txHash" => ^tx_hash
+               }
+             } =
+               tx_hash
+               |> Request.Goloop.wait_transaction_result(5_000)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when invalid hash is provided, errors" do
       assert {
                :error,
-               %Error{message: "format is invalid"}
-             } = Request.Goloop.get_transaction(tx_hash, format: :full)
+               %Error{message: "txHash is invalid"}
+             } = Request.Goloop.wait_transaction_result("0x0", 5_000)
+    end
+
+    test "when invalid timeout is provided, raises" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert_raise FunctionClauseError, fn ->
+        Request.Goloop.wait_transaction_result(tx_hash, -5_000)
+      end
     end
   end
 end
