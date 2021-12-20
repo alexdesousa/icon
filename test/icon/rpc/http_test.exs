@@ -66,7 +66,7 @@ defmodule Icon.RPC.HTTPTest do
       end)
 
       assert {:ok, %Request{} = rpc} =
-               Goloop.wait_transaction_result(tx_hash, 5_000)
+               Goloop.get_transaction_result(tx_hash, timeout: 5_000)
 
       assert {:ok, _} = HTTP.request(rpc)
     end

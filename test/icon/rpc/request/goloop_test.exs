@@ -507,6 +507,26 @@ defmodule Icon.RPC.Request.GoloopTest do
              } = Request.Goloop.get_transaction_result(tx_hash)
     end
 
+    test "builds RPC call for icx_waitTransactionResult" do
+      tx_hash =
+        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_waitTransactionResult",
+                 options: [
+                   url: _,
+                   schema: %{txHash: {:hash, required: true}},
+                   timeout: 5_000
+                 ],
+                 params: %{
+                   txHash: ^tx_hash
+                 }
+               }
+             } = Request.Goloop.get_transaction_result(tx_hash, timeout: 5_000)
+    end
+
     test "encodes it correctly" do
       tx_hash =
         "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
@@ -1439,65 +1459,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> elem(1)
                |> Jason.encode!()
                |> Jason.decode!()
-    end
-  end
-
-  describe "wait_transaction_result/1" do
-    test "builds RPC call for icx_waitTransactionResult" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      timeout = 5_000
-
-      assert {
-               :ok,
-               %Request{
-                 method: "icx_waitTransactionResult",
-                 options: [
-                   url: _,
-                   schema: %{txHash: {:hash, required: true}},
-                   timeout: ^timeout
-                 ],
-                 params: %{
-                   txHash: ^tx_hash
-                 }
-               }
-             } = Request.Goloop.wait_transaction_result(tx_hash, timeout)
-    end
-
-    test "encodes it correctly" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      assert %{
-               "id" => _id,
-               "jsonrpc" => "2.0",
-               "method" => "icx_waitTransactionResult",
-               "params" => %{
-                 "txHash" => ^tx_hash
-               }
-             } =
-               tx_hash
-               |> Request.Goloop.wait_transaction_result(5_000)
-               |> elem(1)
-               |> Jason.encode!()
-               |> Jason.decode!()
-    end
-
-    test "when invalid hash is provided, errors" do
-      assert {
-               :error,
-               %Error{message: "txHash is invalid"}
-             } = Request.Goloop.wait_transaction_result("0x0", 5_000)
-    end
-
-    test "when invalid timeout is provided, raises" do
-      tx_hash =
-        "0xd8da71e926052b960def61c64f325412772f8e986f888685bc87c0bc046c2d9f"
-
-      assert_raise FunctionClauseError, fn ->
-        Request.Goloop.wait_transaction_result(tx_hash, -5_000)
-      end
     end
   end
 end

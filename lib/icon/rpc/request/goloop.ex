@@ -172,19 +172,38 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets the transaction result given its `tx_hash`.
+  Gets the transaction result given its `tx_hash` and some optional `options`.
+
+  Options:
+  - `timeout` - Timeout in milliseconds for waiting for the result of the
+    transaction.
   """
   @spec get_transaction_result(Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_transaction_result(tx_hash) do
+  @spec get_transaction_result(Schema.Types.Hash.t(), keyword()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def get_transaction_result(tx_hash, options \\ []) do
     schema = %{txHash: {:hash, required: true}}
 
     with {:ok, params} <- validate(schema, txHash: tx_hash) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :wait_transaction_result,
+          else: :get_transaction_result
+
+      options =
+        if timeout > 0,
+          do: [schema: schema, timeout: timeout],
+          else: [schema: schema]
+
       request =
-        :get_transaction_result
+        method
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, options)
 
       {:ok, request}
     end
@@ -242,26 +261,6 @@ defmodule Icon.RPC.Request.Goloop do
         method
         |> method()
         |> Request.build(params, options)
-
-      {:ok, request}
-    end
-  end
-
-  @doc """
-  Gets transaction result given it `tx_hash` waiting for it for `timeout`
-  milliseconds.
-  """
-  @spec wait_transaction_result(Schema.Types.Hash.t(), pos_integer()) ::
-          {:ok, Request.t()}
-          | {:error, Error.t()}
-  def wait_transaction_result(tx_hash, timeout) when timeout > 0 do
-    schema = %{txHash: {:hash, required: true}}
-
-    with {:ok, params} <- validate(schema, txHash: tx_hash) do
-      request =
-        :wait_transaction_result
-        |> method()
-        |> Request.build(params, schema: schema, timeout: timeout)
 
       {:ok, request}
     end
