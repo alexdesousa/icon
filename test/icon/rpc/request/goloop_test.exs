@@ -581,6 +581,867 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
+  describe "send_transaction/1 for coin transfers" do
+    test "builds RPC call for icx_sendTransaction" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: {:loop, required: true},
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1}
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: {:loop, required: true},
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1}
+                   },
+                   timeout: 5_000
+                 ],
+                 params: ^params
+               }
+             } =
+               Request.Goloop.send_transaction(
+                 params: params,
+                 timeout: 5_000
+               )
+    end
+
+    test "encodes it correctly" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "value" => "0x2a",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1"
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when dataType is invalid, errors" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :invalid
+      }
+
+      assert {
+               :error,
+               %Error{message: "dataType is invalid"}
+             } = Request.Goloop.send_transaction(params: params)
+    end
+  end
+
+  describe "send_transaction/1 for method calls" do
+    test "builds RPC call for icx_sendTransaction with params" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :call,
+        data: %{
+          method: "getBalance",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      call_schema = %{
+        address: {:address, required: true}
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:call]}, default: :call, required: true},
+                     data: {
+                       %{
+                         method: {:string, required: true},
+                         params: {
+                           %{address: {:address, required: true}},
+                           required: true
+                         }
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } =
+               Request.Goloop.send_transaction(
+                 params: params,
+                 schema: call_schema
+               )
+    end
+
+    test "encodes it correctly with params" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :call,
+        data: %{
+          method: "getBalance",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      call_schema = %{
+        address: {:address, required: true}
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => "getBalance",
+                   "params" => %{
+                     "address" => "hxbe258ceb872e08851f1f59694dac2558708ece11"
+                   }
+                 }
+               }
+             } =
+               [params: params, schema: call_schema]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for icx_sendTransaction without params" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :call,
+        data: %{
+          method: "getBalance"
+        }
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:call]}, default: :call, required: true},
+                     data: {
+                       %{
+                         method: {:string, required: true}
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "encodes it correctly without params" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :call,
+        data: %{
+          method: "getBalance"
+        }
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => "getBalance"
+                 }
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+  end
+
+  describe "send_transaction/1 for deploys" do
+    test "builds RPC call for icx_sendTransaction with params" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deploy,
+        data: %{
+          contentType: "application/zip",
+          content: "0x1867291283973610982301923812873419826abcdef9182731926312",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      deploy_schema = %{
+        address: {:address, required: true}
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:deploy]}, default: :deploy, required: true},
+                     data: {
+                       %{
+                         contentType: {:string, required: true},
+                         content: {:binary_data, required: true},
+                         params: {
+                           %{address: {:address, required: true}},
+                           required: true
+                         }
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } =
+               Request.Goloop.send_transaction(
+                 params: params,
+                 schema: deploy_schema
+               )
+    end
+
+    test "encodes it correctly with params" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deploy,
+        data: %{
+          contentType: "application/zip",
+          content: "0x1867291283973610982301923812873419826abcdef9182731926312",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      deploy_schema = %{
+        address: {:address, required: true}
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" =>
+                     "0x1867291283973610982301923812873419826abcdef9182731926312",
+                   "params" => %{
+                     "address" => "hxbe258ceb872e08851f1f59694dac2558708ece11"
+                   }
+                 }
+               }
+             } =
+               [params: params, schema: deploy_schema]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for icx_sendTransaction without params" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deploy,
+        data: %{
+          contentType: "application/zip",
+          content: "0x1867291283973610982301923812873419826abcdef9182731926312"
+        }
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:deploy]}, default: :deploy, required: true},
+                     data: {
+                       %{
+                         contentType: {:string, required: true},
+                         content: {:binary_data, required: true}
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "encodes it correctly without params" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deploy,
+        data: %{
+          contentType: "application/zip",
+          content: "0x1867291283973610982301923812873419826abcdef9182731926312"
+        }
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" =>
+                     "0x1867291283973610982301923812873419826abcdef9182731926312"
+                 }
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+  end
+
+  describe "send_transaction/1 for deposits" do
+    test "builds RPC for icx_sendTransaction (action=add)" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deposit,
+        data: %{action: :add}
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: {:loop, required: true},
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:deposit]}, default: :deposit, required: true},
+                     data: {
+                       %{
+                         action:
+                           {{:enum, [:add]}, default: :add, required: true}
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "encodes it correctly (action=add)" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deposit,
+        data: %{action: :add}
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "value" => "0x2a",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "add"
+                 }
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC for icx_sendTransaction (action withdraw)" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deposit,
+        data: %{action: :withdraw}
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:deposit]}, default: :deposit, required: true},
+                     data: {
+                       %{
+                         action:
+                           {{:enum, [:withdraw]},
+                            default: :withdraw, required: true},
+                         id: :hash,
+                         amount: :loop
+                       },
+                       required: true
+                     }
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "encodes it correctly (action=withdraw)" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deposit,
+        data: %{action: :withdraw}
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "value" => "0x2a",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "withdraw"
+                 }
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "when action is invalid, errors" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :deposit,
+        data: %{action: "deposit"}
+      }
+
+      assert {
+               :error,
+               %Error{
+                 code: -32_602,
+                 reason: :invalid_params,
+                 message: "data.action is invalid",
+                 domain: :unknown
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+  end
+
+  describe "send_transaction/1 for messages" do
+    test "builds RPC for icx_sendTransaction" do
+      datetime = DateTime.utc_now()
+
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: datetime,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :message,
+        data: "0x2a"
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 options: [
+                   url: _,
+                   schema: %{
+                     version: {:integer, required: true},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: :loop,
+                     stepLimit: {:integer, required: true},
+                     timestamp: {:timestamp, required: true},
+                     nid: {:integer, required: true},
+                     signature: {:signature, required: true},
+                     nonce: {:integer, default: 1},
+                     dataType:
+                       {{:enum, [:message]}, default: :message, required: true},
+                     data: {:binary_data, required: true}
+                   }
+                 ],
+                 params: ^params
+               }
+             } = Request.Goloop.send_transaction(params: params)
+    end
+
+    test "encodes it correctly (action=add)" do
+      params = %{
+        version: 3,
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        stepLimit: 10,
+        timestamp: 1_640_005_534_711_847,
+        nid: 1,
+        signature: "c2lnbmF0dXJl",
+        nonce: 1,
+        dataType: :message,
+        data: "0x2a"
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
+                 "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                 "stepLimit" => "0xa",
+                 "timestamp" => 1_640_005_534_711_847,
+                 "nid" => "0x1",
+                 "signature" => "c2lnbmF0dXJl",
+                 "nonce" => "0x1",
+                 "dataType" => "message",
+                 "data" => "0x2a"
+               }
+             } =
+               [params: params]
+               |> Request.Goloop.send_transaction()
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+  end
+
   describe "wait_transaction_result/1" do
     test "builds RPC call for icx_waitTransactionResult" do
       tx_hash =

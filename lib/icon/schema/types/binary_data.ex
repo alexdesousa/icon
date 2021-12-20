@@ -19,7 +19,7 @@ defmodule Icon.Schema.Types.BinaryData do
     data = String.downcase(data)
     length = String.length(data)
 
-    with true <- length > 2 and rem(length, 2) == 0,
+    with true <- length >= 2 and rem(length, 2) == 0,
          true <- String.match?(data, ~r/[a-f0-9]+/) do
       {:ok, "0x#{data}"}
     else
