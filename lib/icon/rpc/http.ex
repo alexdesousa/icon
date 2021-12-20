@@ -52,7 +52,7 @@ defmodule Icon.RPC.HTTP do
         do_decode(data)
 
       {:error, _} ->
-        {:error, Error.new(code: -31_000)}
+        {:error, Error.new(reason: :system_error)}
     end
   end
 
@@ -73,7 +73,7 @@ defmodule Icon.RPC.HTTP do
         {:error, reason}
 
       {:error, _} ->
-        {:error, Error.new(code: -31_000)}
+        {:error, Error.new(reason: :system_error)}
     end
   end
 end

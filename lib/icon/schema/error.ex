@@ -33,21 +33,21 @@ defmodule Icon.Schema.Error do
   SCORE errors.
   """
   @type score_error ::
-          :unknown_failure
-          | :contract_not_found
-          | :method_not_found
-          | :method_not_payable
-          | :illegal_format
-          | :invalid_parameter
-          | :invalid_instance
-          | :invalid_container_access
-          | :access_denied
-          | :out_of_step
-          | :out_of_balance
-          | :timeout_error
-          | :stack_overflow
-          | :skip_transaction
-          | :reverted
+          :score_unknown_failure
+          | :score_contract_not_found
+          | :score_method_not_found
+          | :score_method_not_payable
+          | :score_illegal_format
+          | :score_invalid_parameter
+          | :score_invalid_instance
+          | :score_invalid_container_access
+          | :score_access_denied
+          | :score_out_of_step
+          | :score_out_of_balance
+          | :score_timeout_error
+          | :score_stack_overflow
+          | :score_skip_transaction
+          | :score_reverted
 
   @doc """
   An error.
@@ -81,11 +81,12 @@ defmodule Icon.Schema.Error do
   end
 
   def new(error) do
-    code = error[:code] || -32_000
+    reason = error[:reason]
+    code = error[:code] || if reason, do: code(reason), else: -32_000
 
     %__MODULE__{
       code: code,
-      reason: reason(code),
+      reason: reason || reason(code),
       domain: domain(code),
       message: message(code, error[:message]),
       data: error[:data]
@@ -94,6 +95,38 @@ defmodule Icon.Schema.Error do
 
   #################
   # Private helpers
+
+  @spec code(error()) :: integer()
+  defp code(reason)
+  defp code(:parse_error), do: -32_700
+  defp code(:invalid_request), do: -32_600
+  defp code(:method_not_found), do: -32_601
+  defp code(:invalid_params), do: -32_602
+  defp code(:internal_error), do: -32_603
+  defp code(:server_error), do: -32_000
+  defp code(:system_error), do: -31_000
+  defp code(:pool_overflow), do: -31_001
+  defp code(:pending), do: -31_002
+  defp code(:executing), do: -31_003
+  defp code(:not_found), do: -31_004
+  defp code(:lack_of_resource), do: -31_005
+  defp code(:timeout), do: -31_006
+  defp code(:system_timeout), do: -31_007
+  defp code(:score_unknown_failure), do: -30_001
+  defp code(:score_contract_not_found), do: -30_002
+  defp code(:score_method_not_found), do: -30_003
+  defp code(:score_method_not_payable), do: -30_004
+  defp code(:score_illegal_format), do: -30_005
+  defp code(:score_invalid_parameter), do: -30_006
+  defp code(:score_invalid_instance), do: -30_007
+  defp code(:score_invalid_container_access), do: -30_008
+  defp code(:score_access_denied), do: -30_009
+  defp code(:score_out_of_step), do: -30_010
+  defp code(:score_out_of_balance), do: -30_011
+  defp code(:score_timeout_error), do: -30_012
+  defp code(:score_stack_overflow), do: -30_013
+  defp code(:score_skip_transaction), do: -30_014
+  defp code(:score_reverted), do: -30_032
 
   @spec reason(integer() | Schema.state()) :: error()
   defp reason(code)
@@ -112,21 +145,23 @@ defmodule Icon.Schema.Error do
   defp reason(-31_005), do: :lack_of_resource
   defp reason(-31_006), do: :timeout
   defp reason(-31_007), do: :system_timeout
-  defp reason(-30_001), do: :unknown_failure
-  defp reason(-30_002), do: :contract_not_found
-  defp reason(-30_003), do: :method_not_found
-  defp reason(-30_004), do: :method_not_payable
-  defp reason(-30_005), do: :illegal_format
-  defp reason(-30_006), do: :invalid_parameter
-  defp reason(-30_007), do: :invalid_instance
-  defp reason(-30_008), do: :invalid_container_access
-  defp reason(-30_009), do: :access_denied
-  defp reason(-30_010), do: :out_of_step
-  defp reason(-30_011), do: :out_of_balance
-  defp reason(-30_012), do: :timeout_error
-  defp reason(-30_013), do: :stack_overflow
-  defp reason(-30_014), do: :skip_transaction
-  defp reason(code) when -30_032 >= code and code >= -30_999, do: :reverted
+  defp reason(-30_001), do: :score_unknown_failure
+  defp reason(-30_002), do: :score_contract_not_found
+  defp reason(-30_003), do: :score_method_not_found
+  defp reason(-30_004), do: :score_method_not_payable
+  defp reason(-30_005), do: :score_illegal_format
+  defp reason(-30_006), do: :score_invalid_parameter
+  defp reason(-30_007), do: :score_invalid_instance
+  defp reason(-30_008), do: :score_invalid_container_access
+  defp reason(-30_009), do: :score_access_denied
+  defp reason(-30_010), do: :score_out_of_step
+  defp reason(-30_011), do: :score_out_of_balance
+  defp reason(-30_012), do: :score_timeout_error
+  defp reason(-30_013), do: :score_stack_overflow
+  defp reason(-30_014), do: :score_skip_transaction
+
+  defp reason(code) when -30_032 >= code and code >= -30_999,
+    do: :score_reverted
 
   @spec domain(integer()) :: domain()
   defp domain(code)
