@@ -613,7 +613,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1
       }
 
@@ -631,7 +630,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1}
                    }
                  ],
@@ -651,7 +649,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1
       }
 
@@ -669,7 +666,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1}
                    },
                    timeout: 5_000
@@ -692,7 +688,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1
       }
 
@@ -708,7 +703,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1"
                }
              } =
@@ -728,7 +722,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :invalid
       }
@@ -751,7 +744,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :call,
         data: %{
@@ -780,7 +772,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:call]}, default: :call, required: true},
@@ -813,7 +804,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :call,
         data: %{
@@ -839,7 +829,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "call",
                  "data" => %{
@@ -867,7 +856,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :call,
         data: %{
@@ -889,7 +877,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:call]}, default: :call, required: true},
@@ -914,7 +901,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :call,
         data: %{
@@ -933,7 +919,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "call",
                  "data" => %{
@@ -960,7 +945,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deploy,
         data: %{
@@ -990,7 +974,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:deploy]}, default: :deploy, required: true},
@@ -1024,7 +1007,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deploy,
         data: %{
@@ -1051,7 +1033,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "deploy",
                  "data" => %{
@@ -1081,7 +1062,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deploy,
         data: %{
@@ -1104,7 +1084,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:deploy]}, default: :deploy, required: true},
@@ -1130,7 +1109,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deploy,
         data: %{
@@ -1150,7 +1128,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "deploy",
                  "data" => %{
@@ -1180,7 +1157,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deposit,
         data: %{action: :add}
@@ -1200,7 +1176,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:deposit]}, default: :deposit, required: true},
@@ -1227,7 +1202,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deposit,
         data: %{action: :add}
@@ -1245,7 +1219,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "deposit",
                  "data" => %{
@@ -1270,7 +1243,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deposit,
         data: %{action: :withdraw}
@@ -1290,7 +1262,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:deposit]}, default: :deposit, required: true},
@@ -1320,7 +1291,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deposit,
         data: %{action: :withdraw}
@@ -1338,7 +1308,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "deposit",
                  "data" => %{
@@ -1362,7 +1331,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :deposit,
         data: %{action: "deposit"}
@@ -1391,7 +1359,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :message,
         data: "0x2a"
@@ -1411,7 +1378,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      stepLimit: {:integer, required: true},
                      timestamp: {:timestamp, required: true},
                      nid: {:integer, required: true},
-                     signature: {:signature, required: true},
                      nonce: {:integer, default: 1},
                      dataType:
                        {{:enum, [:message]}, default: :message, required: true},
@@ -1431,7 +1397,6 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: 1_640_005_534_711_847,
         nid: 1,
-        signature: "c2lnbmF0dXJl",
         nonce: 1,
         dataType: :message,
         data: "0x2a"
@@ -1448,7 +1413,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "stepLimit" => "0xa",
                  "timestamp" => 1_640_005_534_711_847,
                  "nid" => "0x1",
-                 "signature" => "c2lnbmF0dXJl",
                  "nonce" => "0x1",
                  "dataType" => "message",
                  "data" => "0x2a"

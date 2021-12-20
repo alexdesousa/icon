@@ -337,7 +337,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1}
     }
 
@@ -367,7 +366,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1},
       dataType: {{:enum, [:call]}, default: :call, required: true},
       data: {call_schema, required: true}
@@ -403,7 +401,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1},
       dataType: {{:enum, [:deploy]}, default: :deploy, required: true},
       data: {deploy_schema, required: true}
@@ -445,7 +442,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1},
       dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
       data: {
@@ -469,7 +465,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1},
       dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
       data: {
@@ -496,7 +491,6 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      signature: {:signature, required: true},
       nonce: {:integer, default: 1},
       dataType: {{:enum, [:message]}, default: :message, required: true},
       data: {:binary_data, required: true}
