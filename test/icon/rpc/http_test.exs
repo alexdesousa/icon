@@ -1,17 +1,27 @@
 defmodule Icon.RPC.HTTPTest do
   use ExUnit.Case, async: true
 
-  alias Icon.RPC.{HTTP, Request, Request.Goloop}
+  alias Icon.RPC.{HTTP, Identity, Request, Request.Goloop}
   alias Icon.Schema.Error
 
   describe "request/2 with mocked API" do
     setup do
       bypass = Bypass.open()
-      Icon.URLBuilder.put_bypass(bypass)
-      {:ok, bypass: bypass}
+
+      identity =
+        Identity.new(
+          private_key:
+            "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf",
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
     end
 
-    test "decodes result on successful call", %{bypass: bypass} do
+    test "decodes result on successful call", %{
+      bypass: bypass,
+      identity: identity
+    } do
       expected = %{
         "height" => "0x2a",
         "hash" =>
@@ -23,13 +33,14 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block(identity)
 
       assert {:ok, ^expected} = HTTP.request(rpc)
     end
 
     test "when there's no timeout, then there's no special Icon header", %{
-      bypass: bypass
+      bypass: bypass,
+      identity: identity
     } do
       tx_hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
@@ -44,13 +55,15 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_transaction_result(tx_hash)
+      assert {:ok, %Request{} = rpc} =
+               Goloop.get_transaction_result(identity, tx_hash)
 
       assert {:ok, _} = HTTP.request(rpc)
     end
 
     test "when there's timeout, then there's special Icon header", %{
-      bypass: bypass
+      bypass: bypass,
+      identity: identity
     } do
       tx_hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
@@ -66,16 +79,15 @@ defmodule Icon.RPC.HTTPTest do
       end)
 
       assert {:ok, %Request{} = rpc} =
-               Goloop.get_transaction_result(tx_hash, timeout: 5_000)
+               Goloop.get_transaction_result(identity, tx_hash, timeout: 5_000)
 
       assert {:ok, _} = HTTP.request(rpc)
     end
 
     test "when there's no connection, errors" do
-      url = "http://unexistent"
-      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
+      identity = Identity.new(node: "http://unexistent")
 
-      rpc = %{rpc | options: Keyword.put(rpc.options, :url, url)}
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block(identity)
 
       assert {:error,
               %Error{
@@ -87,7 +99,10 @@ defmodule Icon.RPC.HTTPTest do
               }} = HTTP.request(rpc)
     end
 
-    test "when the API returns an error, errors", %{bypass: bypass} do
+    test "when the API returns an error, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
       Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
         error =
           error(%{
@@ -98,7 +113,7 @@ defmodule Icon.RPC.HTTPTest do
         Plug.Conn.resp(conn, 404, error)
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block(identity)
 
       assert {:error,
               %Error{
@@ -110,12 +125,15 @@ defmodule Icon.RPC.HTTPTest do
               }} = HTTP.request(rpc)
     end
 
-    test "when payload does not conform with API, errors", %{bypass: bypass} do
+    test "when payload does not conform with API, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
       Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
         Plug.Conn.resp(conn, 200, "")
       end)
 
-      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
+      assert {:ok, %Request{} = rpc} = Goloop.get_last_block(identity)
 
       assert {:error,
               %Error{
@@ -130,7 +148,10 @@ defmodule Icon.RPC.HTTPTest do
 
   describe "request/1 without mocked API" do
     test "connects with default node" do
-      assert {:ok, %Request{} = rpc} = Goloop.get_last_block()
+      assert {:ok, %Request{} = rpc} =
+               Identity.new()
+               |> Goloop.get_last_block()
+
       assert {:ok, block} = HTTP.request(rpc)
       assert is_map(block)
     end

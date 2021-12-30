@@ -2,7 +2,7 @@ defmodule Icon.RPC.Request.Goloop do
   @moduledoc """
   This module defines the Goloop API request payloads.
   """
-  alias Icon.RPC.Request
+  alias Icon.RPC.{Identity, Request}
   alias Icon.Schema
   alias Icon.Schema.Error
 
@@ -26,12 +26,14 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets last block.
   """
-  @spec get_last_block() :: {:ok, Request.t()}
-  def get_last_block do
+  @spec get_last_block(Identity.t()) :: {:ok, Request.t()}
+  def get_last_block(identity)
+
+  def get_last_block(%Identity{} = identity) do
     request =
       :get_last_block
       |> method()
-      |> Request.build()
+      |> Request.build(%{}, identity: identity)
 
     {:ok, request}
   end
@@ -39,17 +41,19 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets block by `height`.
   """
-  @spec get_block_by_height(Schema.Types.Integer.t()) ::
+  @spec get_block_by_height(Identity.t(), Schema.Types.Integer.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_block_by_height(height) do
+  def get_block_by_height(identity, height)
+
+  def get_block_by_height(%Identity{} = identity, height) do
     schema = %{height: {:integer, required: true}}
 
     with {:ok, params} <- validate(schema, height: height) do
       request =
         :get_block_by_height
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
@@ -58,30 +62,34 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets block by `hash`.
   """
-  @spec get_block_by_hash(Schema.Types.Hash.t()) ::
+  @spec get_block_by_hash(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_block_by_hash(hash) do
+  def get_block_by_hash(identity, hash)
+
+  def get_block_by_hash(%Identity{} = identity, hash) do
     schema = %{hash: {:hash, required: true}}
 
     with {:ok, params} <- validate(schema, hash: hash) do
       request =
         :get_block_by_hash
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
   end
 
   @doc """
-  Calls a SCORE `method`. The call is always sent `from` an EOA address `to` a
+  Calls a SCORE `method`. The call is always sent from an EOA address `to` a
   SCORE address.
   """
-  @spec call(Schema.Types.EOA.t(), Schema.Types.SCORE.t(), keyword()) ::
+  @spec call(Identity.t(), Schema.Types.SCORE.t(), keyword()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def call(from, to, options) do
+  def call(identity, to, options)
+
+  def call(%Identity{address: from} = identity, to, options) do
     call_schema = options[:schema]
     call_method = options[:method]
     call_params = options[:params]
@@ -114,7 +122,7 @@ defmodule Icon.RPC.Request.Goloop do
       request =
         :call
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
@@ -123,17 +131,23 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets the balance of an EOA or SCORE `address`.
   """
-  @spec get_balance(Schema.Types.Address.t()) ::
+  @spec get_balance(Identity.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_balance(address) do
+  @spec get_balance(Identity.t(), nil | Schema.Types.Address.t()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def get_balance(identity, address \\ nil)
+
+  def get_balance(%Identity{} = identity, address) do
+    address = address || identity.address
     schema = %{address: {:address, required: true}}
 
     with {:ok, params} <- validate(schema, address: address) do
       request =
         :get_balance
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
@@ -142,17 +156,19 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets the API of a SCORE given its `address`.
   """
-  @spec get_score_api(Schema.Types.SCORE.t()) ::
+  @spec get_score_api(Identity.t(), Schema.Types.SCORE.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_score_api(address) do
+  def get_score_api(identity, address)
+
+  def get_score_api(%Identity{} = identity, address) do
     schema = %{address: {:score_address, required: true}}
 
     with {:ok, params} <- validate(schema, address: address) do
       request =
         :get_score_api
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
@@ -161,12 +177,14 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets the total ICX supply.
   """
-  @spec get_total_supply() :: {:ok, Request.t()}
-  def get_total_supply do
+  @spec get_total_supply(Identity.t()) :: {:ok, Request.t()}
+  def get_total_supply(identity)
+
+  def get_total_supply(%Identity{} = identity) do
     request =
       :get_total_supply
       |> method()
-      |> Request.build()
+      |> Request.build(%{}, identity: identity)
 
     {:ok, request}
   end
@@ -178,13 +196,15 @@ defmodule Icon.RPC.Request.Goloop do
   - `timeout` - Timeout in milliseconds for waiting for the result of the
     transaction.
   """
-  @spec get_transaction_result(Schema.Types.Hash.t()) ::
+  @spec get_transaction_result(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  @spec get_transaction_result(Schema.Types.Hash.t(), keyword()) ::
+  @spec get_transaction_result(Identity.t(), Schema.Types.Hash.t(), keyword()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_transaction_result(tx_hash, options \\ []) do
+  def get_transaction_result(identity, tx_hash, options \\ [])
+
+  def get_transaction_result(%Identity{} = identity, tx_hash, options) do
     schema = %{txHash: {:hash, required: true}}
 
     with {:ok, params} <- validate(schema, txHash: tx_hash) do
@@ -197,8 +217,8 @@ defmodule Icon.RPC.Request.Goloop do
 
       options =
         if timeout > 0,
-          do: [schema: schema, timeout: timeout],
-          else: [schema: schema]
+          do: [schema: schema, identity: identity, timeout: timeout],
+          else: [schema: schema, identity: identity]
 
       request =
         method
@@ -212,17 +232,19 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Gets transaction by `tx_hash`.
   """
-  @spec get_transaction_by_hash(Schema.Types.Hash.t()) ::
+  @spec get_transaction_by_hash(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def get_transaction_by_hash(tx_hash) do
+  def get_transaction_by_hash(identity, tx_hash)
+
+  def get_transaction_by_hash(%Identity{} = identity, tx_hash) do
     schema = %{txHash: {:hash, required: true}}
 
     with {:ok, params} <- validate(schema, txHash: tx_hash) do
       request =
         :get_transaction_by_hash
         |> method()
-        |> Request.build(params, schema: schema)
+        |> Request.build(params, schema: schema, identity: identity)
 
       {:ok, request}
     end
@@ -239,12 +261,15 @@ defmodule Icon.RPC.Request.Goloop do
   - `timeout` - Timeout in milliseconds for waiting for the transaction. It does
     not wait by default.
   """
-  @spec send_transaction(keyword()) :: {:ok, Request.t()} | {:error, Error.t()}
-  def send_transaction(options)
+  @spec send_transaction(Identity.t(), keyword()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def send_transaction(identity, options)
 
-  def send_transaction(options) do
+  def send_transaction(%Identity{} = identity, options) do
     with {:ok, schema} <- transaction_schema(options),
-         {:ok, params} <- validate(schema, options[:params] || %{}) do
+         {:ok, params} <- add_identity(identity, options[:params] || %{}),
+         {:ok, params} <- validate(schema, params) do
       timeout = options[:timeout] || 0
 
       method =
@@ -254,8 +279,8 @@ defmodule Icon.RPC.Request.Goloop do
 
       options =
         if timeout > 0,
-          do: [schema: schema, timeout: timeout],
-          else: [schema: schema]
+          do: [schema: schema, identity: identity, timeout: timeout],
+          else: [schema: schema, identity: identity]
 
       request =
         method
@@ -293,6 +318,29 @@ defmodule Icon.RPC.Request.Goloop do
   defp method(:send_transaction), do: "icx_sendTransaction"
   defp method(:send_transaction_and_wait), do: "icx_sendTransactionAndWait"
   defp method(:wait_transaction_result), do: "icx_waitTransactionResult"
+
+  @spec add_identity(Identity.t(), keyword() | map()) ::
+          {:ok, map()}
+          | {:error, Error.t()}
+  defp add_identity(identity, params)
+
+  defp add_identity(%Identity{} = identity, params) when is_list(params) do
+    add_identity(identity, Map.new(params))
+  end
+
+  defp add_identity(%Identity{address: "hx" <> _} = identity, params)
+       when is_map(params) do
+    params =
+      params
+      |> Map.put(:nid, identity.network_id)
+      |> Map.put(:from, identity.address)
+
+    {:ok, params}
+  end
+
+  defp add_identity(%Identity{}, params) when is_map(params) do
+    {:error, Error.new(reason: :invalid_request, message: "Invalid identity")}
+  end
 
   ############################
   # Transaction schema helpers

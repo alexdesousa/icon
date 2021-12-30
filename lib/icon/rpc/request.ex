@@ -2,6 +2,8 @@ defmodule Icon.RPC.Request do
   @moduledoc """
   This module defines a basic JSON RPC request payload.
   """
+  alias Icon.RPC.Identity
+
   @enforce_keys [:id, :method, :params, :options]
 
   @doc false
@@ -28,7 +30,7 @@ defmodule Icon.RPC.Request do
   @type option ::
           {:schema, module() | map()}
           | {:timeout, non_neg_integer()}
-          | {:format, :result | :transaction}
+          | {:identity, Identity.t()}
           | {:url, binary()}
 
   @typedoc """
@@ -43,16 +45,8 @@ defmodule Icon.RPC.Request do
           id: id :: pos_integer(),
           method: method :: method(),
           params: params :: params(),
-          options: options :: options()
+          options: options :: map()
         }
-
-  @doc """
-  Builds an RPC call given a `method`.
-  """
-  @spec build(method()) :: t()
-  def build(method) when is_binary(method) do
-    build(method, %{}, [])
-  end
 
   @doc """
   Builds an RPC request given a `method`, `params` and `options`.
@@ -87,7 +81,12 @@ defmodule Icon.RPC.Request do
     method: "icx_getBlockByHeight",
     options: [
       schema: %{height: :integer},
-      url: "https://ctz.solidwallet.io"
+      identity: #Identity<
+        node: "https://ctz.solidwallet.io",
+        network_id: "0x01 (Mainnet)",
+        debug: false
+      >,
+      url: "https://ctz.solidwallet.io/api/v3"
     ],
     params: %{height: 42}
   }
@@ -96,7 +95,11 @@ defmodule Icon.RPC.Request do
   @spec build(method(), params(), options()) :: t()
   def build(method, params, options)
       when is_binary(method) and is_map(params) and is_list(options) do
-    options = Keyword.put(options, :url, url())
+    options =
+      options
+      |> Keyword.put_new(:identity, Identity.new())
+      |> put_url()
+      |> Map.new()
 
     %__MODULE__{
       id: :erlang.system_time(),
@@ -106,19 +109,15 @@ defmodule Icon.RPC.Request do
     }
   end
 
-  #############
-  # URL builder
+  @spec put_url(options()) :: options()
+  defp put_url(options) do
+    case options[:identity] do
+      %Identity{debug: false, node: node} ->
+        Keyword.put(options, :url, "#{node}/api/v3")
 
-  @spec url() :: binary()
-  defp url do
-    module = Icon.Config.url_builder!()
-    module.build_url()
-  end
-
-  @doc false
-  @spec build_url() :: binary()
-  def build_url do
-    "#{Icon.Config.url!()}/api/v3"
+      %Identity{debug: true, node: node} ->
+        Keyword.put(options, :url, "#{node}/api/v3d")
+    end
   end
 end
 

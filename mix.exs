@@ -13,7 +13,6 @@ defmodule Icon.MixProject do
       app: @app,
       version: @version,
       elixir: "~> 1.12",
-      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
@@ -32,9 +31,6 @@ defmodule Icon.MixProject do
   #############
   # Application
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
-
   def application do
     [
       mod: {Icon.Application, []},
@@ -47,7 +43,6 @@ defmodule Icon.MixProject do
       {:finch, "~> 0.10"},
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
-      {:skogsra, "~> 2.3"},
       {:bypass, "~> 2.1", only: :test},
       {:ex_doc, "~> 0.26", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
@@ -98,8 +93,7 @@ defmodule Icon.MixProject do
   defp groups_for_modules do
     [
       "ICON 2.0 SDK": [
-        Icon,
-        Icon.Config
+        Icon
       ],
       "JSON RPC v3": [
         Icon.RPC.HTTP,

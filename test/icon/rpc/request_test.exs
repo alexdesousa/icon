@@ -1,28 +1,7 @@
 defmodule Icon.RPC.RequestTest do
   use ExUnit.Case, async: true
 
-  alias Icon.RPC.Request
-
-  describe "build/1" do
-    test "sets an id" do
-      assert %Request{id: id} = Request.build("method")
-      assert is_integer(id) and id > 0
-    end
-
-    test "sets a method" do
-      assert %Request{method: "method"} = Request.build("method")
-    end
-
-    test "sets empty params" do
-      assert %Request{params: params} = Request.build("method")
-      assert params == %{}
-    end
-
-    test "sets at least the url option" do
-      url = Request.build_url()
-      assert %Request{options: [url: ^url]} = Request.build("method")
-    end
-  end
+  alias Icon.RPC.{Identity, Request}
 
   describe "build/3" do
     test "sets an id" do
@@ -39,13 +18,24 @@ defmodule Icon.RPC.RequestTest do
                Request.build("method", %{int: 42}, [])
     end
 
-    test "sets options" do
+    test "does not override provided identity" do
       params = %{int: 42}
-      options = [schema: %{int: :integer}]
-      expected = Keyword.put(options, :url, Request.build_url())
+      %Identity{node: node} = identity = Identity.new(debug: true)
 
-      assert %Request{options: ^expected} =
-               Request.build("method", params, options)
+      options = [
+        schema: %{int: :integer},
+        identity: identity
+      ]
+
+      expected_url = "#{node}/api/v3d"
+
+      assert %Request{
+               options: %{
+                 schema: %{int: :integer},
+                 identity: ^identity,
+                 url: ^expected_url
+               }
+             } = Request.build("method", params, options)
     end
   end
 
@@ -63,7 +53,7 @@ defmodule Icon.RPC.RequestTest do
     test "adds jsonrpc version" do
       assert %{"jsonrpc" => "2.0"} =
                "icx_method"
-               |> Request.build()
+               |> Request.build(%{}, [])
                |> Jason.encode!()
                |> Jason.decode!()
     end
@@ -71,7 +61,7 @@ defmodule Icon.RPC.RequestTest do
     test "keeps the id" do
       assert %{"id" => id} =
                "icx_method"
-               |> Request.build()
+               |> Request.build(%{}, [])
                |> Jason.encode!()
                |> Jason.decode!()
 
@@ -81,7 +71,7 @@ defmodule Icon.RPC.RequestTest do
     test "keeps the method" do
       assert %{"method" => "icx_method"} =
                "icx_method"
-               |> Request.build()
+               |> Request.build(%{}, [])
                |> Jason.encode!()
                |> Jason.decode!()
     end
@@ -139,7 +129,7 @@ defmodule Icon.RPC.RequestTest do
     test "does not include empty parameters" do
       payload =
         "icx_method"
-        |> Request.build()
+        |> Request.build(%{}, [])
         |> Jason.encode!()
         |> Jason.decode!()
 
