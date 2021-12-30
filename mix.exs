@@ -45,7 +45,8 @@ defmodule Icon.MixProject do
   defp deps do
     [
       {:finch, "~> 0.10"},
-      {:jason, "~> 1.2"},
+      {:jason, "~> 1.3"},
+      {:curvy, "~> 0.3"},
       {:skogsra, "~> 2.3"},
       {:bypass, "~> 2.1", only: :test},
       {:ex_doc, "~> 0.26", only: :dev, runtime: false},
