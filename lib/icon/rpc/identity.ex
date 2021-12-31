@@ -65,6 +65,25 @@ defmodule Icon.RPC.Identity do
     |> maybe_add_address()
   end
 
+  @doc """
+  Whether the `identity` has an EOA address or not.
+  """
+  @spec has_address(t()) :: Macro.t()
+  defguard has_address(identity)
+           when is_struct(identity, __MODULE__) and
+                  is_binary(identity.address) and
+                  is_struct(identity.key, Curvy.Key)
+
+  @doc """
+  Whether the `identity` can sign or not.
+  """
+  @spec can_sign(t()) :: Macro.t()
+  defguard can_sign(identity)
+           when has_address(identity) and
+                  is_binary(identity.node) and
+                  is_integer(identity.network_id) and
+                  identity.network_id >= 1
+
   #########
   # Helpers
 
@@ -116,7 +135,7 @@ defmodule Icon.RPC.Identity do
     %{identity | network_id: network_id}
   end
 
-  # Adds ICON 2.0 node. It defaults to 
+  # Adds ICON 2.0 node. It defaults to Mainet node.
   @spec add_node(t(), nil | binary()) :: t()
   defp add_node(identity, node)
 

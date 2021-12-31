@@ -97,6 +97,7 @@ defmodule Icon.MixProject do
       ],
       "JSON RPC v3": [
         Icon.RPC.HTTP,
+        Icon.RPC.Identity,
         Icon.RPC.Request,
         Icon.RPC.Request.Goloop
       ],

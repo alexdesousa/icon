@@ -1,6 +1,7 @@
 defmodule Icon.RPC.IdentityTest do
   use ExUnit.Case, async: true
 
+  require Icon.RPC.Identity
   alias Icon.RPC.Identity
 
   describe "new/0" do
@@ -106,6 +107,44 @@ defmodule Icon.RPC.IdentityTest do
       assert %Identity{
                address: ^expected
              } = Identity.new(private_key: private_key)
+    end
+  end
+
+  describe "has_address/1" do
+    test "when the identity has an address, returns true" do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      expected = "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+
+      assert %Identity{
+               address: ^expected
+             } = identity = Identity.new(private_key: private_key)
+
+      assert Identity.has_address(identity)
+    end
+
+    test "when the identity doesn't have an address, returns false" do
+      assert %Identity{} = identity = Identity.new()
+      refute Identity.has_address(identity)
+    end
+  end
+
+  describe "can_sign/1" do
+    test "when the identity can sign, returns true" do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      assert %Identity{} = identity = Identity.new(private_key: private_key)
+
+      assert Identity.can_sign(identity)
+    end
+
+    test "when the identity cannot sign, returns false" do
+      assert %Identity{} = identity = Identity.new()
+      refute Identity.can_sign(identity)
     end
   end
 

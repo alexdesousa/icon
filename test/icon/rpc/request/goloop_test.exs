@@ -698,7 +698,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
 
     test "builds RPC call for icx_sendTransaction", %{identity: identity} do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -717,7 +717,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: identity.network_id,
-        nonce: 1
+        nonce: 1,
+        signature:
+          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
       }
 
       assert {
@@ -743,7 +745,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
 
     test "builds RPC call for icx_sendTransactionAndWait", %{identity: identity} do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -762,7 +764,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: identity.network_id,
-        nonce: 1
+        nonce: 1,
+        signature:
+          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
       }
 
       assert {
@@ -863,7 +867,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
 
     test "builds call when params are a keyword list", %{identity: identity} do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = [
         version: 3,
@@ -882,7 +886,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nonce: 1,
-        nid: identity.network_id
+        nid: identity.network_id,
+        signature:
+          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
       }
 
       assert {
@@ -922,7 +928,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC call for icx_sendTransaction with params", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -953,7 +959,9 @@ defmodule Icon.RPC.Request.GoloopTest do
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
-        }
+        },
+        signature:
+          "MEUCIQD2wZMgshUTRuUKL0ZHLbVU3Jbt7l794BvBCMpztWhX9wIgQcz+2ym9K54bMVUgHKYdvlCqyMIRmE50WZ+9Ny5t9A0="
       }
 
       call_schema = %{
@@ -1053,7 +1061,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC call for icx_sendTransaction without params", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1078,7 +1086,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :call,
         data: %{
           method: "getBalance"
-        }
+        },
+        signature:
+          "MEQCIGNYh35Zg/8q28FByMJ0XN4rCl28gue9PTic3JjeW/K3AiAZZDKoUpLw0jXOjipFBjjCMXy1s/A/wUkbyXWtzI0aNA=="
       }
 
       assert {
@@ -1164,7 +1174,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC call for icx_sendTransaction with params", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1197,7 +1207,9 @@ defmodule Icon.RPC.Request.GoloopTest do
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
-        }
+        },
+        signature:
+          "MEQCIA8NNwN5fNAPL72jqnboi8m6Ar8YQ/Q/HqzHmqymtMUTAiA+bWRbJTX5rxIhw71lVmJ0RknytaE7B7j/2gGh9JCCPg=="
       }
 
       deploy_schema = %{
@@ -1301,7 +1313,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC call for icx_sendTransaction without params", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1328,7 +1340,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         data: %{
           contentType: "application/zip",
           content: "0x1867291283973610982301923812873419826abcdef9182731926312"
-        }
+        },
+        signature:
+          "MEUCIQD4OKDo0tvMQnQcSgkxBeTyDPp0x7lMM6r/Oe+lbOxLNgIgCs+jifh9fqJatOBqOeBmhtCG1npgJTlatxKLL9H4/tg="
       }
 
       assert {
@@ -1418,7 +1432,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC for icx_sendTransaction (action=add)", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1441,7 +1455,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :deposit,
-        data: %{action: :add}
+        data: %{action: :add},
+        signature:
+          "MEQCIGFoilpkKFf9NV4g6OUmXaKRPuynOxsANm0ztH1GsIeVAiBuPAIfox4sXAu90P0QMkduIwyFTyEtPqa5YB7XUAA/NA=="
       }
 
       assert {
@@ -1516,7 +1532,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "builds RPC for icx_sendTransaction (action withdraw)", %{
       identity: identity
     } do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1537,7 +1553,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :deposit,
-        data: %{action: :withdraw}
+        data: %{action: :withdraw},
+        signature:
+          "MEUCIQDYhFFSVPVnCASe6yNOIxB5x6GLVWkWXzmzVMnhKLydDAIgS0b2P0YiZPQN19naCfkZ6F8Nb8KKY5tn7/NKV02nyHk="
       }
 
       assert {
@@ -1648,7 +1666,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
 
     test "builds RPC for icx_sendTransaction", %{identity: identity} do
-      datetime = DateTime.utc_now()
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
       params = %{
         version: 3,
@@ -1669,7 +1687,9 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :message,
-        data: "0x2a"
+        data: "0x2a",
+        signature:
+          "MEQCIBZqfBarFCEzK/FE43iNlqC3lmWDae/8tbPxsXLPVTx9AiAvdm7B/rxFMTnqVTjnmdkD7PdECwMVZtEj87Vfb4Wz9w=="
       }
 
       assert {

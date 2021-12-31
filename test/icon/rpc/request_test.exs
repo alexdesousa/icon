@@ -2,6 +2,7 @@ defmodule Icon.RPC.RequestTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC.{Identity, Request}
+  alias Icon.Schema.Error
 
   describe "build/3" do
     test "sets an id" do
@@ -36,6 +37,71 @@ defmodule Icon.RPC.RequestTest do
                  url: ^expected_url
                }
              } = Request.build("method", params, options)
+    end
+  end
+
+  describe "sign/1" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      {:ok, identity: identity}
+    end
+
+    test "when params are valid, generates signature", %{identity: identity} do
+      params = %{"int" => 42}
+
+      options = [
+        schema: %{
+          int: {:integer, required: true},
+          signature: :signature
+        },
+        identity: identity
+      ]
+
+      expected =
+        "MEUCIQCiKDBdlnGnhk2ItS2TjpSDFmNzXvriSYPuHF9nAUBHJAIgOh5yWXA4SVXT8Dgx+5I5NbnIzlCFwho9HXwim7o25Dc="
+
+      assert {:ok, %Request{params: %{signature: ^expected}}} =
+               "icx_method"
+               |> Request.build(params, options)
+               |> Request.sign()
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      params = %{"int" => -1}
+
+      options = [
+        schema: %{
+          int: {:integer, required: true},
+          signature: :signature
+        },
+        identity: identity
+      ]
+
+      assert {:error, %Error{message: "int is invalid"}} =
+               "icx_method"
+               |> Request.build(params, options)
+               |> Request.sign()
+    end
+
+    test "when identity cannot sign, errors" do
+      params = %{"int" => 42}
+
+      options = [
+        schema: %{
+          int: {:integer, required: true},
+          signature: :signature
+        }
+      ]
+
+      assert {:error, %Error{message: "identity cannot sign transaction"}} =
+               "icx_method"
+               |> Request.build(params, options)
+               |> Request.sign()
     end
   end
 

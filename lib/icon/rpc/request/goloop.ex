@@ -2,6 +2,8 @@ defmodule Icon.RPC.Request.Goloop do
   @moduledoc """
   This module defines the Goloop API request payloads.
   """
+  import Icon.RPC.Identity, only: [has_address: 1]
+
   alias Icon.RPC.{Identity, Request}
   alias Icon.Schema
   alias Icon.Schema.Error
@@ -89,7 +91,8 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def call(identity, to, options)
 
-  def call(%Identity{address: from} = identity, to, options) do
+  def call(%Identity{address: from} = identity, to, options)
+      when has_address(identity) do
     call_schema = options[:schema]
     call_method = options[:method]
     call_params = options[:params]
@@ -282,12 +285,10 @@ defmodule Icon.RPC.Request.Goloop do
           do: [schema: schema, identity: identity, timeout: timeout],
           else: [schema: schema, identity: identity]
 
-      request =
-        method
-        |> method()
-        |> Request.build(params, options)
-
-      {:ok, request}
+      method
+      |> method()
+      |> Request.build(params, options)
+      |> Request.sign()
     end
   end
 
@@ -385,7 +386,8 @@ defmodule Icon.RPC.Request.Goloop do
       stepLimit: {:integer, required: true},
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
-      nonce: {:integer, default: 1}
+      nonce: {:integer, default: 1},
+      signature: :signature
     }
 
     {:ok, schema}
@@ -415,6 +417,7 @@ defmodule Icon.RPC.Request.Goloop do
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
       nonce: {:integer, default: 1},
+      signature: :signature,
       dataType: {{:enum, [:call]}, default: :call, required: true},
       data: {call_schema, required: true}
     }
@@ -450,6 +453,7 @@ defmodule Icon.RPC.Request.Goloop do
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
       nonce: {:integer, default: 1},
+      signature: :signature,
       dataType: {{:enum, [:deploy]}, default: :deploy, required: true},
       data: {deploy_schema, required: true}
     }
@@ -491,6 +495,7 @@ defmodule Icon.RPC.Request.Goloop do
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
       nonce: {:integer, default: 1},
+      signature: :signature,
       dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
       data: {
         %{
@@ -514,6 +519,7 @@ defmodule Icon.RPC.Request.Goloop do
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
       nonce: {:integer, default: 1},
+      signature: :signature,
       dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
       data: {
         %{
@@ -540,6 +546,7 @@ defmodule Icon.RPC.Request.Goloop do
       timestamp: {:timestamp, required: true},
       nid: {:integer, required: true},
       nonce: {:integer, default: 1},
+      signature: :signature,
       dataType: {{:enum, [:message]}, default: :message, required: true},
       data: {:binary_data, required: true}
     }

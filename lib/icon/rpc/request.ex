@@ -2,7 +2,11 @@ defmodule Icon.RPC.Request do
   @moduledoc """
   This module defines a basic JSON RPC request payload.
   """
+  import Icon.RPC.Identity, only: [can_sign: 1]
+
   alias Icon.RPC.Identity
+  alias Icon.Schema
+  alias Icon.Schema.Error
 
   @enforce_keys [:id, :method, :params, :options]
 
@@ -109,6 +113,45 @@ defmodule Icon.RPC.Request do
     }
   end
 
+  @doc """
+  Signs `request`.
+  """
+  @spec sign(t()) :: {:ok, t()} | {:error, Error.t()}
+  def sign(request)
+
+  def sign(
+        %__MODULE__{
+          params: params,
+          options: %{identity: %Identity{} = identity}
+        } = request
+      )
+      when is_map(params) and params != %{} and can_sign(identity) do
+    with {:ok, dumped} <- dump_params(request) do
+      signature = sign_params(dumped, identity)
+
+      request = %{
+        request
+        | params: Map.put(params, :signature, signature)
+      }
+
+      {:ok, request}
+    end
+  end
+
+  def sign(%__MODULE__{}) do
+    reason =
+      Error.new(
+        reason: :invalid_params,
+        message: "identity cannot sign transaction"
+      )
+
+    {:error, reason}
+  end
+
+  #########
+  # Helpers
+
+  # Puts either the debug or the normal endpoint.
   @spec put_url(options()) :: options()
   defp put_url(options) do
     case options[:identity] do
@@ -118,6 +161,28 @@ defmodule Icon.RPC.Request do
       %Identity{debug: true, node: node} ->
         Keyword.put(options, :url, "#{node}/api/v3d")
     end
+  end
+
+  @spec dump_params(t()) :: {:ok, t()} | {:error, Error.t()}
+  defp dump_params(request)
+
+  defp dump_params(%__MODULE__{params: params, options: %{schema: schema}}) do
+    schema
+    |> Schema.generate()
+    |> Schema.new(params)
+    |> Schema.dump()
+    |> Schema.apply()
+  end
+
+  @spec sign_params(map(), Identity.t()) :: Icon.Schema.Types.Signature.t()
+  defp sign_params(params, identity)
+
+  defp sign_params(params, %Identity{key: key}) do
+    serialized = Jason.encode!(params)
+
+    :sha3_256
+    |> :crypto.hash(serialized)
+    |> Curvy.sign(key, encoding: :base64)
   end
 end
 
