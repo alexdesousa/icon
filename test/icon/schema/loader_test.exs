@@ -39,6 +39,17 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "expands default function when field is missing" do
+      assert %Schema{
+               data: %{integer: 42},
+               is_valid?: true
+             } =
+               %{integer: {:integer, default: fn %Schema{} -> 42 end}}
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+    end
+
     test "doesn't add an error when the missing field is required, but a default is provided" do
       assert %Schema{
                data: %{integer: 42},

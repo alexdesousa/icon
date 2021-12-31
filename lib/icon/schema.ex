@@ -52,7 +52,7 @@ defmodule Icon.Schema do
 
   The available options are the following:
 
-  - `default` - Default value for the key.
+  - `default` - Default value for the key. It can be a closure for late binding.
   - `required` - Whether the key is required or not.
   - `field` - Name of the key to check to choose the right `any()` type. This
   value should be an `atom()`, so it'll probably come from an `enum()` type.
@@ -238,6 +238,8 @@ defmodule Icon.Schema do
     fn %Schema{} = state ->
       required? = options[:required] || false
       default = options[:default]
+
+      default = if is_function(default, 1), do: default.(state), else: default
 
       state
       |> get_field(key, default)
