@@ -375,20 +375,39 @@ defmodule Icon.RPC.Request.Goloop do
     end
   end
 
+  # Base transaction schema
+  @spec base_transaction_schema() :: Schema.t()
+  defp base_transaction_schema do
+    %{
+      version: {:integer, required: true, default: 3},
+      from: {:eoa_address, required: true},
+      stepLimit: {:integer, required: true},
+      nonce: {:integer, default: &default_nonce/1},
+      timestamp: {:timestamp, required: true, default: &default_timestamp/1},
+      nid: {:integer, required: true},
+      signature: :signature
+    }
+  end
+
+  @spec default_nonce(Schema.state()) :: non_neg_integer()
+  defp default_nonce(%Schema{} = _state) do
+    :erlang.system_time(:microsecond)
+  end
+
+  @spec default_timestamp(Schema.state()) :: DateTime.t()
+  defp default_timestamp(%Schema{} = _state) do
+    DateTime.utc_now()
+  end
+
   # Coin transfer transaction schema.
   @spec transfer_transaction_schema() :: {:ok, Schema.t()}
   defp transfer_transaction_schema do
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:address, required: true},
-      value: {:loop, required: true},
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: {:loop, required: true}
+      })
 
     {:ok, schema}
   end
@@ -408,19 +427,14 @@ defmodule Icon.RPC.Request.Goloop do
         %{method: {:string, required: true}}
       end
 
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:score_address, required: true},
-      value: :loop,
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature,
-      dataType: {{:enum, [:call]}, default: :call, required: true},
-      data: {call_schema, required: true}
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        value: :loop,
+        dataType: {{:enum, [:call]}, default: :call, required: true},
+        data: {call_schema, required: true}
+      })
 
     {:ok, schema}
   end
@@ -444,19 +458,14 @@ defmodule Icon.RPC.Request.Goloop do
         }
       end
 
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:score_address, required: true},
-      value: :loop,
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature,
-      dataType: {{:enum, [:deploy]}, default: :deploy, required: true},
-      data: {deploy_schema, required: true}
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        value: :loop,
+        dataType: {{:enum, [:deploy]}, default: :deploy, required: true},
+        data: {deploy_schema, required: true}
+      })
 
     {:ok, schema}
   end
@@ -486,50 +495,40 @@ defmodule Icon.RPC.Request.Goloop do
 
   @spec deposit_add_transaction_schema() :: {:ok, Schema.t()}
   defp deposit_add_transaction_schema do
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:address, required: true},
-      value: {:loop, required: true},
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature,
-      dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
-      data: {
-        %{
-          action: {{:enum, [:add]}, default: :add, required: true}
-        },
-        required: true
-      }
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: {:loop, required: true},
+        dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
+        data: {
+          %{
+            action: {{:enum, [:add]}, default: :add, required: true}
+          },
+          required: true
+        }
+      })
 
     {:ok, schema}
   end
 
   @spec deposit_withdraw_transaction_schema() :: {:ok, Schema.t()}
   defp deposit_withdraw_transaction_schema do
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:address, required: true},
-      value: :loop,
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature,
-      dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
-      data: {
-        %{
-          action: {{:enum, [:withdraw]}, default: :withdraw, required: true},
-          id: :hash,
-          amount: :loop
-        },
-        required: true
-      }
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: :loop,
+        dataType: {{:enum, [:deposit]}, default: :deposit, required: true},
+        data: {
+          %{
+            action: {{:enum, [:withdraw]}, default: :withdraw, required: true},
+            id: :hash,
+            amount: :loop
+          },
+          required: true
+        }
+      })
 
     {:ok, schema}
   end
@@ -537,19 +536,14 @@ defmodule Icon.RPC.Request.Goloop do
   # Message transaction validation.
   @spec message_transaction_schema() :: {:ok, Schema.t()}
   defp message_transaction_schema do
-    schema = %{
-      version: {:integer, required: true},
-      from: {:eoa_address, required: true},
-      to: {:address, required: true},
-      value: :loop,
-      stepLimit: {:integer, required: true},
-      timestamp: {:timestamp, required: true},
-      nid: {:integer, required: true},
-      nonce: {:integer, default: 1},
-      signature: :signature,
-      dataType: {{:enum, [:message]}, default: :message, required: true},
-      data: {:binary_data, required: true}
-    }
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: :loop,
+        dataType: {{:enum, [:message]}, default: :message, required: true},
+        data: {:binary_data, required: true}
+      })
 
     {:ok, schema}
   end

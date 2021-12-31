@@ -729,14 +729,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1}
+                     nonce: {:integer, default: _}
                    }
                  },
                  params: ^expected
@@ -776,14 +776,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1}
+                     nonce: {:integer, default: _}
                    },
                    timeout: 5_000
                  },
@@ -898,14 +898,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1}
+                     nonce: {:integer, default: _}
                    }
                  },
                  params: ^expected
@@ -975,14 +975,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:call]}, default: :call, required: true},
                      data: {
@@ -1098,14 +1098,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:call]}, default: :call, required: true},
                      data: {
@@ -1223,14 +1223,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:deploy]}, default: :deploy, required: true},
                      data: {
@@ -1352,14 +1352,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:deploy]}, default: :deploy, required: true},
                      data: {
@@ -1467,14 +1467,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:deposit]}, default: :deposit, required: true},
                      data: {
@@ -1565,14 +1565,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:deposit]}, default: :deposit, required: true},
                      data: {
@@ -1699,14 +1699,14 @@ defmodule Icon.RPC.Request.GoloopTest do
                  options: %{
                    url: _,
                    schema: %{
-                     version: {:integer, required: true},
+                     version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: :loop,
                      stepLimit: {:integer, required: true},
-                     timestamp: {:timestamp, required: true},
+                     timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
-                     nonce: {:integer, default: 1},
+                     nonce: {:integer, default: _},
                      dataType:
                        {{:enum, [:message]}, default: :message, required: true},
                      data: {:binary_data, required: true}
