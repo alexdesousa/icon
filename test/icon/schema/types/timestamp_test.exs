@@ -11,6 +11,14 @@ defmodule Icon.Schema.Types.TimestampTest do
       assert {:ok, ^expected} = Timestamp.load(timestamp)
     end
 
+    test "when a valid hex int is provided, returns equivalent datetime" do
+      timestamp = 155_920_469_933_036
+      expected = DateTime.from_unix!(timestamp, :microsecond)
+      hex_timestamp = "0x8dcf10393bec"
+
+      assert {:ok, ^expected} = Timestamp.load(hex_timestamp)
+    end
+
     test "when a valid datetime is provided, returns it" do
       datetime = DateTime.from_unix!(155_920_469_933_036, :microsecond)
 
@@ -36,13 +44,15 @@ defmodule Icon.Schema.Types.TimestampTest do
     test "converts datetime to unix timestamp in microseconds" do
       timestamp = 155_920_469_933_036
       datetime = DateTime.from_unix!(timestamp, :microsecond)
+      expected = "0x8dcf10393bec"
 
-      assert {:ok, ^timestamp} = Timestamp.dump(datetime)
+      assert {:ok, ^expected} = Timestamp.dump(datetime)
     end
 
     test "when unix timestamp in microseconds i" do
       timestamp = 155_920_469_933_036
-      assert {:ok, ^timestamp} = Timestamp.dump(timestamp)
+      expected = "0x8dcf10393bec"
+      assert {:ok, ^expected} = Timestamp.dump(timestamp)
     end
 
     test "when it's not a valid datetime or timestamp, errors" do

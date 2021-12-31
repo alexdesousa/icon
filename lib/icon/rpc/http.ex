@@ -17,8 +17,7 @@ defmodule Icon.RPC.HTTP do
   @spec request(Request.t()) :: {:ok, result()} | {:error, Error.t()}
   def request(request)
 
-  def request(%Request{options: options} = request) do
-    url = options[:url]
+  def request(%Request{options: %{url: url}} = request) do
     payload = Jason.encode!(request)
 
     :post

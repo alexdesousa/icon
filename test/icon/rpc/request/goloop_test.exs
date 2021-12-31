@@ -719,7 +719,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         signature:
-          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
+          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
       }
 
       assert {
@@ -733,7 +733,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _}
@@ -766,7 +766,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         signature:
-          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
+          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
       }
 
       assert {
@@ -780,7 +780,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _}
@@ -819,7 +819,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "value" => "0x2a",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1"
                }
@@ -888,7 +888,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nonce: 1,
         nid: identity.network_id,
         signature:
-          "MEUCIQCP1TOGnID1wDWVyP0U0TozFK8/6URQGV4W49PVrnn9IgIgDwZoYc4E+2VwmYjMuPs7UwGGHckWSrJ3mbVxcmQ/lAw="
+          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
       }
 
       assert {
@@ -902,7 +902,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _}
@@ -911,6 +911,114 @@ defmodule Icon.RPC.Request.GoloopTest do
                  params: ^expected
                }
              } = Request.Goloop.send_transaction(identity, params: params)
+    end
+  end
+
+  describe "send_transaction/2 with no step limit" do
+    setup do
+      bypass = Bypass.open()
+
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity =
+        Identity.new(
+          private_key: private_key,
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "adds step limit", %{bypass: bypass, identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000
+      }
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   stepLimit: 100_000
+                 }
+               }
+             } = Request.Goloop.send_transaction(identity, params: params)
+    end
+
+    test "when the endpoint returns error, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        dataType: :call,
+        data: %{
+          method: "estimateStepNotFound",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        error =
+          error(%{
+            "code" => -31_004,
+            "message" => "Not found"
+          })
+
+        Plug.Conn.resp(conn, 404, error)
+      end)
+
+      assert {:error,
+              %Error{
+                message: "Not found",
+                reason: :not_found
+              }} =
+               Request.Goloop.send_transaction(
+                 identity,
+                 params: params,
+                 schema: %{address: {:address, required: true}}
+               )
+    end
+
+    test "when the endpoint returns unexpected data, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        dataType: :call,
+        data: %{
+          method: "invalidMethod",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("invalid")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:error,
+              %Error{
+                message: "cannot estimate stepLimit",
+                reason: :system_error
+              }} =
+               Request.Goloop.send_transaction(
+                 identity,
+                 params: params,
+                 schema: %{address: {:address, required: true}}
+               )
     end
   end
 
@@ -961,7 +1069,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           }
         },
         signature:
-          "MEUCIQD2wZMgshUTRuUKL0ZHLbVU3Jbt7l794BvBCMpztWhX9wIgQcz+2ym9K54bMVUgHKYdvlCqyMIRmE50WZ+9Ny5t9A0="
+          "MEUCIQDCKLnY79sbK/TYbLEhPtsxyXf360piRAKtKCXBLjA4GQIgFYjLMWo7T8O6ZVyBdei1fgQMUPzESXecE4qpfINkcKk="
       }
 
       call_schema = %{
@@ -979,7 +1087,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1036,7 +1144,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "from" => "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "call",
@@ -1088,7 +1196,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           method: "getBalance"
         },
         signature:
-          "MEQCIGNYh35Zg/8q28FByMJ0XN4rCl28gue9PTic3JjeW/K3AiAZZDKoUpLw0jXOjipFBjjCMXy1s/A/wUkbyXWtzI0aNA=="
+          "MEUCIQCt2f4pJlyXyTvRiVSyaK3dmh8zjcIa4pYDK/KT6KZZ0wIgaK+8B2SYyz1BjeU7eqU3540VHOd+Wv7Vi3WKRDZJYtg="
       }
 
       assert {
@@ -1102,7 +1210,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1143,7 +1251,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "from" => "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "call",
@@ -1209,7 +1317,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           }
         },
         signature:
-          "MEQCIA8NNwN5fNAPL72jqnboi8m6Ar8YQ/Q/HqzHmqymtMUTAiA+bWRbJTX5rxIhw71lVmJ0RknytaE7B7j/2gGh9JCCPg=="
+          "MEQCIG9M5DTUOdzhFnuln8sX0SQH7Tj3kosfuxoNMkxdiqbsAiBFMABjy4Qz76cm7bCpbcklyQOxR9lSVjO+7BR1ovJOpA=="
       }
 
       deploy_schema = %{
@@ -1227,7 +1335,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1286,7 +1394,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "from" => "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "deploy",
@@ -1342,7 +1450,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           content: "0x1867291283973610982301923812873419826abcdef9182731926312"
         },
         signature:
-          "MEUCIQD4OKDo0tvMQnQcSgkxBeTyDPp0x7lMM6r/Oe+lbOxLNgIgCs+jifh9fqJatOBqOeBmhtCG1npgJTlatxKLL9H4/tg="
+          "MEUCIQC2Pcl8AYLLk/+25YxBfQdUaT7qXPQTmi9hd9wkXZnAjwIgd7K4vejD13qTNblW4WEd7UWfg+8HzGWb71OH4Dx15v0="
       }
 
       assert {
@@ -1356,7 +1464,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1399,7 +1507,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "from" => "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "deploy",
@@ -1457,7 +1565,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deposit,
         data: %{action: :add},
         signature:
-          "MEQCIGFoilpkKFf9NV4g6OUmXaKRPuynOxsANm0ztH1GsIeVAiBuPAIfox4sXAu90P0QMkduIwyFTyEtPqa5YB7XUAA/NA=="
+          "MEQCIBdh+lcQcQM9BRkmM6EaIujnqppw3wBxxGjshASnkF8eAiAXi0VVkJYsjTe0b1+4pQbTIBOGAPkMmHk6VQKtW//YPA=="
       }
 
       assert {
@@ -1471,7 +1579,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: {:loop, required: true},
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1513,7 +1621,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "value" => "0x2a",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "deposit",
@@ -1555,7 +1663,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deposit,
         data: %{action: :withdraw},
         signature:
-          "MEUCIQDYhFFSVPVnCASe6yNOIxB5x6GLVWkWXzmzVMnhKLydDAIgS0b2P0YiZPQN19naCfkZ6F8Nb8KKY5tn7/NKV02nyHk="
+          "MEQCIBwZXco3CRCRQqD68RNZuvdH0ACvNbevF6BqS8v6k9MVAiAG9JPd2Dz5s7cGwoNg0jP5BrBhcH5a3pKtqA9YtETNkw=="
       }
 
       assert {
@@ -1569,7 +1677,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1614,7 +1722,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "value" => "0x2a",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "deposit",
@@ -1689,7 +1797,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :message,
         data: "0x2a",
         signature:
-          "MEQCIBZqfBarFCEzK/FE43iNlqC3lmWDae/8tbPxsXLPVTx9AiAvdm7B/rxFMTnqVTjnmdkD7PdECwMVZtEj87Vfb4Wz9w=="
+          "MEUCIQDUnYe/4I0jEQzLBKo8vRXemYk2V3XhsKK47U3G2SOk4AIgPQL1FvSQkh6qRGoRgWmE09GlprFdrf91taWA36bJtyM="
       }
 
       assert {
@@ -1703,7 +1811,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
                      value: :loop,
-                     stepLimit: {:integer, required: true},
+                     stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
@@ -1737,7 +1845,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  "from" => "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
                  "to" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                  "stepLimit" => "0xa",
-                 "timestamp" => 1_640_005_534_711_847,
+                 "timestamp" => "0x5d3938b538027",
                  "nid" => "0x1",
                  "nonce" => "0x1",
                  "dataType" => "message",
@@ -1750,5 +1858,25 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> Jason.encode!()
                |> Jason.decode!()
     end
+  end
+
+  @spec result(non_neg_integer()) :: binary()
+  defp result(result) do
+    %{
+      "jsonrpc" => "2.0",
+      "id" => :erlang.system_time(:microsecond),
+      "result" => result
+    }
+    |> Jason.encode!()
+  end
+
+  @spec error(map()) :: binary()
+  defp error(error) when is_map(error) do
+    %{
+      "jsonrpc" => "2.0",
+      "id" => :erlang.system_time(:microsecond),
+      "error" => error
+    }
+    |> Jason.encode!()
   end
 end

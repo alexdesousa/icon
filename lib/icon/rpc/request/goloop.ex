@@ -4,7 +4,7 @@ defmodule Icon.RPC.Request.Goloop do
   """
   import Icon.RPC.Identity, only: [has_address: 1]
 
-  alias Icon.RPC.{Identity, Request}
+  alias Icon.RPC.{HTTP, Identity, Request}
   alias Icon.Schema
   alias Icon.Schema.Error
 
@@ -24,6 +24,7 @@ defmodule Icon.RPC.Request.Goloop do
           | :send_transaction
           | :send_transaction_and_wait
           | :wait_transaction_result
+          | :estimate_step
 
   @doc """
   Gets last block.
@@ -288,7 +289,14 @@ defmodule Icon.RPC.Request.Goloop do
       method
       |> method()
       |> Request.build(params, options)
-      |> Request.sign()
+      |> add_step_limit()
+      |> case do
+        {:ok, %Request{} = request} ->
+          Request.sign(request)
+
+        error ->
+          error
+      end
     end
   end
 
@@ -319,6 +327,7 @@ defmodule Icon.RPC.Request.Goloop do
   defp method(:send_transaction), do: "icx_sendTransaction"
   defp method(:send_transaction_and_wait), do: "icx_sendTransactionAndWait"
   defp method(:wait_transaction_result), do: "icx_waitTransactionResult"
+  defp method(:estimate_step), do: "debug_estimateStep"
 
   @spec add_identity(Identity.t(), keyword() | map()) ::
           {:ok, map()}
@@ -341,6 +350,111 @@ defmodule Icon.RPC.Request.Goloop do
 
   defp add_identity(%Identity{}, params) when is_map(params) do
     {:error, Error.new(reason: :invalid_request, message: "Invalid identity")}
+  end
+
+  @spec add_step_limit(Request.t()) :: {:ok, Request.t()} | {:error, Error.t()}
+  defp add_step_limit(request)
+
+  defp add_step_limit(%Request{params: %{stepLimit: step_limit}} = request)
+       when not is_nil(step_limit) do
+    {:ok, request}
+  end
+
+  defp add_step_limit(%Request{params: params} = request) do
+    case estimate_step(request) do
+      {:ok, step} ->
+        request = %{request | params: Map.put(params, :stepLimit, step)}
+        {:ok, request}
+
+      {:error, %Error{}} = error ->
+        error
+    end
+  end
+
+  # Adds the step limit to a transaction when there's no step in it.
+  @spec estimate_step(Request.t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, Error.t()}
+  defp estimate_step(request)
+
+  defp estimate_step(%Request{} = request) do
+    key = {__MODULE__, :step_limit, request_hash(request)}
+
+    with :miss <- :persistent_term.get(key, :miss),
+         {:ok, step} <- do_estimate_step(request) do
+      :persistent_term.put(key, step)
+
+      {:ok, step}
+    else
+      step when is_integer(step) ->
+        {:ok, step}
+
+      {:error, %Error{}} = error ->
+        error
+    end
+  end
+
+  @spec do_estimate_step(Request.t()) ::
+          {:ok, non_neg_integer()}
+          | {:error, Error.t()}
+  defp do_estimate_step(%Request{
+         params: params,
+         options: %{schema: schema, identity: identity}
+       }) do
+    options = [
+      schema: schema,
+      identity: %{identity | debug: true}
+    ]
+
+    estimation_request =
+      :estimate_step
+      |> method()
+      |> Request.build(params, options)
+
+    with {:ok, "0x" <> _ = step} <- HTTP.request(estimation_request),
+         {:ok, step} <- Icon.Schema.Types.Integer.load(step) do
+      {:ok, step}
+    else
+      {:error, %Error{}} = error ->
+        error
+
+      _ ->
+        reason =
+          Error.new(
+            reason: :system_error,
+            message: "cannot estimate stepLimit"
+          )
+
+        {:error, reason}
+    end
+  end
+
+  @spec request_hash(Request.t()) :: non_neg_integer()
+  defp request_hash(request)
+
+  defp request_hash(%Request{
+         params: %{dataType: :call} = params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2({schema, params[:to], params[:data][:method]})
+  end
+
+  defp request_hash(%Request{
+         params: %{dataType: :deploy} = params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2({schema, params[:data][:contentType]})
+  end
+
+  defp request_hash(%Request{
+         params: %{dataType: :deposit} = params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2({schema, params[:data][:action]})
+  end
+
+  defp request_hash(%Request{options: %{schema: schema}}) do
+    :erlang.phash2(schema)
   end
 
   ############################
@@ -381,7 +495,7 @@ defmodule Icon.RPC.Request.Goloop do
     %{
       version: {:integer, required: true, default: 3},
       from: {:eoa_address, required: true},
-      stepLimit: {:integer, required: true},
+      stepLimit: :integer,
       nonce: {:integer, default: &default_nonce/1},
       timestamp: {:timestamp, required: true, default: &default_timestamp/1},
       nid: {:integer, required: true},

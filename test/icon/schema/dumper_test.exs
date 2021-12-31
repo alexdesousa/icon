@@ -403,9 +403,10 @@ defmodule Icon.Schema.DumperTest do
     end
 
     test "dumps timestamp type" do
-      expected = 1_639_653_259_594_958
-      datetime = DateTime.from_unix!(expected, :microsecond)
+      timestamp = 1_640_005_534_711_847
+      datetime = DateTime.from_unix!(timestamp, :microsecond)
       params = %{"timestamp" => datetime}
+      expected = "0x5d3938b538027"
 
       assert %Schema{
                data: %{timestamp: ^expected},
