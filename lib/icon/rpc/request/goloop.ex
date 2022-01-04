@@ -290,13 +290,6 @@ defmodule Icon.RPC.Request.Goloop do
       |> method()
       |> Request.build(params, options)
       |> add_step_limit()
-      |> case do
-        {:ok, %Request{} = request} ->
-          Request.sign(request)
-
-        error ->
-          error
-      end
     end
   end
 

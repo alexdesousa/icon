@@ -717,9 +717,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: identity.network_id,
-        nonce: 1,
-        signature:
-          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
+        nonce: 1
       }
 
       assert {
@@ -764,9 +762,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nid: identity.network_id,
-        nonce: 1,
-        signature:
-          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
+        nonce: 1
       }
 
       assert {
@@ -831,6 +827,25 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> Jason.decode!()
     end
 
+    test "signs it correctly", %{identity: identity} do
+      datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
+
+      params = %{
+        version: 3,
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 42,
+        stepLimit: 10,
+        timestamp: datetime,
+        nonce: 1
+      }
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_transaction(identity, params: params)
+
+      assert {:ok, %Request{} = request} = Request.sign(request)
+      assert Request.verify(request)
+    end
+
     test "when dataType is invalid, errors", %{identity: identity} do
       params = %{
         version: 3,
@@ -886,9 +901,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         stepLimit: 10,
         timestamp: datetime,
         nonce: 1,
-        nid: identity.network_id,
-        signature:
-          "MEQCIAkL5YSm/RXXh4VGWoVadGh54fCOZct1H6bKu3OAw3ZfAiBWSZnK0Px8iAVJsE/n24cdStaB/ohqtDYIKVWJEPPacw=="
+        nid: identity.network_id
       }
 
       assert {
@@ -1067,9 +1080,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
-        },
-        signature:
-          "MEUCIQDCKLnY79sbK/TYbLEhPtsxyXf360piRAKtKCXBLjA4GQIgFYjLMWo7T8O6ZVyBdei1fgQMUPzESXecE4qpfINkcKk="
+        }
       }
 
       call_schema = %{
@@ -1194,9 +1205,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :call,
         data: %{
           method: "getBalance"
-        },
-        signature:
-          "MEUCIQCt2f4pJlyXyTvRiVSyaK3dmh8zjcIa4pYDK/KT6KZZ0wIgaK+8B2SYyz1BjeU7eqU3540VHOd+Wv7Vi3WKRDZJYtg="
+        }
       }
 
       assert {
@@ -1315,9 +1324,7 @@ defmodule Icon.RPC.Request.GoloopTest do
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
-        },
-        signature:
-          "MEQCIG9M5DTUOdzhFnuln8sX0SQH7Tj3kosfuxoNMkxdiqbsAiBFMABjy4Qz76cm7bCpbcklyQOxR9lSVjO+7BR1ovJOpA=="
+        }
       }
 
       deploy_schema = %{
@@ -1448,9 +1455,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         data: %{
           contentType: "application/zip",
           content: "0x1867291283973610982301923812873419826abcdef9182731926312"
-        },
-        signature:
-          "MEUCIQC2Pcl8AYLLk/+25YxBfQdUaT7qXPQTmi9hd9wkXZnAjwIgd7K4vejD13qTNblW4WEd7UWfg+8HzGWb71OH4Dx15v0="
+        }
       }
 
       assert {
@@ -1563,9 +1568,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :deposit,
-        data: %{action: :add},
-        signature:
-          "MEQCIBdh+lcQcQM9BRkmM6EaIujnqppw3wBxxGjshASnkF8eAiAXi0VVkJYsjTe0b1+4pQbTIBOGAPkMmHk6VQKtW//YPA=="
+        data: %{action: :add}
       }
 
       assert {
@@ -1661,9 +1664,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :deposit,
-        data: %{action: :withdraw},
-        signature:
-          "MEQCIBwZXco3CRCRQqD68RNZuvdH0ACvNbevF6BqS8v6k9MVAiAG9JPd2Dz5s7cGwoNg0jP5BrBhcH5a3pKtqA9YtETNkw=="
+        data: %{action: :withdraw}
       }
 
       assert {
@@ -1795,9 +1796,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :message,
-        data: "0x2a",
-        signature:
-          "MEUCIQDUnYe/4I0jEQzLBKo8vRXemYk2V3XhsKK47U3G2SOk4AIgPQL1FvSQkh6qRGoRgWmE09GlprFdrf91taWA36bJtyM="
+        data: "0x2a"
       }
 
       assert {

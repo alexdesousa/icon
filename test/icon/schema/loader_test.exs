@@ -50,6 +50,39 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "keeps field when is nil and it's nullable" do
+      assert %Schema{
+               data: %{integer: nil},
+               is_valid?: true
+             } =
+               %{integer: {:integer, nullable: true}}
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+    end
+
+    test "keeps field when is an empty binary and it's nullable" do
+      assert %Schema{
+               data: %{string: ""},
+               is_valid?: true
+             } =
+               %{string: {:string, nullable: true, default: ""}}
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+    end
+
+    test "uses the provided value for a nullable field" do
+      assert %Schema{
+               data: %{integer: 42},
+               is_valid?: true
+             } =
+               %{integer: {:integer, nullable: true}}
+               |> Schema.generate()
+               |> Schema.new(%{integer: 42})
+               |> Schema.load()
+    end
+
     test "doesn't add an error when the missing field is required, but a default is provided" do
       assert %Schema{
                data: %{integer: 42},

@@ -237,6 +237,7 @@ defmodule Icon.Schema do
   def retrieve(key, options) do
     fn %Schema{} = state ->
       required? = options[:required] || false
+      nullable? = options[:nullable] || false
       default = options[:default]
 
       default = if is_function(default, 1), do: default.(state), else: default
@@ -244,16 +245,10 @@ defmodule Icon.Schema do
       state
       |> get_field(key, default)
       |> case do
-        nil when required? ->
+        value when value in [nil, ""] and required? ->
           add_error(state, key, :is_required)
 
-        "" when required? ->
-          add_error(state, key, :is_required)
-
-        nil ->
-          state
-
-        "" ->
+        value when value in [nil, ""] and not nullable? ->
           state
 
         value ->

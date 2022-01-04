@@ -40,7 +40,361 @@ defmodule Icon.RPC.RequestTest do
     end
   end
 
-  describe "sign/1" do
+  describe "serialize/1" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key, network_id: :sejong)
+
+      {:ok, identity: identity}
+    end
+
+    test "serializes a transaction without data", %{identity: identity} do
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062
+      }
+
+      {:ok, request} = Request.Goloop.send_transaction(identity, params: params)
+
+      expected =
+        "icx_sendTransaction.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.hxbe258ceb872e08851f1f59694dac2558708ece11.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a transaction with complex data", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "getBalance",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{address: {:eoa_address, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.getBalance.params.{address.hxbe258ceb872e08851f1f59694dac2558708ece11}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "ignores signature", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "getBalance",
+          params: %{
+            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          }
+        }
+      }
+
+      assert {:ok, request} =
+               Request.Goloop.send_transaction(
+                 identity,
+                 params: params,
+                 schema: %{address: {:eoa_address, required: true}}
+               )
+
+      assert {:ok, request} = Request.sign(request)
+
+      assert {:ok, serialized} = Request.serialize(request)
+      refute serialized =~ "signature."
+    end
+
+    test "serializes a list", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "getBalance",
+          params: %{
+            addresses: [
+              "hxbe258ceb872e08851f1f59694dac2558708ece11",
+              "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+            ]
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{addresses: {{:list, :address}, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.getBalance.params.{addresses.[hxbe258ceb872e08851f1f59694dac2558708ece11.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32]}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes nil values", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "nullable",
+          params: %{
+            nullable: nil
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{nullable: {:address, nullable: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.nullable.params.{nullable.\\0}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a backward slash", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "\\"
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\\\}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a opening brace", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "{"
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\{}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a closing brace", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "}"
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\}}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a opening bracket", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "["
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\[}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a closing bracket", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "]"
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\]}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "serializes a dot", %{identity: identity} do
+      params = %{
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nonce: 1,
+        timestamp: 1_641_305_061_359_062,
+        dataType: :call,
+        data: %{
+          method: "message",
+          params: %{
+            message: "."
+          }
+        }
+      }
+
+      {:ok, request} =
+        Request.Goloop.send_transaction(
+          identity,
+          params: params,
+          schema: %{message: {:string, required: true}}
+        )
+
+      expected =
+        "icx_sendTransaction.data.{method.message.params.{message.\\.}}.dataType.call.from.hxfd7e4560ba363f5aabd32caac7317feeee70ea57.nid.0x53.nonce.0x1.stepLimit.0x186a0.timestamp.0x5d4c21d267dd6.to.cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32.value.0xde0b6b3a7640000.version.0x3"
+
+      assert {:ok, ^expected} = Request.serialize(request)
+    end
+
+    test "when parameters are invalid, errors", %{identity: identity} do
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000
+      }
+
+      {:ok, request} = Request.Goloop.send_transaction(identity, params: params)
+
+      request = %{request | params: Map.delete(request.params, :to)}
+
+      assert {:error,
+              %Error{
+                code: -32_602,
+                domain: :unknown,
+                message: "to is required",
+                reason: :invalid_params
+              }} = Request.serialize(request)
+    end
+
+    test "when it is not a transaction, errors", %{identity: identity} do
+      assert {:ok, request} = Request.Goloop.get_last_block(identity)
+
+      assert {:error,
+              %Error{
+                code: -32_602,
+                domain: :request,
+                message: "cannot serialize method icx_getLastBlock",
+                reason: :invalid_params
+              }} = Request.serialize(request)
+    end
+  end
+
+  describe "sign/1 and verify/1" do
     setup do
       # Taken from Python ICON SDK tests.
       private_key =
@@ -52,56 +406,69 @@ defmodule Icon.RPC.RequestTest do
     end
 
     test "when params are valid, generates signature", %{identity: identity} do
-      params = %{"int" => 42}
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000
+      }
 
-      options = [
-        schema: %{
-          int: {:integer, required: true},
-          signature: :signature
-        },
-        identity: identity
-      ]
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_transaction(identity, params: params)
 
-      expected =
-        "MEUCIQCiKDBdlnGnhk2ItS2TjpSDFmNzXvriSYPuHF9nAUBHJAIgOh5yWXA4SVXT8Dgx+5I5NbnIzlCFwho9HXwim7o25Dc="
-
-      assert {:ok, %Request{params: %{signature: ^expected}}} =
-               "icx_method"
-               |> Request.build(params, options)
-               |> Request.sign()
+      assert {:ok, %Request{} = request} = Request.sign(request)
+      assert Request.verify(request)
     end
 
     test "when params are invalid, errors", %{identity: identity} do
-      params = %{"int" => -1}
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000
+      }
 
-      options = [
-        schema: %{
-          int: {:integer, required: true},
-          signature: :signature
-        },
-        identity: identity
-      ]
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_transaction(identity, params: params)
 
-      assert {:error, %Error{message: "int is invalid"}} =
-               "icx_method"
-               |> Request.build(params, options)
-               |> Request.sign()
+      request = %{request | params: Map.delete(request.params, :to)}
+
+      assert {:error, %Error{message: "to is required"}} = Request.sign(request)
     end
 
-    test "when identity cannot sign, errors" do
-      params = %{"int" => 42}
+    test "when identity cannot sign, errors", %{identity: identity} do
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000
+      }
 
-      options = [
-        schema: %{
-          int: {:integer, required: true},
-          signature: :signature
-        }
-      ]
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_transaction(identity, params: params)
 
-      assert {:error, %Error{message: "identity cannot sign transaction"}} =
-               "icx_method"
-               |> Request.build(params, options)
-               |> Request.sign()
+      request = %{
+        request
+        | options: Map.put(request.options, :identity, Identity.new())
+      }
+
+      assert {:error,
+              %Error{
+                code: -32_600,
+                domain: :request,
+                message: "cannot sign request",
+                reason: :invalid_request
+              }} = Request.sign(request)
+    end
+
+    test "when there's no signature, verification fails", %{identity: identity} do
+      params = %{
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000
+      }
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_transaction(identity, params: params)
+
+      refute Request.verify(request)
     end
   end
 

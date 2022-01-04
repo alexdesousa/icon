@@ -52,6 +52,8 @@ defmodule Icon.RPC.Request do
           options: options :: map()
         }
 
+  @transaction "icx_sendTransaction"
+
   @doc """
   Builds an RPC request given a `method`, `params` and `options`.
 
@@ -114,6 +116,38 @@ defmodule Icon.RPC.Request do
   end
 
   @doc """
+  Serializes a transaction `request`.
+  """
+  @spec serialize(t()) :: {:ok, binary()} | {:error, Error.t()}
+  def serialize(%__MODULE__{
+        method: @transaction,
+        params: params,
+        options: %{schema: schema}
+      }) do
+    state =
+      schema
+      |> Schema.generate()
+      |> Schema.new(params)
+      |> Schema.dump()
+
+    with {:ok, params} <- Schema.apply(state) do
+      serialized = "#{@transaction}.#{do_serialize(params)}"
+
+      {:ok, serialized}
+    end
+  end
+
+  def serialize(%__MODULE__{method: method}) do
+    reason =
+      Error.new(
+        reason: :invalid_params,
+        message: "cannot serialize method #{method}"
+      )
+
+    {:error, reason}
+  end
+
+  @doc """
   Signs `request`.
   """
   @spec sign(t()) :: {:ok, t()} | {:error, Error.t()}
@@ -121,31 +155,57 @@ defmodule Icon.RPC.Request do
 
   def sign(
         %__MODULE__{
+          method: @transaction,
           params: params,
           options: %{identity: %Identity{} = identity}
         } = request
       )
       when is_map(params) and params != %{} and can_sign(identity) do
-    with {:ok, dumped} <- dump_params(request) do
-      signature = sign_params(dumped, identity)
-
-      request = %{
-        request
-        | params: Map.put(params, :signature, signature)
-      }
-
-      {:ok, request}
+    with {:ok, serialized} <- serialize(request) do
+      {:ok, do_sign(request, serialized)}
     end
   end
 
   def sign(%__MODULE__{}) do
     reason =
       Error.new(
-        reason: :invalid_params,
-        message: "identity cannot sign transaction"
+        reason: :invalid_request,
+        message: "cannot sign request"
       )
 
     {:error, reason}
+  end
+
+  @doc """
+  Whether a `request` is signed correctly or not.
+  """
+  @spec verify(t()) :: boolean()
+  def verify(request)
+
+  def verify(
+        %__MODULE__{
+          method: @transaction,
+          params: %{signature: signature} = params,
+          options: %{identity: %Identity{key: key} = identity}
+        } = request
+      )
+      when is_map(params) and params != %{} and can_sign(identity) do
+    with {:ok, decoded_signature} <- Base.decode64(signature),
+         curvy_signature = to_curvy(decoded_signature),
+         encoded_signature = Base.encode64(curvy_signature),
+         {:ok, serialized} <- serialize(request),
+         message = hash(serialized),
+         verified when is_boolean(verified) <-
+           Curvy.verify(encoded_signature, message, key, encoding: :base64) do
+      verified
+    else
+      _ ->
+        false
+    end
+  end
+
+  def verify(%__MODULE__{} = _request) do
+    false
   end
 
   #########
@@ -163,26 +223,103 @@ defmodule Icon.RPC.Request do
     end
   end
 
-  @spec dump_params(t()) :: {:ok, t()} | {:error, Error.t()}
-  defp dump_params(request)
+  @spec do_sign(t(), binary()) :: t()
+  defp do_sign(request, serialized_request)
 
-  defp dump_params(%__MODULE__{params: params, options: %{schema: schema}}) do
-    schema
-    |> Schema.generate()
-    |> Schema.new(params)
-    |> Schema.dump()
-    |> Schema.apply()
+  defp do_sign(
+         %__MODULE__{
+           params: params,
+           options: %{identity: %Identity{key: key}}
+         } = request,
+         serialized_request
+       ) do
+    signature =
+      serialized_request
+      |> hash()
+      |> Curvy.sign(key, compact: true, hash: :sha256)
+      |> from_curvy()
+      |> Base.encode64()
+
+    %{request | params: Map.put(params, :signature, signature)}
   end
 
-  @spec sign_params(map(), Identity.t()) :: Icon.Schema.Types.Signature.t()
-  defp sign_params(params, identity)
+  @spec do_serialize(any()) :: binary()
+  defp do_serialize(params)
 
-  defp sign_params(params, %Identity{key: key}) do
-    serialized = Jason.encode!(params)
+  defp do_serialize(data) when is_map(data) do
+    data
+    |> Enum.sort_by(fn {key, _} -> key end, :asc)
+    |> Stream.map(fn
+      {:signature, _} ->
+        ""
 
-    :sha3_256
-    |> :crypto.hash(serialized)
-    |> Curvy.sign(key, encoding: :base64)
+      {key, value} when is_map(value) ->
+        "#{key}.{#{do_serialize(value)}}"
+
+      {key, value} when is_list(value) ->
+        "#{key}.[#{do_serialize(value)}]"
+
+      {key, value} ->
+        "#{key}.#{do_serialize(value)}"
+    end)
+    |> Stream.reject(&(&1 == ""))
+    |> Enum.join(".")
+  end
+
+  defp do_serialize(data) when is_list(data) do
+    data
+    |> Stream.map(fn value -> do_serialize(value) end)
+    |> Enum.join(".")
+  end
+
+  defp do_serialize(nil) do
+    "\\0"
+  end
+
+  defp do_serialize(data) when is_binary(data) do
+    data
+    |> to_charlist()
+    |> Enum.map(fn
+      ?\\ -> [?\\, ?\\]
+      ?{ -> [?\\, ?{]
+      ?} -> [?\\, ?}]
+      ?[ -> [?\\, ?[]
+      ?] -> [?\\, ?]]
+      ?. -> [?\\, ?.]
+      char -> char
+    end)
+    |> IO.iodata_to_binary()
+  end
+
+  @spec hash(binary()) :: binary()
+  defp hash(message) do
+    :crypto.hash(:sha3_256, message)
+  end
+
+  @spec from_curvy(binary()) :: binary()
+  defp from_curvy(compacted_signature)
+
+  defp from_curvy(<<
+         v::8-unsigned-integer,
+         r::bytes-size(32),
+         s::bytes-size(32)
+       >>) do
+    recovery_id = v - (27 + 4)
+
+    <<r::bytes-size(32), s::bytes-size(32), recovery_id::8-unsigned-integer>>
+  end
+
+  @spec to_curvy(binary()) :: binary()
+  defp to_curvy(compacted_signature)
+
+  defp to_curvy(<<
+         r::bytes-size(32),
+         s::bytes-size(32),
+         recovery_id::8-unsigned-integer
+       >>) do
+    v = recovery_id + (27 + 4)
+
+    <<v::8-unsigned-integer, r::bytes-size(32), s::bytes-size(32)>>
   end
 end
 
