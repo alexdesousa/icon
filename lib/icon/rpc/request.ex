@@ -192,11 +192,10 @@ defmodule Icon.RPC.Request do
       when is_map(params) and params != %{} and can_sign(identity) do
     with {:ok, decoded_signature} <- Base.decode64(signature),
          curvy_signature = to_curvy(decoded_signature),
-         encoded_signature = Base.encode64(curvy_signature),
          {:ok, serialized} <- serialize(request),
-         message = hash(serialized),
+         hashed = hash(serialized),
          verified when is_boolean(verified) <-
-           Curvy.verify(encoded_signature, message, key, encoding: :base64) do
+           Curvy.verify(curvy_signature, hashed, key, hash: :sha3_256) do
       verified
     else
       _ ->
@@ -236,11 +235,16 @@ defmodule Icon.RPC.Request do
     signature =
       serialized_request
       |> hash()
-      |> Curvy.sign(key, compact: true, hash: :sha256)
+      |> Curvy.sign(key, compact: true, hash: :sha3_256)
       |> from_curvy()
       |> Base.encode64()
 
     %{request | params: Map.put(params, :signature, signature)}
+  end
+
+  @spec hash(binary()) :: binary()
+  defp hash(message) do
+    :crypto.hash(:sha3_256, message)
   end
 
   @spec do_serialize(any()) :: binary()
@@ -289,11 +293,6 @@ defmodule Icon.RPC.Request do
       char -> char
     end)
     |> IO.iodata_to_binary()
-  end
-
-  @spec hash(binary()) :: binary()
-  defp hash(message) do
-    :crypto.hash(:sha3_256, message)
   end
 
   @spec from_curvy(binary()) :: binary()
