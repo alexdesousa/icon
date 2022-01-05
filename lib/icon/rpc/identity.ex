@@ -2,6 +2,116 @@ defmodule Icon.RPC.Identity do
   @moduledoc """
   This module defines a struct with the basic identity information to query and
   transact with the ICON 2.0 JSON API.
+
+  There are two types of identities:
+
+  - With wallet.
+  - Without wallet.
+
+  For most methods, we'll only need an identity without a wallet. However, for
+  transactions is necessary we add a wallet to our identity.
+
+  Identities have the following fields:
+  - `network_id` - Which is either the name (network_name/0) or the network ID
+    number. Defaults to `:mainnet` (it's the same as `1`).
+  - `node` - The URL to the node we want to use. It has default node URL per
+    `network_id` for convinience, but they can be overriden.
+  - `debug` - Whether the debug endpoint should be used or not. Defaults to
+    `false`.
+  - `key` - It's a `Curvy.Signature.t()`, though it's not visible when
+    inspecting the struct. Instead the field shown would be an incomplete
+    `private_key`.
+  - `address` - EOA address derived from the `private_key`.
+
+  e.g. the following creates an identity for interacting with Sejong testnet:
+
+  ```elixir
+  iex> Icon.RPC.Identity.new(network_id: :sejong, private_key: "8ad9...")
+  #Identity<[
+    node: "https://sejong.net.solidwallet.io",
+    network_id: "0x53 (Sejong)",
+    debug: false,
+    address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+    private_key: "8ad9..."
+  ]>
+  ```
+
+  ## Networks
+
+  Though in theory any ICON network can be used, this API only supports ICON 2.0
+  networks by name.
+
+  ### Mainnet
+
+  This is ICON 2.0 network and the default option when creating an identity.
+
+  ```elixir
+  iex> Icon.RPC.Identity.new()
+  #Identity<[
+    node: "https://ctz.solidwallet.io",
+    network_id: "0x1 (Mainnet)",
+    debug: false
+  ]>
+  ```
+
+  ### Sejong
+
+  This test network is for testing applications without going through an audit
+  and therefore may be unstable. It is equivalent to Yeouido network in ICON
+  1.0.
+
+  ```elixir
+  iex> Icon.RPC.Identity.new(network_id: :sejong)
+  #Identity<[
+    node: "https://sejong.net.solidwallet.io",
+    network_id: "0x53 (Sejong)",
+    debug: false
+  ]>
+  ```
+
+  ### Berlin
+
+  This test network offers the latest features and may be unstable. Resets will
+  happen frequently without notice.
+
+  ```elixir
+  iex> Icon.RPC.Identity.new(network_id: :berlin)
+  #Identity<[
+    node: "https://berlin.net.solidwallet.io",
+    network_id: "0x7 (Berlin)",
+    debug: false
+  ]>
+  ```
+
+  ### Lisbon
+
+  This is the long term support test network. It should be use to test
+  applications in an environment close to mainnet. This is where you'll often
+  see applications beta versions. Though resets can happen, they'll be avoided
+  as much as possible. It is equivalent to Euljiro network in ICON 1.0.
+
+  ```elixir
+  iex> Icon.RPC.Identity.new(network_id: :lisbon)
+  #Identity<[
+    node: "https://lisbon.net.solidwallet.io",
+    network_id: "0x2 (Lisbon)",
+    debug: false
+  ]>
+  ```
+
+  ### BTP
+
+  This is the new BTP test network. Thus anything related to BTP should be
+  tested here.
+
+  ```elixir
+  iex> Icon.RPC.Identity.new(network_id: :btp)
+  #Identity<[
+    node: "https://btp.net.solidwallet.io",
+    network_id: "0x42 (BTP)",
+    debug: false
+  ]>
+  ```
   """
 
   @doc """
@@ -14,7 +124,7 @@ defmodule Icon.RPC.Identity do
             address: nil
 
   @typedoc """
-  Connection.
+  Identity.
   """
   @type t :: %__MODULE__{
           node: binary(),

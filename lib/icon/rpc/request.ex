@@ -1,6 +1,120 @@
 defmodule Icon.RPC.Request do
   @moduledoc """
-  This module defines a basic JSON RPC request payload.
+  This module defines a basic JSON RPC request payloads.
+
+  ## Building a Request
+
+  The requests built using `build/3` are prepared to be encoded as a JSON
+  accepted by the ICON 2.0 JSON RPC v3. For building a request we need three
+  things:
+
+  - The name of the method we're calling.
+  - The parameters we're sending along the method.
+  - Some options to both validate the parameters, sign any transaction and
+    build the actual request.
+
+  e.g. let's say we want to query a block by its height, we would do the
+  following:
+
+  ```elixir
+  iex> method = "icx_getBlockByHeight"
+  iex> params = %{height: 42}
+  iex> schema = %{height: :integer}
+  iex> Icon.RPC.Request.build(method, params, schema: schema)
+  %Icon.RPC.Request{
+    id: 1_639_382_704_065_742_380,
+    method: "icx_getBlockByHeight",
+    options: %{
+      schema: %{height: :integer},
+      identity: #Identity<
+        node: "https://ctz.solidwallet.io",
+        network_id: "0x01 (Mainnet)",
+        debug: false
+      >,
+      url: "https://ctz.solidwallet.io/api/v3"
+    },
+    params: %{height: 42}
+  }
+  ```
+
+  > Note: The previous example is for documentation purpose. This functionality
+  > is already present in `Icon.RPC.Request.Goloop`, so no need to build the
+  > request ourselves.
+
+  And, when using the function `Jason.encode!`, we'll get the following JSON:
+
+  ```json
+  {
+    "id": 1639382704065742380,
+    "jsonrpc": "2.0",
+    "method": "icx_getBlockByHeight",
+    "params": {
+      "height": "0x2a"
+    }
+  }
+  ```
+
+  ## Signing a Transaction
+
+  Transactions need to be signed before sending them to the node. With the
+  signature is possible to verify it comes from the wallet requesting it e.g.
+  let's say we want to sent 1 ICX from one wallet to another:
+
+  ```elixir
+  iex> request = Icon.RPC.Request.build("icx_sendTransaction", ...)
+  %Icon.RPC.Request{
+    id: 1_639_382_704_065_742_380,
+    method: "icx_sendTransaction",
+    options: ...,
+    params: %{
+      from: "hx2e243ad926ac48d15156756fce28314357d49d83",
+      to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+      value: 1_000_000_000_000_000_000,
+      ...
+    }
+  }
+  ```
+
+  then we can sign it as follows:
+
+  ```elixir
+  iex> {:ok, request} = Icon.RPC.Request.sign(request)
+  {
+    :ok,
+    %Icon.RPC.Request{
+      id: 1_639_382_704_065_742_380,
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+        value: 1_000_000_000_000_000_000,
+        signature: "Kut8d4uXzy0UPIU13l3OW5Ba3WNuq6B6w7+0v4XR4qQNv1Cy3qOmn7ih4TZrXZGT3qhkaRM/WCL+qmWyh86/tgA="
+        ...
+      }
+    }
+  }
+  ```
+
+  and also verify it to check everything is correct after signing it:
+
+  ```elixir
+  iex> Icon.RPC.Request.verify(request)
+  true
+  ```
+
+  > Note: In order to sign a transaction, the option `identity` is mandatory and
+  > it needs to be built using a `private_key` e.g.
+  > ```elixir
+  > iex> Icon.RPC.Identity.new(private_key: "8ad9...")
+  > #Identity<[
+  >   node: "https://ctz.solidwallet.io",
+  >   network_id: "0x1 (Mainnet)",
+  >   debug: false,
+  >   address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+  >   private_key: "8ad9..."
+  > ]>
+  > ```
   """
   import Icon.RPC.Identity, only: [can_sign: 1]
 
@@ -32,7 +146,7 @@ defmodule Icon.RPC.Request do
   RPC option.
   """
   @type option ::
-          {:schema, module() | map()}
+          {:schema, module() | Schema.t()}
           | {:timeout, non_neg_integer()}
           | {:identity, Identity.t()}
           | {:url, binary()}
@@ -49,33 +163,46 @@ defmodule Icon.RPC.Request do
           id: id :: pos_integer(),
           method: method :: method(),
           params: params :: params(),
-          options: options :: map()
+          options:
+            options :: %{
+              required(:identity) => Identity.t(),
+              required(:url) => binary(),
+              optional(:schema) => module() | Schema.t(),
+              optional(:timeout) => non_neg_integer()
+            }
         }
 
   @transaction "icx_sendTransaction"
 
   @doc """
-  Builds an RPC request given a `method`, `params` and `options`.
+  Builds an RPC request given a `method`, some `parameters` and general
+  `options`.
 
-  Though it's not mandatory, the options can include `types` to automatically
-  `dump/1` the `params` when encoding to JSON. The idea is to be able to
-  convert any type to ICON 2.0's internal representation. The following are the
-  recommended types:
+  The `method` and `parameters` depend on the JSON RPC method we're calling,
+  while the `options` have extra instructions for the actual request.
 
-  - `Icon.Schema.Types.Address` for both EOA and SCORE addresses.
-  - `Icon.Schema.Types.BinaryData` for binary data.
-  - `Icon.Schema.Types.Boolean` for Elixir's `boolean` type.
-  - `Icon.Schema.Types.EOA` for Externally Owned Account (EOA) addresses.
-  - `Icon.Schema.Types.Hash` for hashes e.g. block hash.
-  - `Icon.Schema.Types.Integer` for Elixir's `non_neg_integer` type.
-  - `Icon.Schema.Types.Loop` for loop (1 ICX = 10¹⁸ loop) which is a
-    `non_neg_integer` type.
-  - `Icon.Schema.Types.SCORE` for SCORE addresses.
-  - `Icon.Schema.Types.Signature` for signatures.
-  - `Icon.Schema.Types.String` for Elixir's `binary` type.
-  - `Icon.Schema.Types.Timestamp` for Elixir's `DateTime`.
+  Options:
+  - `timeout` - Whether we should have a timeout on the call or not. This
+    timeout only applies to methods we can wait on the result e.g.
+    `icx_waitTransactionResult` and `icx_sendTransactionAndWait`.
+  - `schema` - `Icon.Schema` for verifying the call `parameters`.
+  - `identity` - `Icon.RPC.Identity` of the wallet performing the action. A full
+    identity is not required for most readonly calls. However, it is necessary
+    to have a full wallet configure for sending transactions to the ICON 2.0
+    blockchain.
+  - `url` - This endpoint is set automatically by the request builder.
+
+  ## Encoding
+
+  Though having the `schema` option is not mandatory, it is necessary whenever
+  we're calling a `method` with `parameters` in order to convert them to the
+  ICON 2.0 type representation as well as serializing transactions. For more
+  information, check `Icon.Schema` module.
 
   ### Example
+
+  The following example shows how to build a request for querying a block by
+  `height`:
 
   ```elixir
   iex> method = "icx_getBlockByHeight"
@@ -83,9 +210,9 @@ defmodule Icon.RPC.Request do
   iex> schema = %{height: :integer}
   iex> Icon.RPC.Request.build(method, params, schema: schema)
   %Icon.RPC.Request{
-    id: 1639382704065742380,
+    id: 1_639_382_704_065_742_380,
     method: "icx_getBlockByHeight",
-    options: [
+    options: %{
       schema: %{height: :integer},
       identity: #Identity<
         node: "https://ctz.solidwallet.io",
@@ -93,7 +220,7 @@ defmodule Icon.RPC.Request do
         debug: false
       >,
       url: "https://ctz.solidwallet.io/api/v3"
-    ],
+    },
     params: %{height: 42}
   }
   ```
@@ -117,6 +244,55 @@ defmodule Icon.RPC.Request do
 
   @doc """
   Serializes a transaction `request`.
+
+  When building a transaction signature, one of the steps of the process is
+  serializing the transaction. In general, the serialization process goes as
+  follows:
+  1. Convert the JSON RPC method parameters to the ICON representation.
+  2. Serialize them.
+
+  E.g. a request like the following:
+
+  ```elixir
+  %Icon.RPC.Request{
+    id: 1_641_400_211_292_452_380,
+    method: "icx_sendTransaction",
+    options: ...,
+    params: %{
+      from: "hx2e243ad926ac48d15156756fce28314357d49d83",
+      to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+      nid: 1,
+      version: 3,
+      timestamp: ~U[2022-01-05 16:30:11.292452Z],
+      stepLimit: 100_000,
+      value: 1_000_000_000_000_000_000
+    }
+  }
+  ```
+
+  would be serialized as follows:
+
+  ```text
+  icx_sendTransaction.from.hx2e243ad926ac48d15156756fce28314357d49d83.nid.0x1.stepLimit.0x186a0.timestamp.0x5d4d844874124.to.hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0.value.0xde0b6b3a7640000.version.0x3
+  ```
+
+  The serialization rules are simple:
+
+  - Values should be encoded to the ICONs encoding e.g. the integer `1` would
+    be converted to `"0x1"`.
+  - `<key>`/`<value>` pairs in maps should be converted to `"<key>.<value>"`
+    string e.g. `{:a, 1}` would be converted to `"a.0x1"`
+  - All keys in a map should be in alphabetical order.
+  - All maps except the top level one should be surrounded by braces e.g.
+    `%{a: 1}` would be converted to `"{a.0x1}"`.
+  - Lists should be surrounded by brackets and its elements should be separated
+    by `.` e.g. `[1,2,3]` would be converted to `"[0x1.0x2.0x3]"`.
+  - The top level map should be preceded by `"icx_sendTransaction."` prefix e.g.
+    `%{from: "hx...", ...}` would be converted to
+    `"icx_sendTransaction.from.hx..."`
+  - Any of the characters `\\`, `{`, `}`, `[`, `]` and `.` should be escaped by
+    adding a `\\` before them e.g. `%{message: "..."}` would be encoded as
+    `{message.\\.\\.\\.}`.
   """
   @spec serialize(t()) :: {:ok, binary()} | {:error, Error.t()}
   def serialize(%__MODULE__{
@@ -149,6 +325,19 @@ defmodule Icon.RPC.Request do
 
   @doc """
   Signs `request`.
+
+  Signing a request does the following:
+
+  1. Serializes the parameters see `serialize/1`,
+  2. Hash the serialized parameters with `SHA3_256` digest algorithm **twice**.
+  3. Generate a SECP256K1 signature with the hash.
+  4. Encode the signature in Base 64.
+  5. Add the encoded signature to the transaction parameters.
+
+  > Note: `Curvy` is the library used by this API for the signature. It
+  > generates compact signatures in the form of `VRS` while ICON expects `RSV`
+  > signatures. This modules handles the conversion between these formats
+  > transparently.
   """
   @spec sign(t()) :: {:ok, t()} | {:error, Error.t()}
   def sign(request)
@@ -329,19 +518,25 @@ defimpl Jason.Encoder, for: Icon.RPC.Request do
   The recomended types for converting values to ICON 2.0 representation are the
   following:
 
-  - `Icon.Schema.Types.Integer` for Elixir's `non_neg_integer` type.
-  - `Icon.Schema.Types.String` for Elixir's `binary` type.
+  - `Icon.Schema.Types.Address` for both EOA and SCORE addresses.
+  - `Icon.Schema.Types.BinaryData` for binary data.
   - `Icon.Schema.Types.Boolean` for Elixir's `boolean` type.
   - `Icon.Schema.Types.EOA` for Externally Owned Account (EOA) addresses.
-  - `Icon.Schema.Types.SCORE` for SCORE addresses.
-  - `Icon.Schema.Types.Address` for both EOA and SCORE addresses.
   - `Icon.Schema.Types.Hash` for hashes e.g. block hash.
+  - `Icon.Schema.Types.Integer` for Elixir's `non_neg_integer` type.
+  - `Icon.Schema.Types.Loop` for loop where 10¹⁸ loop = 1 ICX. It delegates to
+    `Icon.Schema.Types.Integer`.
+  - `Icon.Schema.Types.SCORE` for SCORE addresses.
   - `Icon.Schema.Types.Signature` for signatures.
-  - `Icon.Schema.Types.BinaryData` for binary data.
+  - `Icon.Schema.Types.String` for Elixir's `binary` type.
+  - `Icon.Schema.Types.Timestamp` for Elixir's `DateTime.t()` type.
   """
   alias Icon.Schema
   alias Icon.Schema.Error
 
+  @doc """
+  Converts a `request` to JSON.
+  """
   @spec encode(Icon.RPC.Request.t(), Jason.Encode.opts()) :: binary()
   def encode(%Icon.RPC.Request{} = request, options) do
     schema = request.options[:schema]
