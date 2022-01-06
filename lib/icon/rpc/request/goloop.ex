@@ -3,6 +3,7 @@ defmodule Icon.RPC.Request.Goloop do
   This module defines the Goloop API request payloads.
   """
   import Icon.RPC.Identity, only: [has_address: 1]
+  import Icon.Schema, only: [enum: 1]
 
   alias Icon.RPC.{Identity, Request}
   alias Icon.Schema
@@ -84,24 +85,64 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Calls a SCORE `method`. The call is always sent from an EOA address `to` a
-  SCORE address.
+  Builds a request for calling a readonly SCORE `method` with some optional
+  `params` and `options` using a valid `identity` with a wallet.
+
+  Options:
+  - `schema` - `method`'s schema to validate `params`.
+
+  ### Example
+
+  The following shows how build a call to the method `getBalance` in a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.Goloop.call(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   "getBalance",
+  ...>   %{address: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"},
+  ...>   %{address: {:address, required: true}}
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_call",
+      options: ...,
+      params: %{
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        dataType: "call",
+        data: %{
+          method: "getBalance",
+          params: %{
+            address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+          }
+        }
+      }
+    }
+  }
+  ```
   """
-  @spec call(Identity.t(), Schema.Types.SCORE.t(), keyword()) ::
+  @spec call(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          binary(),
+          nil | map() | keyword(),
+          keyword()
+        ) ::
           {:ok, Request.t()}
           | {:error, Error.t()}
-  def call(identity, to, options)
+  def call(identity, to, method, params \\ nil, options \\ [])
 
-  def call(%Identity{address: from} = identity, to, options)
+  def call(%Identity{address: from} = identity, to, method, params, options)
       when has_address(identity) do
     call_schema = options[:schema]
-    call_method = options[:method]
-    call_params = options[:params]
 
     schema = %{
       from: {:eoa_address, required: true},
       to: {:score_address, required: true},
-      dataType: {:string, default: "call"},
+      dataType: {enum([:call]), default: :call},
       data:
         if call_schema do
           %{
@@ -117,8 +158,8 @@ defmodule Icon.RPC.Request.Goloop do
       from: from,
       to: to,
       data: %{
-        method: call_method,
-        params: call_params
+        method: method,
+        params: params
       }
     }
 
@@ -130,6 +171,16 @@ defmodule Icon.RPC.Request.Goloop do
 
       {:ok, request}
     end
+  end
+
+  def call(%Identity{} = _identity, _to, _method, _params, _options) do
+    reason =
+      Error.new(
+        reason: :invalid_request,
+        message: "identity must have a wallet"
+      )
+
+    {:error, reason}
   end
 
   @doc """

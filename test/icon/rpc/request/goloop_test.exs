@@ -140,7 +140,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
-  describe "call/3" do
+  describe "call/3, call/4, call/5" do
     setup do
       # Taken from Python ICON SDK tests.
       private_key =
@@ -151,17 +151,12 @@ defmodule Icon.RPC.Request.GoloopTest do
       {:ok, identity: identity}
     end
 
-    test "when a valid, builds RPC call for icx_call", %{identity: identity} do
+    test "when a valid, builds RPC call without parameters for icx_call", %{
+      identity: identity
+    } do
       from = identity.address
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: from
-        },
-        schema: %{address: {:address, required: true}}
-      ]
+      method = "getBalance"
 
       assert {
                :ok,
@@ -172,7 +167,43 @@ defmodule Icon.RPC.Request.GoloopTest do
                    schema: %{
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
-                     dataType: {:string, default: "call"},
+                     dataType: {{:enum, [:call]}, default: :call},
+                     data: %{
+                       method: {:string, required: true}
+                     }
+                   }
+                 },
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   dataType: :call,
+                   data: %{
+                     method: "getBalance"
+                   }
+                 }
+               }
+             } = Request.Goloop.call(identity, to, method)
+    end
+
+    test "when a valid, builds RPC call with parameters for icx_call", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "getBalance"
+      params = %{address: from}
+      options = [schema: %{address: {:address, required: true}}]
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_call",
+                 options: %{
+                   url: _,
+                   schema: %{
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     dataType: {{:enum, [:call]}, default: :call},
                      data: %{
                        method: {:string, required: true},
                        params: {
@@ -185,7 +216,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  params: %{
                    from: ^from,
                    to: ^to,
-                   dataType: "call",
+                   dataType: :call,
                    data: %{
                      method: "getBalance",
                      params: %{
@@ -194,7 +225,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                    }
                  }
                }
-             } = Request.Goloop.call(identity, to, options)
+             } = Request.Goloop.call(identity, to, method, params, options)
     end
 
     test "when params schema is empty, ignores parameters", %{
@@ -202,13 +233,8 @@ defmodule Icon.RPC.Request.GoloopTest do
     } do
       from = identity.address
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: from
-        }
-      ]
+      method = "getBalance"
+      params = %{address: from}
 
       assert {
                :ok,
@@ -219,7 +245,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                    schema: %{
                      from: {:eoa_address, required: true},
                      to: {:score_address, required: true},
-                     dataType: {:string, default: "call"},
+                     dataType: {{:enum, [:call]}, default: :call},
                      data: %{
                        method: {:string, required: true}
                      }
@@ -228,26 +254,21 @@ defmodule Icon.RPC.Request.GoloopTest do
                  params: %{
                    from: ^from,
                    to: ^to,
-                   dataType: "call",
+                   dataType: :call,
                    data: %{
                      method: "getBalance"
                    }
                  }
                }
-             } = Request.Goloop.call(identity, to, options)
+             } = Request.Goloop.call(identity, to, method, params)
     end
 
     test "encodes it correctly", %{identity: identity} do
       from = identity.address
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: from
-        },
-        schema: %{address: {:address, required: true}}
-      ]
+      method = "getBalance"
+      params = %{address: from}
+      options = [schema: %{address: {:address, required: true}}]
 
       assert %{
                "id" => _id,
@@ -266,7 +287,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                }
              } =
                identity
-               |> Request.Goloop.call(to, options)
+               |> Request.Goloop.call(to, method, params, options)
                |> elem(1)
                |> Jason.encode!()
                |> Jason.decode!()
@@ -275,54 +296,39 @@ defmodule Icon.RPC.Request.GoloopTest do
     test "when to address is invalid, errors", %{identity: identity} do
       from = identity.address
       to = "cx0"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: from
-        },
-        schema: %{address: {:address, required: true}}
-      ]
+      method = "getBalance"
+      params = %{address: from}
+      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :error,
                %Error{message: "to is invalid"}
-             } = Request.Goloop.call(identity, to, options)
+             } = Request.Goloop.call(identity, to, method, params, options)
     end
 
-    test "when to is a EOA address, errors", %{identity: identity} do
-      from = identity.address
-      to = "hxbe258ceb872e08851f1f59694dac2558708ece11"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: from
-        },
-        schema: %{address: {:address, required: true}}
-      ]
-
-      assert {
-               :error,
-               %Error{message: "to is invalid"}
-             } = Request.Goloop.call(identity, to, options)
-    end
-
-    test "when params is invalid, errors", %{identity: identity} do
+    test "when params are invalid, errors", %{identity: identity} do
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-
-      options = [
-        method: "getBalance",
-        params: %{
-          address: "hx0"
-        },
-        schema: %{address: {:address, required: true}}
-      ]
+      method = "getBalance"
+      params = %{address: "hx0"}
+      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :error,
                %Error{message: "data.params.address is invalid"}
-             } = Request.Goloop.call(identity, to, options)
+             } = Request.Goloop.call(identity, to, method, params, options)
+    end
+
+    test "when identity doesn't have a wallet, errors" do
+      identity = Identity.new()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "getBalance"
+      params = %{address: "hxbe258ceb872e08851f1f59694dac2558708ece11"}
+      options = [schema: %{address: {:address, required: true}}]
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.call(identity, to, method, params, options)
     end
   end
 
