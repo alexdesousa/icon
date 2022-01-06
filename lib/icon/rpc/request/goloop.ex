@@ -229,13 +229,7 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   def call(%Identity{} = _identity, _to, _method, _params, _options) do
-    reason =
-      Error.new(
-        reason: :invalid_request,
-        message: "identity must have a wallet"
-      )
-
-    {:error, reason}
+    identity_must_have_a_wallet()
   end
 
   @doc """
@@ -457,6 +451,102 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
+  Builds an ICX transfer transaction given a `recipient` address and the
+  `amount` of ICX in loop (1 ICX = 10¹⁸ loop).
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  ### Example
+
+  The following builds a request for sending 1 ICX to another wallet:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.get_transaction_by_hash(
+  ...>   identity,
+  ...>   "hx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>   1_000_000_000_000_000_000
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000,
+        stepLimit: 100_000,
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3
+      }
+    }
+  }
+  ```
+  """
+  @spec transfer(
+          Identity.t(),
+          Schema.Types.Address.t(),
+          Schema.Types.Loop.t()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec transfer(
+          Identity.t(),
+          Schema.Types.Address.t(),
+          Schema.Types.Loop.t(),
+          keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def transfer(identity, recipient, amount, options \\ [])
+
+  def transfer(%Identity{} = identity, to, value, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, to)
+      |> Map.put(:value, value)
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: {:loop, required: true}
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def transfer(%Identity{} = _identity, _recipient, _amount, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
   Sends a transaction given some `options`.
 
   Options:
@@ -488,10 +578,12 @@ defmodule Icon.RPC.Request.Goloop do
           do: [schema: schema, identity: identity, timeout: timeout],
           else: [schema: schema, identity: identity]
 
-      method
-      |> method()
-      |> Request.build(params, options)
-      |> add_step_limit()
+      request =
+        method
+        |> method()
+        |> Request.build(params, options)
+
+      {:ok, request}
     end
   end
 
@@ -855,5 +947,19 @@ defmodule Icon.RPC.Request.Goloop do
       })
 
     {:ok, schema}
+  end
+
+  ###############
+  # Error helpers
+
+  @spec identity_must_have_a_wallet() :: {:error, Error.t()}
+  defp identity_must_have_a_wallet do
+    reason =
+      Error.new(
+        reason: :invalid_request,
+        message: "identity must have a wallet"
+      )
+
+    {:error, reason}
   end
 end
