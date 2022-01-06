@@ -28,7 +28,24 @@ defmodule Icon.RPC.Request.Goloop do
           | :estimate_step
 
   @doc """
-  Gets last block.
+  Builds request for getting the lastest block.
+
+  ## Example
+
+  The following builds a request to get the latest block:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_last_block(identity)
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getLastBlock",
+      options: ...,
+      params: %{}
+    }
+  }
+  ```
   """
   @spec get_last_block(Identity.t()) :: {:ok, Request.t()}
   def get_last_block(identity)
@@ -43,7 +60,26 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets block by `height`.
+  Builds a request for getting a block by `height`.
+
+  ## Example
+
+  The following builds a request to get a block by height:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_block_by_height(identity, 42)
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getBlockByHeight",
+      options: ...,
+      params: %{
+        height: 42
+      }
+    }
+  }
+  ```
   """
   @spec get_block_by_height(Identity.t(), Schema.Types.Integer.t()) ::
           {:ok, Request.t()}
@@ -64,7 +100,26 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets block by `hash`.
+  Builds a request for getting a block by `hash`.
+
+  ## Example
+
+  The following builds a request to get a block by hash:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_block_by_hash(identity, "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6")
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getBlockByHash",
+      options: ...,
+      params: %{
+        hash: "0x8e25acc5b5c74375079d51828760821fc6f54283656620b1d5a715edcc0770c6"
+      }
+    }
+  }
+  ```
   """
   @spec get_block_by_hash(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
@@ -91,7 +146,7 @@ defmodule Icon.RPC.Request.Goloop do
   Options:
   - `schema` - `method`'s schema to validate `params`.
 
-  ### Example
+  ## Example
 
   The following shows how build a call to the method `getBalance` in a SCORE:
 
@@ -184,7 +239,28 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets the balance of an EOA or SCORE `address`.
+  Builds a request for getting the balance of an EOA or SCORE `address`. If the
+  address is not provided, it uses the one in the `identity`.
+
+  ## Example
+
+  The following builds a request for getting the balance of the wallet doing the
+  request:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.get_balance(identity)
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getBalance",
+      options: ...,
+      params: %{
+        address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
+      }
+    }
+  }
+  ```
   """
   @spec get_balance(Identity.t()) ::
           {:ok, Request.t()}
@@ -209,7 +285,26 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets the API of a SCORE given its `address`.
+  Builds a request for getting the API of a SCORE given its `address`.
+
+  ## Example
+
+  The following builds a request for getting the API of a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_score_api(identity, "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32")
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getScoreApi",
+      options: ...,
+      params: %{
+        address: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      }
+    }
+  }
+  ```
   """
   @spec get_score_api(Identity.t(), Schema.Types.SCORE.t()) ::
           {:ok, Request.t()}
@@ -230,7 +325,24 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets the total ICX supply.
+  Builds a request for geting the total ICX supply.
+
+  ## Example
+
+  The following builds a request for getting the ICX total supply:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_total_supply(identity)
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getTotalSupply",
+      options: ...,
+      params: %{}
+    }
+  }
+  ```
   """
   @spec get_total_supply(Identity.t()) :: {:ok, Request.t()}
   def get_total_supply(identity)
@@ -245,11 +357,31 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets the transaction result given its `tx_hash` and some optional `options`.
+  Builds a request for getting the transaction result given its `tx_hash` and
+  some optional `options`.
 
   Options:
   - `timeout` - Timeout in milliseconds for waiting for the result of the
     transaction.
+
+  ## Example
+
+  The following builds a request for getting a transaction result:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_transaction_result(identity, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b")
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getTransactionResult",
+      options: ...,
+      params: %{
+        txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"
+      }
+    }
+  }
+  ```
   """
   @spec get_transaction_result(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
@@ -285,7 +417,26 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
-  Gets transaction by `tx_hash`.
+  Builds a request for getting a transaction by `tx_hash`.
+
+  ## Example
+
+  The following builds a request for getting a transaction:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.RPC.Request.get_transaction_by_hash(identity, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b")
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_getTransactionByHash",
+      options: ...,
+      params: %{
+        txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"
+      }
+    }
+  }
+  ```
   """
   @spec get_transaction_by_hash(Identity.t(), Schema.Types.Hash.t()) ::
           {:ok, Request.t()}
