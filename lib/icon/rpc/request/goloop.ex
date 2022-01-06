@@ -4,7 +4,7 @@ defmodule Icon.RPC.Request.Goloop do
   """
   import Icon.RPC.Identity, only: [has_address: 1]
 
-  alias Icon.RPC.{HTTP, Identity, Request}
+  alias Icon.RPC.{Identity, Request}
   alias Icon.Schema
   alias Icon.Schema.Error
 
@@ -404,7 +404,7 @@ defmodule Icon.RPC.Request.Goloop do
       |> method()
       |> Request.build(params, options)
 
-    with {:ok, "0x" <> _ = step} <- HTTP.request(estimation_request),
+    with {:ok, "0x" <> _ = step} <- Request.send(estimation_request),
          {:ok, step} <- Icon.Schema.Types.Integer.load(step) do
       {:ok, step}
     else

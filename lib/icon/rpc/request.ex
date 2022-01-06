@@ -115,6 +115,18 @@ defmodule Icon.RPC.Request do
   >   private_key: "8ad9..."
   > ]>
   > ```
+
+  ### Sending the Request
+
+  Once we're satisfied with our request, we can send it to the ICON 2.0
+  blockchain using the `send/1` function:
+
+  ```elixir
+  iex> Icon.RPC.Request.send(request)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  where the `response()` will depend on the actual method being called.
   """
   import Icon.RPC.Identity, only: [can_sign: 1]
 
@@ -171,6 +183,11 @@ defmodule Icon.RPC.Request do
               optional(:timeout) => non_neg_integer()
             }
         }
+
+  @typedoc """
+  A JSON RPC response.
+  """
+  @type response :: binary() | list() | map()
 
   @transaction "icx_sendTransaction"
 
@@ -396,8 +413,22 @@ defmodule Icon.RPC.Request do
     false
   end
 
-  #########
-  # Helpers
+  @doc """
+  Sends a remote procedure call to an ICON 2.0 node.
+  """
+  @spec send(t()) :: {:ok, response()} | {:error, Error.t()}
+  def send(request)
+
+  def send(%__MODULE__{options: %{url: url}} = request) do
+    payload = Jason.encode!(request)
+
+    :post
+    |> Finch.build(url, headers(request), payload)
+    |> do_send()
+  end
+
+  ###############
+  # Build helpers
 
   # Puts either the debug or the normal endpoint.
   @spec put_url(options()) :: options()
@@ -411,30 +442,8 @@ defmodule Icon.RPC.Request do
     end
   end
 
-  @spec do_sign(t(), binary()) :: t()
-  defp do_sign(request, serialized_request)
-
-  defp do_sign(
-         %__MODULE__{
-           params: params,
-           options: %{identity: %Identity{key: key}}
-         } = request,
-         serialized_request
-       ) do
-    signature =
-      serialized_request
-      |> hash()
-      |> Curvy.sign(key, compact: true, hash: :sha3_256)
-      |> from_curvy()
-      |> Base.encode64()
-
-    %{request | params: Map.put(params, :signature, signature)}
-  end
-
-  @spec hash(binary()) :: binary()
-  defp hash(message) do
-    :crypto.hash(:sha3_256, message)
-  end
+  #######################
+  # Serialization helpers
 
   @spec do_serialize(any()) :: binary()
   defp do_serialize(params)
@@ -484,6 +493,34 @@ defmodule Icon.RPC.Request do
     |> IO.iodata_to_binary()
   end
 
+  ###################
+  # Signature helpers
+
+  @spec do_sign(t(), binary()) :: t()
+  defp do_sign(request, serialized_request)
+
+  defp do_sign(
+         %__MODULE__{
+           params: params,
+           options: %{identity: %Identity{key: key}}
+         } = request,
+         serialized_request
+       ) do
+    signature =
+      serialized_request
+      |> hash()
+      |> Curvy.sign(key, compact: true, hash: :sha3_256)
+      |> from_curvy()
+      |> Base.encode64()
+
+    %{request | params: Map.put(params, :signature, signature)}
+  end
+
+  @spec hash(binary()) :: binary()
+  defp hash(message) do
+    :crypto.hash(:sha3_256, message)
+  end
+
   @spec from_curvy(binary()) :: binary()
   defp from_curvy(compacted_signature)
 
@@ -508,6 +545,57 @@ defmodule Icon.RPC.Request do
     v = recovery_id + (27 + 4)
 
     <<v::8-unsigned-integer, r::bytes-size(32), s::bytes-size(32)>>
+  end
+
+  ##############
+  # HTTP helpers
+
+  @spec headers(t()) :: [{binary(), binary()}]
+  defp headers(%__MODULE__{options: options}) do
+    case options[:timeout] || 0 do
+      timeout when timeout > 0 ->
+        [
+          {"Content-type", "application/json"},
+          {"Icon-Options", "#{timeout}"}
+        ]
+
+      _ ->
+        [{"Content-type", "application/json"}]
+    end
+  end
+
+  @spec do_send(Finch.Request.t()) ::
+          {:ok, response()}
+          | {:error, Error.t()}
+  defp do_send(%Finch.Request{} = request) do
+    case Finch.request(request, Icon.Finch) do
+      {:ok, %Finch.Response{body: data}} ->
+        decode_response(data)
+
+      {:error, _} ->
+        {:error, Error.new(reason: :system_error)}
+    end
+  end
+
+  @spec decode_response(binary()) :: {:ok, response()} | {:error, Error.t()}
+  defp decode_response(data) do
+    case Jason.decode(data) do
+      {:ok, %{"result" => result}} ->
+        {:ok, result}
+
+      {:ok, %{"error" => error}} ->
+        reason =
+          Error.new(
+            code: error["code"],
+            message: error["message"],
+            data: error["data"]
+          )
+
+        {:error, reason}
+
+      {:error, _} ->
+        {:error, Error.new(reason: :system_error)}
+    end
   end
 end
 
