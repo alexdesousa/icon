@@ -478,7 +478,6 @@ defmodule Icon.RPC.Request.Goloop do
         from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
         to: "hx2e243ad926ac48d15156756fce28314357d49d83",
         value: 1_000_000_000_000_000_000,
-        stepLimit: 100_000,
         nid: 1,
         nonce: 1641487595040282,
         timestamp: ~U[2022-01-06 16:46:35.042078Z],
@@ -543,6 +542,99 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   def transfer(%Identity{} = _identity, _recipient, _amount, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
+  Builds an `message` transfer to a given `recipient`.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  ### Example
+
+  The following builds a request for sending a message to another address:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.get_transaction_by_hash(
+  ...>   identity,
+  ...>   "hx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>   "Hello world!"
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3,
+        dataType: :message,
+        data: "Hello world!"
+      }
+    }
+  }
+  ```
+  """
+  @spec send_message(Identity.t(), Schema.Types.Address.t(), binary()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec send_message(
+          Identity.t(),
+          Schema.Types.Address.t(),
+          binary(),
+          keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def send_message(identity, recipient, message, options \\ [])
+
+  def send_message(%Identity{} = identity, to, message, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, to)
+      |> Map.put(:data, message)
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:address, required: true},
+        value: :loop,
+        dataType: {enum([:message]), default: :message},
+        data: {:binary_data, required: true}
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def send_message(%Identity{} = _identity, _recipient, _message, _options) do
     identity_must_have_a_wallet()
   end
 

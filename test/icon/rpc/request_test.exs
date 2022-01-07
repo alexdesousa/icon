@@ -117,7 +117,7 @@ defmodule Icon.RPC.RequestTest do
               }} = Request.add_step_limit(request, nil, cache: false)
     end
 
-    test "returns cached step limit for transfers when it's already calculated",
+    test "when step limit is already calculated for a transfer, returns it",
          %{
            bypass: bypass,
            identity: identity
@@ -135,6 +135,30 @@ defmodule Icon.RPC.RequestTest do
 
       assert {:ok, %Request{}} = Request.add_step_limit(request)
       assert {:ok, %Request{}} = Request.add_step_limit(request)
+    end
+
+    test "when sending a message, requests step limit every time",
+         %{
+           bypass: bypass,
+           identity: identity
+         } do
+      pid = self()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      Bypass.expect(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        send(pid, :requested)
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.send_message(identity, to, message)
+
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+      assert_receive :requested
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+      assert_receive :requested
     end
 
     test "when there's an error requesting the estimation, errors", %{

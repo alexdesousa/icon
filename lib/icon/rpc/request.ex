@@ -130,8 +130,8 @@ defmodule Icon.RPC.Request do
   """
   import Icon.RPC.Identity, only: [can_sign: 1]
 
-  alias Icon.RPC.Request.Goloop
   alias Icon.RPC.Identity
+  alias Icon.RPC.Request.Goloop
   alias Icon.Schema
   alias Icon.Schema.Error
 

@@ -692,7 +692,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
-  describe "transfer/3 and transfer/4" do
+  describe "transfer/3 with or without options" do
     setup do
       # Taken from Python ICON SDK tests.
       private_key =
@@ -725,6 +725,32 @@ defmodule Icon.RPC.Request.GoloopTest do
              } = Request.Goloop.transfer(identity, to, value)
     end
 
+    test "encodes icx_sendTransaction correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 42
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "value" => "0x2a",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce
+               }
+             } =
+               identity
+               |> Request.Goloop.transfer(to, value)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
     test "builds RPC call for icx_sendTransactionAndWait when there's timeout",
          %{
            identity: identity
@@ -752,6 +778,33 @@ defmodule Icon.RPC.Request.GoloopTest do
                  }
                }
              } = Request.Goloop.transfer(identity, to, value, timeout: timeout)
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 42
+      timeout = 5_000
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "value" => "0x2a",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce
+               }
+             } =
+               identity
+               |> Request.Goloop.transfer(to, value, timeout: timeout)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
     end
 
     test "adds identity", %{identity: identity} do
@@ -810,6 +863,189 @@ defmodule Icon.RPC.Request.GoloopTest do
                :error,
                %Error{message: "identity must have a wallet"}
              } = Request.Goloop.transfer(identity, to, value)
+    end
+  end
+
+  describe "send_message/3 with or without options" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      {:ok, identity: identity}
+    end
+
+    test "builds RPC call for icx_sendTransaction", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :message,
+                   data: ^message
+                 }
+               }
+             } = Request.Goloop.send_message(identity, to, message)
+    end
+
+    test "encodes icx_sendTransaction correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "message",
+                 "data" => "0x49434f4e20322e30"
+               }
+             } =
+               identity
+               |> Request.Goloop.send_message(to, message)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait when there's timeout",
+         %{
+           identity: identity
+         } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+      timeout = 5_000
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: %{
+                   timeout: ^timeout
+                 },
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :message,
+                   data: ^message
+                 }
+               }
+             } =
+               Request.Goloop.send_message(identity, to, message,
+                 timeout: timeout
+               )
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+      timeout = 5_000
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "message",
+                 "data" => "0x49434f4e20322e30"
+               }
+             } =
+               identity
+               |> Request.Goloop.send_message(to, message, timeout: timeout)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "adds identity", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      assert {:ok, %Request{options: %{identity: ^identity}}} =
+               Request.Goloop.send_message(identity, to, message)
+    end
+
+    test "adds schema to the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:address, required: true},
+                     value: :loop,
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:message]}, default: :message},
+                     data: {:binary_data, required: true}
+                   }
+                 }
+               }
+             } = Request.Goloop.send_message(identity, to, message)
+    end
+
+    test "overrides any parameter in the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+      options = [params: %{version: 4}]
+
+      assert {:ok, %Request{params: %{version: 4}}} =
+               Request.Goloop.send_message(identity, to, message, options)
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      assert {
+               :error,
+               %Error{message: "to is invalid"}
+             } = Request.Goloop.send_message(identity, "cx0", "ICON 2.0")
+    end
+
+    test "when identity doesn't have a wallet, errors" do
+      identity = Identity.new()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      message = "ICON 2.0"
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.send_message(identity, to, message)
     end
   end
 
