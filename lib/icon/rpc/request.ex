@@ -130,6 +130,7 @@ defmodule Icon.RPC.Request do
   """
   import Icon.RPC.Identity, only: [can_sign: 1]
 
+  alias Icon.RPC.Request.Goloop
   alias Icon.RPC.Identity
   alias Icon.Schema
   alias Icon.Schema.Error
@@ -189,7 +190,7 @@ defmodule Icon.RPC.Request do
   """
   @type response :: binary() | list() | map()
 
-  @transaction "icx_sendTransaction"
+  @transactions ["icx_sendTransaction", "icx_sendTransactionAndWait"]
 
   @doc """
   Builds an RPC request given a `method`, some `parameters` and general
@@ -260,6 +261,64 @@ defmodule Icon.RPC.Request do
   end
 
   @doc """
+  Adds step limit to a transaction. If no value is provided, then it will
+  request for a node estimation.
+  """
+  @spec add_step_limit(t()) :: {:ok, t()} | {:error, Error.t()}
+  @spec add_step_limit(t(), nil | Schema.Types.Loop.t()) ::
+          {:ok, t()}
+          | {:error, Error.t()}
+  @spec add_step_limit(t(), nil | Schema.Types.Loop.t(), keyword()) ::
+          {:ok, t()}
+          | {:error, Error.t()}
+  def add_step_limit(request, step_limit \\ nil, options \\ [])
+
+  def add_step_limit(%__MODULE__{method: method} = request, nil, options)
+      when method in @transactions do
+    with :miss <- maybe_get_cached_step_limit(request, options),
+         {:ok, step_limit} <- estimate_step(request) do
+      maybe_cache_step_limit(request, step_limit, options)
+
+      request = %{
+        request
+        | params: Map.put(request.params, :stepLimit, step_limit)
+      }
+
+      {:ok, request}
+    else
+      {:error, %Error{}} = error ->
+        error
+
+      {:ok, step_limit} ->
+        add_step_limit(request, step_limit)
+    end
+  end
+
+  def add_step_limit(
+        %__MODULE__{method: method} = request,
+        step_limit,
+        _options
+      )
+      when is_integer(step_limit) and step_limit > 0 and method in @transactions do
+    request = %{
+      request
+      | params: Map.put(request.params, :stepLimit, step_limit)
+    }
+
+    {:ok, request}
+  end
+
+  def add_step_limit(%__MODULE__{} = _request, _step_limit, _options) do
+    reason =
+      Error.new(
+        reason: :invalid_request,
+        message: "only transactions have step limit"
+      )
+
+    {:error, reason}
+  end
+
+  @doc """
   Serializes a transaction `request`.
 
   When building a transaction signature, one of the steps of the process is
@@ -313,10 +372,11 @@ defmodule Icon.RPC.Request do
   """
   @spec serialize(t()) :: {:ok, binary()} | {:error, Error.t()}
   def serialize(%__MODULE__{
-        method: @transaction,
+        method: method,
         params: params,
         options: %{schema: schema}
-      }) do
+      })
+      when method in @transactions do
     state =
       schema
       |> Schema.generate()
@@ -324,7 +384,7 @@ defmodule Icon.RPC.Request do
       |> Schema.dump()
 
     with {:ok, params} <- Schema.apply(state) do
-      serialized = "#{@transaction}.#{do_serialize(params)}"
+      serialized = "icx_sendTransaction.#{do_serialize(params)}"
 
       {:ok, serialized}
     end
@@ -361,12 +421,13 @@ defmodule Icon.RPC.Request do
 
   def sign(
         %__MODULE__{
-          method: @transaction,
+          method: method,
           params: params,
           options: %{identity: %Identity{} = identity}
         } = request
       )
-      when is_map(params) and params != %{} and can_sign(identity) do
+      when is_map(params) and params != %{} and can_sign(identity) and
+             method in @transactions do
     with {:ok, serialized} <- serialize(request) do
       {:ok, do_sign(request, serialized)}
     end
@@ -390,12 +451,13 @@ defmodule Icon.RPC.Request do
 
   def verify(
         %__MODULE__{
-          method: @transaction,
+          method: method,
           params: %{signature: signature} = params,
           options: %{identity: %Identity{key: key} = identity}
         } = request
       )
-      when is_map(params) and params != %{} and can_sign(identity) do
+      when is_map(params) and params != %{} and can_sign(identity) and
+             method in @transactions do
     with {:ok, decoded_signature} <- Base.decode64(signature),
          curvy_signature = to_curvy(decoded_signature),
          {:ok, serialized} <- serialize(request),
@@ -440,6 +502,140 @@ defmodule Icon.RPC.Request do
       %Identity{debug: true, node: node} ->
         Keyword.put(options, :url, "#{node}/api/v3d")
     end
+  end
+
+  ####################
+  # Estimation helpers
+
+  @spec estimate_step(t()) ::
+          {:ok, pos_integer()}
+          | {:error, Error.t()}
+  defp estimate_step(request)
+
+  defp estimate_step(%__MODULE__{
+         params: params,
+         options: %{schema: schema, identity: identity}
+       }) do
+    with {:ok, request} <-
+           Goloop.estimate_step(identity, params, schema),
+         {:ok, "0x" <> _ = value} <- send(request),
+         {:ok, step_limit} <- Icon.Schema.Types.Integer.load(value) do
+      {:ok, step_limit}
+    else
+      {:error, %Error{}} = error ->
+        error
+
+      _ ->
+        reason =
+          Error.new(
+            reason: :system_error,
+            message: "cannot estimate stepLimit"
+          )
+
+        {:error, reason}
+    end
+  end
+
+  @spec maybe_get_cached_step_limit(t(), keyword()) ::
+          {:ok, pos_integer()} | :miss
+  defp maybe_get_cached_step_limit(request, options)
+
+  defp maybe_get_cached_step_limit(
+         %__MODULE__{params: %{dataType: type}},
+         _options
+       )
+       when type in [:deploy, :message] do
+    :miss
+  end
+
+  defp maybe_get_cached_step_limit(%__MODULE__{} = request, options) do
+    with true <- Keyword.get(options, :cache, true),
+         key = {__MODULE__, :step_limit, request_hash(request)},
+         value when is_integer(value) <- :persistent_term.get(key, :miss) do
+      {:ok, value}
+    else
+      _ ->
+        :miss
+    end
+  end
+
+  @spec maybe_cache_step_limit(t(), pos_integer(), keyword()) :: :ok
+  defp maybe_cache_step_limit(request, step_limit, options)
+
+  defp maybe_cache_step_limit(
+         %__MODULE__{params: %{dataType: type}},
+         _step_limit,
+         _options
+       )
+       when type in [:deploy, :message] do
+    :ok
+  end
+
+  defp maybe_cache_step_limit(%__MODULE__{} = request, step_limit, options) do
+    if Keyword.get(options, :cache, true) do
+      key = {__MODULE__, :step_limit, request_hash(request)}
+      :persistent_term.put(key, step_limit)
+      :ok
+    else
+      :ok
+    end
+  end
+
+  @spec request_hash(t()) :: non_neg_integer()
+  defp request_hash(request)
+
+  defp request_hash(%__MODULE__{
+         method: method,
+         params: %{dataType: :call} = params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2(%{
+      schema: schema,
+      method: method,
+      params: %{
+        from: params[:from],
+        to: params[:to],
+        dataType: :call,
+        data: %{
+          method: params[:data][:method],
+          params: Map.keys(params[:data][:params])
+        }
+      }
+    })
+  end
+
+  defp request_hash(%__MODULE__{
+         method: method,
+         params: %{dataType: :deposit} = params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2(%{
+      schema: schema,
+      method: method,
+      params: %{
+        from: params[:from],
+        dataType: :deposit,
+        data: %{
+          action: params[:data][:action],
+          id: Map.has_key?(params[:data], :id),
+          amount: Map.has_key?(params[:data], :amount)
+        }
+      }
+    })
+  end
+
+  defp request_hash(%__MODULE__{
+         method: method,
+         params: params,
+         options: %{schema: schema}
+       }) do
+    :erlang.phash2(%{
+      schema: schema,
+      method: method,
+      params: %{
+        from: params[:from]
+      }
+    })
   end
 
   #######################

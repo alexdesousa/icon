@@ -40,6 +40,172 @@ defmodule Icon.RPC.RequestTest do
     end
   end
 
+  describe "add_step_limit/1, add_step_limit/2 and add_step_limit/3" do
+    setup do
+      bypass = Bypass.open()
+
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity =
+        Identity.new(
+          private_key: private_key,
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "adds step limit to an icx_sendTransaction", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value)
+
+      assert {:ok,
+              %Request{
+                method: "icx_sendTransaction",
+                options: %{
+                  identity: ^identity
+                },
+                params: %{
+                  to: ^to,
+                  value: ^value,
+                  stepLimit: 100_000
+                }
+              }} = Request.add_step_limit(request, nil, cache: false)
+    end
+
+    test "adds step limit to an icx_sendTransactionAndWait", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+      timeout = 5_000
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value, timeout: timeout)
+
+      assert {:ok,
+              %Request{
+                method: "icx_sendTransactionAndWait",
+                options: %{
+                  identity: ^identity,
+                  timeout: ^timeout
+                },
+                params: %{
+                  to: ^to,
+                  value: ^value,
+                  stepLimit: 100_000
+                }
+              }} = Request.add_step_limit(request, nil, cache: false)
+    end
+
+    test "returns cached step limit for transfers when it's already calculated",
+         %{
+           bypass: bypass,
+           identity: identity
+         } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value)
+
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+    end
+
+    test "when there's an error requesting the estimation, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value)
+
+      assert {
+               :error,
+               %Error{
+                 reason: :system_error,
+                 message: "System error"
+               }
+             } = Request.add_step_limit(request, nil, cache: false)
+    end
+
+    test "when requested step limit is invalid, errors", %{
+      bypass: bypass,
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("invalid")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value)
+
+      assert {
+               :error,
+               %Error{
+                 reason: :system_error,
+                 message: "cannot estimate stepLimit"
+               }
+             } = Request.add_step_limit(request, nil, cache: false)
+    end
+
+    test "when request is not a transaction, errors", %{
+      identity: identity
+    } do
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.get_last_block(identity)
+
+      assert {
+               :error,
+               %Error{
+                 reason: :invalid_request,
+                 message: "only transactions have step limit"
+               }
+             } = Request.add_step_limit(request, nil, cache: false)
+    end
+  end
+
   describe "serialize/1" do
     setup do
       # Taken from Python ICON SDK tests.
@@ -754,8 +920,8 @@ defmodule Icon.RPC.RequestTest do
     end
   end
 
-  @spec result(map()) :: binary()
-  defp result(result) when is_map(result) do
+  @spec result(any()) :: binary()
+  defp result(result) do
     %{
       "jsonrpc" => "2.0",
       "id" => :erlang.system_time(:microsecond),

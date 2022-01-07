@@ -1069,97 +1069,6 @@ defmodule Icon.RPC.Request.GoloopTest do
 
       {:ok, bypass: bypass, identity: identity}
     end
-
-    test "adds step limit", %{bypass: bypass, identity: identity} do
-      params = %{
-        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-        value: 1_000_000_000_000_000_000
-      }
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("0x186a0")
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {
-               :ok,
-               %Request{
-                 method: "icx_sendTransaction",
-                 params: %{
-                   stepLimit: 100_000
-                 }
-               }
-             } = Request.Goloop.send_transaction(identity, params: params)
-    end
-
-    test "when the endpoint returns error, errors", %{
-      bypass: bypass,
-      identity: identity
-    } do
-      params = %{
-        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-        dataType: :call,
-        data: %{
-          method: "estimateStepNotFound",
-          params: %{
-            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
-          }
-        }
-      }
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        error =
-          error(%{
-            "code" => -31_004,
-            "message" => "Not found"
-          })
-
-        Plug.Conn.resp(conn, 404, error)
-      end)
-
-      assert {:error,
-              %Error{
-                message: "Not found",
-                reason: :not_found
-              }} =
-               Request.Goloop.send_transaction(
-                 identity,
-                 params: params,
-                 schema: %{address: {:address, required: true}}
-               )
-    end
-
-    test "when the endpoint returns unexpected data, errors", %{
-      bypass: bypass,
-      identity: identity
-    } do
-      params = %{
-        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-        dataType: :call,
-        data: %{
-          method: "invalidMethod",
-          params: %{
-            address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
-          }
-        }
-      }
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("invalid")
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {:error,
-              %Error{
-                message: "cannot estimate stepLimit",
-                reason: :system_error
-              }} =
-               Request.Goloop.send_transaction(
-                 identity,
-                 params: params,
-                 schema: %{address: {:address, required: true}}
-               )
-    end
   end
 
   describe "send_transaction/1 for method calls" do
@@ -1984,25 +1893,5 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> Jason.encode!()
                |> Jason.decode!()
     end
-  end
-
-  @spec result(non_neg_integer()) :: binary()
-  defp result(result) do
-    %{
-      "jsonrpc" => "2.0",
-      "id" => :erlang.system_time(:microsecond),
-      "result" => result
-    }
-    |> Jason.encode!()
-  end
-
-  @spec error(map()) :: binary()
-  defp error(error) when is_map(error) do
-    %{
-      "jsonrpc" => "2.0",
-      "id" => :erlang.system_time(:microsecond),
-      "error" => error
-    }
-    |> Jason.encode!()
   end
 end
