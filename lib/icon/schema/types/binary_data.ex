@@ -5,8 +5,8 @@ defmodule Icon.Schema.Types.BinaryData do
   use Icon.Schema.Type
 
   @typedoc """
-  A binary:
-  - 2 bytes prefix either `cx` or `hx`
+  A binary with:
+  - 2 bytes prefix `0x`.
   - hexadecimal lowercase string with even length.
   """
   @type t :: binary()
@@ -15,17 +15,12 @@ defmodule Icon.Schema.Types.BinaryData do
   @impl Icon.Schema.Type
   def load(value)
 
-  def load("0x" <> data) do
-    data = String.downcase(data)
-    length = String.length(data)
+  def load(<<"0x", x::bytes-size(1), xs::binary>>) do
+    Base.decode16("#{x}#{xs}", case: :lower)
+  end
 
-    with true <- length >= 2 and rem(length, 2) == 0,
-         true <- String.match?(data, ~r/[a-f0-9]+/) do
-      {:ok, "0x#{data}"}
-    else
-      false ->
-        :error
-    end
+  def load(<<_::bytes-size(1), _::binary>> = data) do
+    {:ok, data}
   end
 
   def load(_value) do
@@ -34,5 +29,13 @@ defmodule Icon.Schema.Types.BinaryData do
 
   @spec dump(any()) :: {:ok, t()} | :error
   @impl Icon.Schema.Type
-  defdelegate dump(data), to: __MODULE__, as: :load
+  def dump(<<_::bytes-size(1), _::binary>> = data) do
+    encoded = Base.encode16(data, case: :lower)
+
+    {:ok, "0x#{encoded}"}
+  end
+
+  def dump(_data) do
+    :error
+  end
 end

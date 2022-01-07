@@ -4,29 +4,12 @@ defmodule Icon.Schema.Types.BinaryDataTest do
   alias Icon.Schema.Types.BinaryData
 
   describe "load/1" do
+    test "when it's a valid binary data, returns the decoded binary" do
+      assert {:ok, "ICON 2.0"} = BinaryData.load("0x49434f4e20322e30")
+    end
+
     test "when it's a valid binary, returns said binary" do
-      binary = "0x34b2"
-
-      assert {:ok, ^binary} = BinaryData.load(binary)
-    end
-
-    test "when there are capital letters in the binary, returns them as lowercase" do
-      binary = "0x34B2"
-      expected = "0x34b2"
-
-      assert {:ok, ^expected} = BinaryData.load(binary)
-    end
-
-    test "when the binary is too short, errors" do
-      binary = "0x0"
-
-      assert :error = BinaryData.load(binary)
-    end
-
-    test "when the binary is doesn't have even length, errors" do
-      binary = "0x000"
-
-      assert :error = BinaryData.load(binary)
+      assert {:ok, "ICON 2.0"} = BinaryData.load("ICON 2.0")
     end
 
     test "when it's not a valid binary, errors" do
@@ -40,10 +23,17 @@ defmodule Icon.Schema.Types.BinaryDataTest do
   end
 
   describe "dump/1" do
-    test "delegates to load/1" do
-      binary = "0x34b2"
+    test "converts a binary into the binary data representation" do
+      assert {:ok, "0x49434f4e20322e30"} = BinaryData.dump("ICON 2.0")
+    end
 
-      assert BinaryData.dump(binary) == BinaryData.load(binary)
+    test "when it's not a valid binary, errors" do
+      assert :error = BinaryData.dump(42)
+      assert :error = BinaryData.dump(nil)
+      assert :error = BinaryData.dump(:atom)
+      assert :error = BinaryData.dump("")
+      assert :error = BinaryData.dump(%{})
+      assert :error = BinaryData.dump([])
     end
   end
 end

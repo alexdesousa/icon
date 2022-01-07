@@ -1329,6 +1329,9 @@ defmodule Icon.RPC.Request.GoloopTest do
     } do
       datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
+      {:ok, {_, zip_contents}} =
+        :zip.create('test', [{'file.txt', "ICON 2.0"}], [:memory])
+
       params = %{
         version: 3,
         to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
@@ -1338,7 +1341,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deploy,
         data: %{
           contentType: "application/zip",
-          content: "0x1867291283973610982301923812873419826abcdef9182731926312",
+          content: zip_contents,
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
@@ -1356,7 +1359,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deploy,
         data: %{
           contentType: "application/zip",
-          content: "0x1867291283973610982301923812873419826abcdef9182731926312",
+          content: zip_contents,
           params: %{
             address: "hxbe258ceb872e08851f1f59694dac2558708ece11"
           }
@@ -1466,6 +1469,9 @@ defmodule Icon.RPC.Request.GoloopTest do
     } do
       datetime = DateTime.from_unix!(1_640_948_137_125_360, :microsecond)
 
+      {:ok, {_, zip_contents}} =
+        :zip.create('test', [{'file.txt', "ICON 2.0"}], [:memory])
+
       params = %{
         version: 3,
         to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
@@ -1475,7 +1481,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deploy,
         data: %{
           contentType: "application/zip",
-          content: "0x1867291283973610982301923812873419826abcdef9182731926312"
+          content: zip_contents
         }
       }
 
@@ -1490,7 +1496,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         dataType: :deploy,
         data: %{
           contentType: "application/zip",
-          content: "0x1867291283973610982301923812873419826abcdef9182731926312"
+          content: zip_contents
         }
       }
 
@@ -1820,7 +1826,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         timestamp: datetime,
         nonce: 1,
         dataType: :message,
-        data: "0x2a"
+        data: "ICON 2.0"
       }
 
       expected = %{
@@ -1832,7 +1838,7 @@ defmodule Icon.RPC.Request.GoloopTest do
         nid: identity.network_id,
         nonce: 1,
         dataType: :message,
-        data: "0x2a"
+        data: "ICON 2.0"
       }
 
       assert {

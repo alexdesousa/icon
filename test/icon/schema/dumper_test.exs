@@ -159,11 +159,10 @@ defmodule Icon.Schema.DumperTest do
     end
 
     test "dumps binary_data type" do
-      binary_data = "0x34b2"
-      params = %{"binary_data" => binary_data}
+      params = %{"binary_data" => "ICON 2.0"}
 
       assert %Schema{
-               data: %{binary_data: ^binary_data},
+               data: %{binary_data: "0x49434f4e20322e30"},
                is_valid?: true
              } =
                %{binary_data: :binary_data}
@@ -173,7 +172,7 @@ defmodule Icon.Schema.DumperTest do
     end
 
     test "adds error when binary data is invalid" do
-      params = %{"binary_data" => "0x0"}
+      params = %{"binary_data" => 42}
 
       assert %Schema{
                errors: %{binary_data: "is invalid"},

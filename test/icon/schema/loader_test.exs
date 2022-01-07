@@ -203,7 +203,7 @@ defmodule Icon.Schema.LoaderTest do
     end
 
     test "loads binary_data type" do
-      binary_data = "0x34b2"
+      binary_data = "ICON 2.0"
       params = %{"binary_data" => binary_data}
 
       assert %Schema{
@@ -217,7 +217,7 @@ defmodule Icon.Schema.LoaderTest do
     end
 
     test "adds error when binary data is invalid" do
-      params = %{"binary_data" => "0x0"}
+      params = %{"binary_data" => 42}
 
       assert %Schema{
                errors: %{binary_data: "is invalid"},

@@ -833,7 +833,7 @@ defmodule Icon.RPC.RequestTest do
     test "encodes params according to type" do
       params = %{
         address: "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        binary_data: "0x34b2",
+        binary_data: "ICON 2.0",
         boolean: true,
         eoa: "hxbe258ceb872e08851f1f59694dac2558708ece11",
         hash:
@@ -862,7 +862,7 @@ defmodule Icon.RPC.RequestTest do
       assert %{
                "params" => %{
                  "address" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
-                 "binary_data" => "0x34b2",
+                 "binary_data" => "0x49434f4e20322e30",
                  "boolean" => "0x1",
                  "eoa" => "hxbe258ceb872e08851f1f59694dac2558708ece11",
                  "hash" =>
