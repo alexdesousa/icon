@@ -179,6 +179,17 @@ defmodule Icon.RPC.Request.Goloop do
   }
   ```
   """
+  @spec call(Identity.t(), Schema.Types.SCORE.t(), binary()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec call(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          binary(),
+          nil | map() | keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
   @spec call(
           Identity.t(),
           Schema.Types.SCORE.t(),
@@ -190,7 +201,13 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def call(identity, to, method, params \\ nil, options \\ [])
 
-  def call(%Identity{address: from} = identity, to, method, params, options)
+  def call(
+        %Identity{address: from} = identity,
+        to,
+        method,
+        params,
+        options
+      )
       when has_address(identity) do
     call_schema = options[:schema]
 
@@ -607,7 +624,6 @@ defmodule Icon.RPC.Request.Goloop do
       base_transaction_schema()
       |> Map.merge(%{
         to: {:address, required: true},
-        value: :loop,
         dataType: {enum([:message]), default: :message},
         data: {:binary_data, required: true}
       })
@@ -635,6 +651,86 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   def send_message(%Identity{} = _identity, _recipient, _message, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
+  Builds a transaction for calling a SCORE `method`.
+  """
+  @spec transaction_call(Identity.t(), Schema.Types.SCORE.t(), binary()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec transaction_call(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          binary(),
+          nil | map() | keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec transaction_call(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          binary(),
+          nil | map() | keyword(),
+          keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def transaction_call(identity, score, method, params \\ nil, options \\ [])
+
+  def transaction_call(%Identity{} = identity, to, method, call_params, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, to)
+      |> Map.put(:data, %{
+        method: method,
+        params: call_params
+      })
+
+    call_schema = options[:schema]
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        dataType: {enum([:call]), default: :call},
+        data:
+          if call_schema do
+            %{
+              method: {:string, required: true},
+              params: {call_schema, required: true}
+            }
+          else
+            %{method: {:string, required: true}}
+          end
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def transaction_call(%Identity{} = _identity, _to, _method, _params, _options) do
     identity_must_have_a_wallet()
   end
 

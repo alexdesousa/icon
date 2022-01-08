@@ -598,7 +598,7 @@ defmodule Icon.RPC.Request do
         dataType: :call,
         data: %{
           method: params[:data][:method],
-          params: Map.keys(params[:data][:params])
+          params: Map.keys(params[:data][:params] || %{})
         }
       }
     })

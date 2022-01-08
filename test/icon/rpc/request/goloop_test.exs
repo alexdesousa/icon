@@ -140,7 +140,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
-  describe "call/3, call/4, call/5" do
+  describe "readonly_call/3, readonly_call/5" do
     setup do
       # Taken from Python ICON SDK tests.
       private_key =
@@ -162,17 +162,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_call",
-                 options: %{
-                   url: _,
-                   schema: %{
-                     from: {:eoa_address, required: true},
-                     to: {:score_address, required: true},
-                     dataType: {{:enum, [:call]}, default: :call},
-                     data: %{
-                       method: {:string, required: true}
-                     }
-                   }
-                 },
                  params: %{
                    from: ^from,
                    to: ^to,
@@ -185,6 +174,34 @@ defmodule Icon.RPC.Request.GoloopTest do
              } = Request.Goloop.call(identity, to, method)
     end
 
+    test "when the call doesn't have parameters, they're not present in the schema",
+         %{
+           identity: identity
+         } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "getBalance"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_call",
+                 options: %{
+                   schema:
+                     %{
+                       from: {:eoa_address, required: true},
+                       to: {:score_address, required: true},
+                       dataType: {{:enum, [:call]}, default: :call},
+                       data: %{
+                         method: {:string, required: true}
+                       }
+                     } = schema
+                 }
+               }
+             } = Request.Goloop.call(identity, to, method)
+
+      refute Map.has_key?(schema[:data], :params)
+    end
+
     test "when a valid, builds RPC call with parameters for icx_call", %{
       identity: identity
     } do
@@ -192,27 +209,11 @@ defmodule Icon.RPC.Request.GoloopTest do
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       method = "getBalance"
       params = %{address: from}
-      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :ok,
                %Request{
                  method: "icx_call",
-                 options: %{
-                   url: _,
-                   schema: %{
-                     from: {:eoa_address, required: true},
-                     to: {:score_address, required: true},
-                     dataType: {{:enum, [:call]}, default: :call},
-                     data: %{
-                       method: {:string, required: true},
-                       params: {
-                         %{address: {:address, required: true}},
-                         required: true
-                       }
-                     }
-                   }
-                 },
                  params: %{
                    from: ^from,
                    to: ^to,
@@ -225,7 +226,43 @@ defmodule Icon.RPC.Request.GoloopTest do
                    }
                  }
                }
-             } = Request.Goloop.call(identity, to, method, params, options)
+             } =
+               Request.Goloop.call(identity, to, method, params,
+                 schema: %{address: {:address, required: true}}
+               )
+    end
+
+    test "when the call has parameters, they're present in the schema", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "getBalance"
+      params = %{address: from}
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_call",
+                 options: %{
+                   schema: %{
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     dataType: {{:enum, [:call]}, default: :call},
+                     data: %{
+                       method: {:string, required: true},
+                       params: {
+                         %{address: {:address, required: true}},
+                         required: true
+                       }
+                     }
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.call(identity, to, method, params,
+                 schema: %{address: {:address, required: true}}
+               )
     end
 
     test "when params schema is empty, ignores parameters", %{
@@ -240,17 +277,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                :ok,
                %Request{
                  method: "icx_call",
-                 options: %{
-                   url: _,
-                   schema: %{
-                     from: {:eoa_address, required: true},
-                     to: {:score_address, required: true},
-                     dataType: {{:enum, [:call]}, default: :call},
-                     data: %{
-                       method: {:string, required: true}
-                     }
-                   }
-                 },
                  params: %{
                    from: ^from,
                    to: ^to,
@@ -293,42 +319,44 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> Jason.decode!()
     end
 
-    test "when to address is invalid, errors", %{identity: identity} do
+    test "when SCORE address is invalid, errors", %{identity: identity} do
       from = identity.address
       to = "cx0"
       method = "getBalance"
       params = %{address: from}
-      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :error,
                %Error{message: "to is invalid"}
-             } = Request.Goloop.call(identity, to, method, params, options)
+             } =
+               Request.Goloop.call(identity, to, method, params,
+                 schema: %{address: {:address, required: true}}
+               )
     end
 
     test "when params are invalid, errors", %{identity: identity} do
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       method = "getBalance"
       params = %{address: "hx0"}
-      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :error,
                %Error{message: "data.params.address is invalid"}
-             } = Request.Goloop.call(identity, to, method, params, options)
+             } =
+               Request.Goloop.call(identity, to, method, params,
+                 schema: %{address: {:address, required: true}}
+               )
     end
 
     test "when identity doesn't have a wallet, errors" do
       identity = Identity.new()
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       method = "getBalance"
-      params = %{address: "hxbe258ceb872e08851f1f59694dac2558708ece11"}
-      options = [schema: %{address: {:address, required: true}}]
 
       assert {
                :error,
                %Error{message: "identity must have a wallet"}
-             } = Request.Goloop.call(identity, to, method, params, options)
+             } = Request.Goloop.call(identity, to, method)
     end
   end
 
@@ -1008,7 +1036,6 @@ defmodule Icon.RPC.Request.GoloopTest do
                      version: {:integer, required: true, default: 3},
                      from: {:eoa_address, required: true},
                      to: {:address, required: true},
-                     value: :loop,
                      stepLimit: :integer,
                      timestamp: {:timestamp, required: true, default: _},
                      nid: {:integer, required: true},
@@ -1046,6 +1073,342 @@ defmodule Icon.RPC.Request.GoloopTest do
                :error,
                %Error{message: "identity must have a wallet"}
              } = Request.Goloop.send_message(identity, to, message)
+    end
+  end
+
+  describe "transaction_call/3 with or without options" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      {:ok, identity: identity}
+    end
+
+    test "builds RPC call for icx_sendTransaction", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :call,
+                   data: %{
+                     method: ^method,
+                     params: ^params
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.transaction_call(identity, to, method, params,
+                 schema: %{
+                   address: {:address, required: true},
+                   value: {:loop, required: true}
+                 }
+               )
+    end
+
+    test "encodes icx_sendTransaction correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      options = [
+        schema: %{
+          address: {:address, required: true},
+          value: {:loop, required: true}
+        }
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => ^method,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83",
+                     "value" => "0xde0b6b3a7640000"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.transaction_call(to, method, params, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransaction without parameters correctly", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "delete"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => ^method
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.transaction_call(to, method)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait when there's timeout",
+         %{
+           identity: identity
+         } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      timeout = 5_000
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: %{
+                   timeout: ^timeout
+                 },
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :call,
+                   data: %{
+                     method: ^method,
+                     params: ^params
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.transaction_call(identity, to, method, params,
+                 schema: %{
+                   address: {:address, required: true},
+                   value: {:loop, required: true}
+                 },
+                 timeout: timeout
+               )
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      options = [
+        schema: %{
+          address: {:address, required: true},
+          value: {:loop, required: true}
+        },
+        timeout: 5_000
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => ^method,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83",
+                     "value" => "0xde0b6b3a7640000"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.transaction_call(to, method, params, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "adds identity", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      assert {:ok, %Request{options: %{identity: ^identity}}} =
+               Request.Goloop.transaction_call(identity, to, method, params,
+                 schema: %{
+                   address: {:address, required: true},
+                   value: {:loop, required: true}
+                 }
+               )
+    end
+
+    test "adds schema without parameters to the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "delete"
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema:
+                     %{
+                       version: {:integer, required: true, default: 3},
+                       from: {:eoa_address, required: true},
+                       to: {:score_address, required: true},
+                       stepLimit: :integer,
+                       timestamp: {:timestamp, required: true, default: _},
+                       nid: {:integer, required: true},
+                       nonce: {:integer, default: _},
+                       dataType: {{:enum, [:call]}, default: :call},
+                       data: %{
+                         method: {:string, required: true}
+                       }
+                     } = schema
+                 }
+               }
+             } = Request.Goloop.transaction_call(identity, to, method)
+
+      refute Map.has_key?(schema[:data], :params)
+    end
+
+    test "adds schema with parameters to the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:call]}, default: :call},
+                     data: %{
+                       method: {:string, required: true},
+                       params: {
+                         %{
+                           address: {:address, required: true},
+                           value: {:loop, required: true}
+                         },
+                         required: true
+                       }
+                     }
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.transaction_call(identity, to, method, params,
+                 schema: %{
+                   address: {:address, required: true},
+                   value: {:loop, required: true}
+                 }
+               )
+    end
+
+    test "overrides any parameter in the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "delete"
+
+      assert {:ok, %Request{params: %{version: 4}}} =
+               Request.Goloop.transaction_call(identity, to, method, nil,
+                 params: %{version: 4}
+               )
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      assert {
+               :error,
+               %Error{message: "to is invalid"}
+             } = Request.Goloop.transaction_call(identity, "cx0", "delete")
+    end
+
+    test "when identity doesn't have a wallet, errors" do
+      identity = Identity.new()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "delete"
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.transaction_call(identity, to, method)
     end
   end
 

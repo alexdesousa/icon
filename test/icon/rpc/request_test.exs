@@ -161,6 +161,56 @@ defmodule Icon.RPC.RequestTest do
       assert_receive :requested
     end
 
+    test "when step limit is already calculated for a call without params, returns it",
+         %{
+           bypass: bypass,
+           identity: identity
+         } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "delete"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transaction_call(identity, to, method)
+
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+    end
+
+    test "when step limit is already calculated for a call with params, returns it",
+         %{
+           bypass: bypass,
+           identity: identity
+         } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: 1_000_000_000_000_000_000
+      }
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        result = result("0x186a0")
+        Plug.Conn.resp(conn, 200, result)
+      end)
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transaction_call(identity, to, method, params,
+                 schema: %{
+                   address: {:address, required: true},
+                   value: {:loop, required: true}
+                 }
+               )
+
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+      assert {:ok, %Request{}} = Request.add_step_limit(request)
+    end
+
     test "when there's an error requesting the estimation, errors", %{
       bypass: bypass,
       identity: identity
