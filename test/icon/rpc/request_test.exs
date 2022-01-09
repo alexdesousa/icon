@@ -40,7 +40,7 @@ defmodule Icon.RPC.RequestTest do
     end
   end
 
-  describe "add_step_limit/1, add_step_limit/2 and add_step_limit/3" do
+  describe "add_step_limit/1, add_step_limit/2" do
     setup do
       bypass = Bypass.open()
 
@@ -83,7 +83,7 @@ defmodule Icon.RPC.RequestTest do
                   value: ^value,
                   stepLimit: 100_000
                 }
-              }} = Request.add_step_limit(request, nil, cache: false)
+              }} = Request.add_step_limit(request)
     end
 
     test "adds step limit to an icx_sendTransactionAndWait", %{
@@ -114,101 +114,7 @@ defmodule Icon.RPC.RequestTest do
                   value: ^value,
                   stepLimit: 100_000
                 }
-              }} = Request.add_step_limit(request, nil, cache: false)
-    end
-
-    test "when step limit is already calculated for a transfer, returns it",
-         %{
-           bypass: bypass,
-           identity: identity
-         } do
-      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-      value = 1_000_000_000_000_000_000
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("0x186a0")
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {:ok, %Request{} = request} =
-               Request.Goloop.transfer(identity, to, value)
-
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-    end
-
-    test "when sending a message, requests step limit every time",
-         %{
-           bypass: bypass,
-           identity: identity
-         } do
-      pid = self()
-      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-      message = "ICON 2.0"
-
-      Bypass.expect(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("0x186a0")
-        send(pid, :requested)
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {:ok, %Request{} = request} =
-               Request.Goloop.send_message(identity, to, message)
-
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-      assert_receive :requested
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-      assert_receive :requested
-    end
-
-    test "when step limit is already calculated for a call without params, returns it",
-         %{
-           bypass: bypass,
-           identity: identity
-         } do
-      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-      method = "delete"
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("0x186a0")
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {:ok, %Request{} = request} =
-               Request.Goloop.transaction_call(identity, to, method)
-
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-    end
-
-    test "when step limit is already calculated for a call with params, returns it",
-         %{
-           bypass: bypass,
-           identity: identity
-         } do
-      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
-      method = "transfer"
-
-      params = %{
-        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
-        value: 1_000_000_000_000_000_000
-      }
-
-      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
-        result = result("0x186a0")
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert {:ok, %Request{} = request} =
-               Request.Goloop.transaction_call(identity, to, method, params,
-                 schema: %{
-                   address: {:address, required: true},
-                   value: {:loop, required: true}
-                 }
-               )
-
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
-      assert {:ok, %Request{}} = Request.add_step_limit(request)
+              }} = Request.add_step_limit(request)
     end
 
     test "when there's an error requesting the estimation, errors", %{
@@ -237,7 +143,7 @@ defmodule Icon.RPC.RequestTest do
                  reason: :system_error,
                  message: "System error"
                }
-             } = Request.add_step_limit(request, nil, cache: false)
+             } = Request.add_step_limit(request)
     end
 
     test "when requested step limit is invalid, errors", %{
@@ -261,7 +167,7 @@ defmodule Icon.RPC.RequestTest do
                  reason: :system_error,
                  message: "cannot estimate stepLimit"
                }
-             } = Request.add_step_limit(request, nil, cache: false)
+             } = Request.add_step_limit(request)
     end
 
     test "when request is not a transaction, errors", %{
@@ -276,7 +182,7 @@ defmodule Icon.RPC.RequestTest do
                  reason: :invalid_request,
                  message: "only transactions have step limit"
                }
-             } = Request.add_step_limit(request, nil, cache: false)
+             } = Request.add_step_limit(request)
     end
   end
 

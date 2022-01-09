@@ -268,47 +268,28 @@ defmodule Icon.RPC.Request do
   @spec add_step_limit(t(), nil | Schema.Types.Loop.t()) ::
           {:ok, t()}
           | {:error, Error.t()}
-  @spec add_step_limit(t(), nil | Schema.Types.Loop.t(), keyword()) ::
-          {:ok, t()}
-          | {:error, Error.t()}
-  def add_step_limit(request, step_limit \\ nil, options \\ [])
+  def add_step_limit(request, step_limit \\ nil)
 
-  def add_step_limit(%__MODULE__{method: method} = request, nil, options)
+  def add_step_limit(%__MODULE__{method: method} = request, nil)
       when method in @transactions do
-    with :miss <- maybe_get_cached_step_limit(request, options),
-         {:ok, step_limit} <- estimate_step(request) do
-      maybe_cache_step_limit(request, step_limit, options)
-
-      request = %{
-        request
-        | params: Map.put(request.params, :stepLimit, step_limit)
-      }
-
-      {:ok, request}
-    else
-      {:error, %Error{}} = error ->
-        error
-
+    case estimate_step(request) do
       {:ok, step_limit} ->
         add_step_limit(request, step_limit)
+
+      {:error, %Error{}} = error ->
+        error
     end
   end
 
-  def add_step_limit(
-        %__MODULE__{method: method} = request,
-        step_limit,
-        _options
-      )
+  def add_step_limit(%__MODULE__{method: method} = request, step_limit)
       when is_integer(step_limit) and step_limit > 0 and method in @transactions do
-    request = %{
-      request
-      | params: Map.put(request.params, :stepLimit, step_limit)
-    }
+    params = Map.put(request.params, :stepLimit, step_limit)
+    request = %{request | params: params}
 
     {:ok, request}
   end
 
-  def add_step_limit(%__MODULE__{} = _request, _step_limit, _options) do
+  def add_step_limit(%__MODULE__{} = _request, _step_limit) do
     reason =
       Error.new(
         reason: :invalid_request,
@@ -534,108 +515,6 @@ defmodule Icon.RPC.Request do
 
         {:error, reason}
     end
-  end
-
-  @spec maybe_get_cached_step_limit(t(), keyword()) ::
-          {:ok, pos_integer()} | :miss
-  defp maybe_get_cached_step_limit(request, options)
-
-  defp maybe_get_cached_step_limit(
-         %__MODULE__{params: %{dataType: type}},
-         _options
-       )
-       when type in [:deploy, :message] do
-    :miss
-  end
-
-  defp maybe_get_cached_step_limit(%__MODULE__{} = request, options) do
-    with true <- Keyword.get(options, :cache, true),
-         key = {__MODULE__, :step_limit, request_hash(request)},
-         value when is_integer(value) <- :persistent_term.get(key, :miss) do
-      {:ok, value}
-    else
-      _ ->
-        :miss
-    end
-  end
-
-  @spec maybe_cache_step_limit(t(), pos_integer(), keyword()) :: :ok
-  defp maybe_cache_step_limit(request, step_limit, options)
-
-  defp maybe_cache_step_limit(
-         %__MODULE__{params: %{dataType: type}},
-         _step_limit,
-         _options
-       )
-       when type in [:deploy, :message] do
-    :ok
-  end
-
-  defp maybe_cache_step_limit(%__MODULE__{} = request, step_limit, options) do
-    if Keyword.get(options, :cache, true) do
-      key = {__MODULE__, :step_limit, request_hash(request)}
-      :persistent_term.put(key, step_limit)
-      :ok
-    else
-      :ok
-    end
-  end
-
-  @spec request_hash(t()) :: non_neg_integer()
-  defp request_hash(request)
-
-  defp request_hash(%__MODULE__{
-         method: method,
-         params: %{dataType: :call} = params,
-         options: %{schema: schema}
-       }) do
-    :erlang.phash2(%{
-      schema: schema,
-      method: method,
-      params: %{
-        from: params[:from],
-        to: params[:to],
-        dataType: :call,
-        data: %{
-          method: params[:data][:method],
-          params: Map.keys(params[:data][:params] || %{})
-        }
-      }
-    })
-  end
-
-  defp request_hash(%__MODULE__{
-         method: method,
-         params: %{dataType: :deposit} = params,
-         options: %{schema: schema}
-       }) do
-    :erlang.phash2(%{
-      schema: schema,
-      method: method,
-      params: %{
-        from: params[:from],
-        dataType: :deposit,
-        data: %{
-          action: params[:data][:action],
-          id: Map.has_key?(params[:data], :id),
-          amount: Map.has_key?(params[:data], :amount)
-        }
-      }
-    })
-  end
-
-  defp request_hash(%__MODULE__{
-         method: method,
-         params: params,
-         options: %{schema: schema}
-       }) do
-    :erlang.phash2(%{
-      schema: schema,
-      method: method,
-      params: %{
-        from: params[:from]
-      }
-    })
   end
 
   #######################
