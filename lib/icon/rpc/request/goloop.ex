@@ -165,8 +165,8 @@ defmodule Icon.RPC.Request.Goloop do
       method: "icx_call",
       options: ...,
       params: %{
-        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        to: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+        to: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
         dataType: "call",
         data: %{
           method: "getBalance",
@@ -481,7 +481,7 @@ defmodule Icon.RPC.Request.Goloop do
 
   ```elixir
   iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
-  iex> Icon.RPC.Request.get_transaction_by_hash(
+  iex> Icon.RPC.Request.transfer(
   ...>   identity,
   ...>   "hx2e243ad926ac48d15156756fce28314357d49d83",
   ...>   1_000_000_000_000_000_000
@@ -492,7 +492,7 @@ defmodule Icon.RPC.Request.Goloop do
       method: "icx_sendTransaction",
       options: ...,
       params: %{
-        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
         to: "hx2e243ad926ac48d15156756fce28314357d49d83",
         value: 1_000_000_000_000_000_000,
         nid: 1,
@@ -575,7 +575,7 @@ defmodule Icon.RPC.Request.Goloop do
 
   ```elixir
   iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
-  iex> Icon.RPC.Request.get_transaction_by_hash(
+  iex> Icon.RPC.Request.send_message(
   ...>   identity,
   ...>   "hx2e243ad926ac48d15156756fce28314357d49d83",
   ...>   "Hello world!"
@@ -586,7 +586,7 @@ defmodule Icon.RPC.Request.Goloop do
       method: "icx_sendTransaction",
       options: ...,
       params: %{
-        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
         to: "hx2e243ad926ac48d15156756fce28314357d49d83",
         nid: 1,
         nonce: 1641487595040282,
@@ -656,6 +656,55 @@ defmodule Icon.RPC.Request.Goloop do
 
   @doc """
   Builds a transaction for calling a SCORE `method`.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+  - `schema` - Method parameters schema.
+
+  ### Example
+
+  The following builds a request for calling the method `transfer` in a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.transaction_call(
+  ...>   identity,
+  ...>   "cx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>   "transfer",
+  ...>   %{
+  ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+  ...>     value: 1_000_000_000_000_000_000
+  ...>   },
+  ...>   %{
+  ...>     address: {:address, required: true},
+  ...>     value: {:loop, required: true}
+  ...>   }
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+        to: "cx2e243ad926ac48d15156756fce28314357d49d83",
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3,
+        dataType: :call,
+        data: %{
+          method: "transfer",
+          params: %{
+            address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+            value: 1_000_000_000_000_000_000
+          }
+        }
+      }
+    }
+  }
+  ```
   """
   @spec transaction_call(Identity.t(), Schema.Types.SCORE.t(), binary()) ::
           {:ok, Request.t()}
