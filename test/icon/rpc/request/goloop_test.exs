@@ -1328,15 +1328,18 @@ defmodule Icon.RPC.Request.GoloopTest do
                        nid: {:integer, required: true},
                        nonce: {:integer, default: _},
                        dataType: {{:enum, [:call]}, default: :call},
-                       data: %{
-                         method: {:string, required: true}
+                       data: {
+                         %{
+                           method: {:string, required: true}
+                         },
+                         required: true
                        }
                      } = schema
                  }
                }
              } = Request.Goloop.transaction_call(identity, to, method)
 
-      refute Map.has_key?(schema[:data], :params)
+      refute Map.has_key?(elem(schema[:data], 0), :params)
     end
 
     test "adds schema with parameters to the request", %{identity: identity} do
@@ -1361,16 +1364,17 @@ defmodule Icon.RPC.Request.GoloopTest do
                      nid: {:integer, required: true},
                      nonce: {:integer, default: _},
                      dataType: {{:enum, [:call]}, default: :call},
-                     data: %{
-                       method: {:string, required: true},
-                       params: {
-                         %{
-                           address: {:address, required: true},
-                           value: {:loop, required: true}
-                         },
-                         required: true
-                       }
-                     }
+                     data:
+                       {%{
+                          method: {:string, required: true},
+                          params: {
+                            %{
+                              address: {:address, required: true},
+                              value: {:loop, required: true}
+                            },
+                            required: true
+                          }
+                        }, required: true}
                    }
                  }
                }
@@ -1409,6 +1413,699 @@ defmodule Icon.RPC.Request.GoloopTest do
                :error,
                %Error{message: "identity must have a wallet"}
              } = Request.Goloop.transaction_call(identity, to, method)
+    end
+  end
+
+  describe "install_score/2 with or without options" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      unique_id = '#{:erlang.phash2(make_ref())}'
+
+      {:ok, {_, content}} =
+        :zip.create(unique_id, [{'file.txt', "ICON 2.0"}], [:memory])
+
+      {:ok, identity: identity, content: content}
+    end
+
+    test "builds RPC call for icx_sendTransaction", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: "cx0000000000000000000000000000000000000000",
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deploy,
+                   data: %{
+                     contentType: "application/zip",
+                     content: ^content
+                   }
+                 }
+               }
+             } = Request.Goloop.install_score(identity, content)
+    end
+
+    test "encodes icx_sendTransaction correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+
+      options = [
+        on_install_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_install_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => "cx0000000000000000000000000000000000000000",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" => "0x" <> _content,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.install_score(content, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransaction without parameters correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => "cx0000000000000000000000000000000000000000",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" =>
+                   %{
+                     "contentType" => "application/zip",
+                     "content" => "0x" <> _content
+                   } = data
+               }
+             } =
+               identity
+               |> Request.Goloop.install_score(content)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+
+      refute Map.has_key?(data, "params")
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      timeout = 5_000
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: %{
+                   timeout: ^timeout
+                 },
+                 params: %{
+                   from: ^from,
+                   to: "cx0000000000000000000000000000000000000000",
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deploy,
+                   data: %{
+                     contentType: "application/zip",
+                     content: ^content
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.install_score(identity, content, timeout: timeout)
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+
+      options = [
+        timeout: 5_000,
+        on_install_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_install_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => "cx0000000000000000000000000000000000000000",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" => "0x" <> _content,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.install_score(content, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransactionAndWait without parameters correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => "cx0000000000000000000000000000000000000000",
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" =>
+                   %{
+                     "contentType" => "application/zip",
+                     "content" => "0x" <> _content
+                   } = data
+               }
+             } =
+               identity
+               |> Request.Goloop.install_score(content, timeout: 5_000)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+
+      refute Map.has_key?(data, "params")
+    end
+
+    test "adds identity", %{identity: identity, content: content} do
+      assert {:ok, %Request{options: %{identity: ^identity}}} =
+               Request.Goloop.install_score(identity, content)
+    end
+
+    test "adds schema without parameters to the request", %{
+      identity: identity,
+      content: content
+    } do
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema:
+                     %{
+                       version: {:integer, required: true, default: 3},
+                       from: {:eoa_address, required: true},
+                       to: {:score_address, required: true},
+                       stepLimit: :integer,
+                       timestamp: {:timestamp, required: true, default: _},
+                       nid: {:integer, required: true},
+                       nonce: {:integer, default: _},
+                       dataType: {{:enum, [:deploy]}, default: :deploy},
+                       data:
+                         {%{
+                            contentType: {:string, required: true},
+                            content: {:binary_data, required: true}
+                          }, required: true}
+                     } = schema
+                 }
+               }
+             } = Request.Goloop.install_score(identity, content)
+
+      refute Map.has_key?(elem(schema[:data], 0), :params)
+    end
+
+    test "adds schema with parameters to the request", %{
+      identity: identity,
+      content: content
+    } do
+      options = [
+        on_install_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_install_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:deploy]}, default: :deploy},
+                     data:
+                       {%{
+                          contentType: {:string, required: true},
+                          content: {:binary_data, required: true},
+                          params: {
+                            %{
+                              address: {:address, required: true}
+                            },
+                            required: true
+                          }
+                        }, required: true}
+                   }
+                 }
+               }
+             } = Request.Goloop.install_score(identity, content, options)
+    end
+
+    test "overrides any parameter in the request", %{
+      identity: identity,
+      content: content
+    } do
+      assert {:ok, %Request{params: %{version: 4}}} =
+               Request.Goloop.install_score(identity, content,
+                 params: %{version: 4}
+               )
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      assert {
+               :error,
+               %Error{message: "data.content is required"}
+             } = Request.Goloop.install_score(identity, nil)
+    end
+
+    test "when identity doesn't have a wallet, errors", %{content: content} do
+      identity = Identity.new()
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.install_score(identity, content)
+    end
+  end
+
+  describe "update_score/3 with or without options" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      unique_id = '#{:erlang.phash2(make_ref())}'
+
+      {:ok, {_, content}} =
+        :zip.create(unique_id, [{'file.txt', "ICON 2.0"}], [:memory])
+
+      {:ok, identity: identity, content: content}
+    end
+
+    test "builds RPC call for icx_sendTransaction", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deploy,
+                   data: %{
+                     contentType: "application/zip",
+                     content: ^content
+                   }
+                 }
+               }
+             } = Request.Goloop.update_score(identity, to, content)
+    end
+
+    test "encodes icx_sendTransaction correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        on_update_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_update_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" => "0x" <> _content,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.update_score(to, content, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransaction without parameters correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" =>
+                   %{
+                     "contentType" => "application/zip",
+                     "content" => "0x" <> _content
+                   } = data
+               }
+             } =
+               identity
+               |> Request.Goloop.update_score(to, content)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+
+      refute Map.has_key?(data, "params")
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      timeout = 5_000
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: %{
+                   timeout: ^timeout
+                 },
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deploy,
+                   data: %{
+                     contentType: "application/zip",
+                     content: ^content
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.update_score(identity, to, content,
+                 timeout: timeout
+               )
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        timeout: 5_000,
+        on_update_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_update_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" => %{
+                   "contentType" => "application/zip",
+                   "content" => "0x" <> _content,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.update_score(to, content, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransactionAndWait without parameters correctly", %{
+      identity: identity,
+      content: content
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deploy",
+                 "data" =>
+                   %{
+                     "contentType" => "application/zip",
+                     "content" => "0x" <> _content
+                   } = data
+               }
+             } =
+               identity
+               |> Request.Goloop.update_score(to, content, timeout: 5_000)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+
+      refute Map.has_key?(data, "params")
+    end
+
+    test "adds identity", %{identity: identity, content: content} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {:ok, %Request{options: %{identity: ^identity}}} =
+               Request.Goloop.update_score(identity, to, content)
+    end
+
+    test "adds schema without parameters to the request", %{
+      identity: identity,
+      content: content
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema:
+                     %{
+                       version: {:integer, required: true, default: 3},
+                       from: {:eoa_address, required: true},
+                       to: {:score_address, required: true},
+                       stepLimit: :integer,
+                       timestamp: {:timestamp, required: true, default: _},
+                       nid: {:integer, required: true},
+                       nonce: {:integer, default: _},
+                       dataType: {{:enum, [:deploy]}, default: :deploy},
+                       data: {
+                         %{
+                           contentType: {:string, required: true},
+                           content: {:binary_data, required: true}
+                         },
+                         required: true
+                       }
+                     } = schema
+                 }
+               }
+             } = Request.Goloop.update_score(identity, to, content)
+
+      refute Map.has_key?(elem(schema[:data], 0), :params)
+    end
+
+    test "adds schema with parameters to the request", %{
+      identity: identity,
+      content: content
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      options = [
+        on_update_params: %{
+          address: "hx2e243ad926ac48d15156756fce28314357d49d83"
+        },
+        on_update_schema: %{
+          address: {:address, required: true}
+        }
+      ]
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:deploy]}, default: :deploy},
+                     data:
+                       {%{
+                          contentType: {:string, required: true},
+                          content: {:binary_data, required: true},
+                          params: {
+                            %{
+                              address: {:address, required: true}
+                            },
+                            required: true
+                          }
+                        }, required: true}
+                   }
+                 }
+               }
+             } = Request.Goloop.update_score(identity, to, content, options)
+    end
+
+    test "overrides any parameter in the request", %{
+      identity: identity,
+      content: content
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {:ok, %Request{params: %{version: 4}}} =
+               Request.Goloop.update_score(identity, to, content,
+                 params: %{version: 4}
+               )
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :error,
+               %Error{message: "data.content is required"}
+             } = Request.Goloop.update_score(identity, to, nil)
+    end
+
+    test "when identity doesn't have a wallet, errors", %{content: content} do
+      identity = Identity.new()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.update_score(identity, to, content)
     end
   end
 

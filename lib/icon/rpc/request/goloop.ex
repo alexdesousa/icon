@@ -748,12 +748,12 @@ defmodule Icon.RPC.Request.Goloop do
         dataType: {enum([:call]), default: :call},
         data:
           if call_schema do
-            %{
-              method: {:string, required: true},
-              params: {call_schema, required: true}
-            }
+            {%{
+               method: {:string, required: true},
+               params: {call_schema, required: true}
+             }, required: true}
           else
-            %{method: {:string, required: true}}
+            {%{method: {:string, required: true}}, required: true}
           end
       })
 
@@ -780,6 +780,261 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   def transaction_call(%Identity{} = _identity, _to, _method, _params, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
+  Builds a request for deploying a new SCORE given its `content`.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+  - `content_type` - MIME type of the SCORE contents. Defaults to
+    `application/zip`.
+  - `on_install_params` - Parameters for the function `on_install/0`.
+  - `on_install_schema` - Schema for the parameters of the function
+    `on_install/0`.
+
+  ### Example
+
+  The following builds a request for deploying a SCORE:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.install_score(
+  ...>   identity,
+  ...>   content,
+  ...>   on_install_params: %{
+  ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+  ...>   },
+  ...>   on_install_schema: %{
+  ...>     address: {:address, required: true}
+  ...>   }
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+        to: "cx0000000000000000000000000000000000000000",
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3,
+        dataType: :deploy,
+        data: %{
+          content_type: "application/zip",
+          content: <<70, 79, 82, 49, 0, ...>>,
+          params: %{
+            address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+          }
+        }
+      }
+    }
+  }
+  ```
+  """
+  @spec install_score(Identity.t(), Schema.Types.BinaryData.t()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec install_score(Identity.t(), Schema.Types.BinaryData.t(), keyword()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def install_score(identity, content, options \\ [])
+
+  def install_score(%Identity{} = identity, content, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, "cx0000000000000000000000000000000000000000")
+      |> Map.put(:data, %{
+        contentType: options[:content_type] || "application/zip",
+        content: content,
+        params: options[:on_install_params]
+      })
+
+    on_install_schema = options[:on_install_schema]
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        dataType: {enum([:deploy]), default: :deploy},
+        data:
+          if on_install_schema do
+            {%{
+               contentType: {:string, required: true},
+               content: {:binary_data, required: true},
+               params: {on_install_schema, required: true}
+             }, required: true}
+          else
+            {%{
+               contentType: {:string, required: true},
+               content: {:binary_data, required: true}
+             }, required: true}
+          end
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def install_score(%Identity{} = _identity, _contents, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
+  Builds a request for updating an existent SCORE given its `address` and
+  `content`.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+  - `content_type` - MIME type of the SCORE contents. Defaults to
+    `application/zip`.
+  - `on_update_params` - Parameters for the function `on_update/0`.
+  - `on_update_schema` - Schema for the parameters of the function
+    `on_update/0`.
+
+  ### Example
+
+  The following builds a request for updating a SCORE:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-updated-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.update_score(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   content,
+  ...>   on_update_params: %{
+  ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+  ...>   },
+  ...>   on_update_schema: %{
+  ...>     address: {:address, required: true}
+  ...>   }
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3,
+        dataType: :deploy,
+        data: %{
+          content_type: "application/zip",
+          content: <<70, 79, 82, 49, 0, ...>>,
+          params: %{
+            address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+          }
+        }
+      }
+    }
+  }
+  ```
+  """
+  @spec update_score(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          Schema.Types.BinaryData.t()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec update_score(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          Schema.Types.BinaryData.t(),
+          keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def update_score(identity, score_address, content, options \\ [])
+
+  def update_score(%Identity{} = identity, to, content, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, to)
+      |> Map.put(:data, %{
+        contentType: options[:content_type] || "application/zip",
+        content: content,
+        params: options[:on_update_params]
+      })
+
+    on_update_schema = options[:on_update_schema]
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        dataType: {enum([:deploy]), default: :deploy},
+        data:
+          if on_update_schema do
+            {%{
+               contentType: {:string, required: true},
+               content: {:binary_data, required: true},
+               params: {on_update_schema, required: true}
+             }, required: true}
+          else
+            {%{
+               contentType: {:string, required: true},
+               content: {:binary_data, required: true}
+             }, required: true}
+          end
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def update_score(%Identity{} = _identity, _to, _contents, _options) do
     identity_must_have_a_wallet()
   end
 
@@ -827,9 +1082,7 @@ defmodule Icon.RPC.Request.Goloop do
   @doc """
   Builds a request for requesting the step limit estimation of a transaction.
   """
-  @spec estimate_step(Identity.t(), map(), Schema.t()) ::
-          {:ok, Request.t()}
-          | {:error, Error.t()}
+  @spec estimate_step(Identity.t(), map(), Schema.t()) :: {:ok, Request.t()}
   def estimate_step(identity, params, schema)
 
   def estimate_step(%Identity{} = identity, params, schema) do
