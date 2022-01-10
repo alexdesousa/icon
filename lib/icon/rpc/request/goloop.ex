@@ -1039,6 +1039,111 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   @doc """
+  Builds a request for depositing ICX in loop (10¹⁸ loop = 1 ICX) into a SCORE
+  for paying other user's fees when transacting with it (fee sharing).
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  ### Example
+
+  The following builds a request for depositing ICX into a SCORE for fee
+  sharing:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.RPC.Request.shared_fee_deposit(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   1_000_000_000_000_000_000
+  ...> )
+  {
+    :ok,
+    %Icon.RPC.Request{
+      method: "icx_sendTransaction",
+      options: ...,
+      params: %{
+        from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        value: 1_000_000_000_000_000_000,
+        nid: 1,
+        nonce: 1641487595040282,
+        timestamp: ~U[2022-01-06 16:46:35.042078Z],
+        version: 3,
+        dataType: :deposit,
+        data: %{
+          action: :add
+        }
+      }
+    }
+  }
+  ```
+  """
+  @spec shared_fee_deposit(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          Schema.Types.Loop.t()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  @spec shared_fee_deposit(
+          Identity.t(),
+          Schema.Types.SCORE.t(),
+          Schema.Types.Loop.t(),
+          keyword()
+        ) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  def shared_fee_deposit(identity, score_address, amount, options \\ [])
+
+  def shared_fee_deposit(%Identity{} = identity, to, amount, options)
+      when has_address(identity) do
+    params =
+      options
+      |> Keyword.get(:params, %{})
+      |> Map.put(:to, to)
+      |> Map.put(:value, amount)
+
+    schema =
+      base_transaction_schema()
+      |> Map.merge(%{
+        to: {:score_address, required: true},
+        value: {:loop, required: true},
+        dataType: {enum([:deposit]), default: :deposit},
+        data:
+          {%{
+             action: {enum([:add]), default: :add}
+           }, default: %{action: "add"}}
+      })
+
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  def shared_fee_deposit(%Identity{} = _identity, _to, _amount, _options) do
+    identity_must_have_a_wallet()
+  end
+
+  @doc """
   Sends a transaction given some `options`.
 
   Options:
