@@ -2879,7 +2879,7 @@ defmodule Icon.RPC.Request.GoloopTest do
 
       assert {
                :error,
-               %Error{message: "Invalid identity"}
+               %Error{message: "invalid identity"}
              } = Request.Goloop.send_transaction(identity, params: params)
     end
 

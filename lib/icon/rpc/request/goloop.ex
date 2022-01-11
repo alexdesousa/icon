@@ -521,8 +521,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def transfer(identity, recipient, amount, options \\ [])
 
-  def transfer(%Identity{} = identity, to, value, options)
-      when has_address(identity) do
+  def transfer(%Identity{} = identity, to, value, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -536,30 +535,7 @@ defmodule Icon.RPC.Request.Goloop do
         value: {:loop, required: true}
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def transfer(%Identity{} = _identity, _recipient, _amount, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -612,8 +588,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def send_message(identity, recipient, message, options \\ [])
 
-  def send_message(%Identity{} = identity, to, message, options)
-      when has_address(identity) do
+  def send_message(%Identity{} = identity, to, message, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -628,30 +603,7 @@ defmodule Icon.RPC.Request.Goloop do
         data: {:binary_data, required: true}
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def send_message(%Identity{} = _identity, _recipient, _message, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -728,8 +680,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def transaction_call(identity, score, method, params \\ nil, options \\ [])
 
-  def transaction_call(%Identity{} = identity, to, method, call_params, options)
-      when has_address(identity) do
+  def transaction_call(%Identity{} = identity, to, method, call_params, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -757,30 +708,7 @@ defmodule Icon.RPC.Request.Goloop do
           end
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def transaction_call(%Identity{} = _identity, _to, _method, _params, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -845,8 +773,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def install_score(identity, content, options \\ [])
 
-  def install_score(%Identity{} = identity, content, options)
-      when has_address(identity) do
+  def install_score(%Identity{} = identity, content, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -879,30 +806,7 @@ defmodule Icon.RPC.Request.Goloop do
           end
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def install_score(%Identity{} = _identity, _contents, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -978,8 +882,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def update_score(identity, score_address, content, options \\ [])
 
-  def update_score(%Identity{} = identity, to, content, options)
-      when has_address(identity) do
+  def update_score(%Identity{} = identity, to, content, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -1012,30 +915,7 @@ defmodule Icon.RPC.Request.Goloop do
           end
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def update_score(%Identity{} = _identity, _to, _contents, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -1097,8 +977,7 @@ defmodule Icon.RPC.Request.Goloop do
           | {:error, Error.t()}
   def shared_fee_deposit(identity, score_address, amount, options \\ [])
 
-  def shared_fee_deposit(%Identity{} = identity, to, amount, options)
-      when has_address(identity) do
+  def shared_fee_deposit(%Identity{} = identity, to, amount, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -1117,30 +996,7 @@ defmodule Icon.RPC.Request.Goloop do
            }, default: %{action: "add"}}
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def shared_fee_deposit(%Identity{} = _identity, _to, _amount, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -1280,8 +1136,7 @@ defmodule Icon.RPC.Request.Goloop do
         options \\ []
       )
 
-  def shared_fee_withdraw(%Identity{} = identity, to, hash_or_amount, options)
-      when has_address(identity) do
+  def shared_fee_withdraw(%Identity{} = identity, to, hash_or_amount, options) do
     params =
       options
       |> Keyword.get(:params, %{})
@@ -1321,30 +1176,7 @@ defmodule Icon.RPC.Request.Goloop do
           end
       })
 
-    with {:ok, params} <- add_identity(identity, params),
-         {:ok, params} <- validate(schema, params) do
-      timeout = options[:timeout] || 0
-
-      method =
-        if timeout > 0,
-          do: :send_transaction_and_wait,
-          else: :send_transaction
-
-      request =
-        method
-        |> method()
-        |> Request.build(params,
-          schema: schema,
-          identity: identity,
-          timeout: timeout
-        )
-
-      {:ok, request}
-    end
-  end
-
-  def shared_fee_withdraw(%Identity{} = _identity, _to, _amount, _options) do
-    identity_must_have_a_wallet()
+    build_transaction(identity, params, schema, options)
   end
 
   @doc """
@@ -1454,7 +1286,40 @@ defmodule Icon.RPC.Request.Goloop do
   end
 
   defp add_identity(%Identity{}, params) when is_map(params) do
-    {:error, Error.new(reason: :invalid_request, message: "Invalid identity")}
+    {:error, Error.new(reason: :invalid_request, message: "invalid identity")}
+  end
+
+  @spec build_transaction(Identity.t(), map(), Schema.t(), keyword()) ::
+          {:ok, Request.t()}
+          | {:error, Error.t()}
+  defp build_transaction(identity, params, schema, options)
+
+  defp build_transaction(%Identity{} = identity, params, schema, options)
+       when has_address(identity) do
+    with {:ok, params} <- add_identity(identity, params),
+         {:ok, params} <- validate(schema, params) do
+      timeout = options[:timeout] || 0
+
+      method =
+        if timeout > 0,
+          do: :send_transaction_and_wait,
+          else: :send_transaction
+
+      request =
+        method
+        |> method()
+        |> Request.build(params,
+          schema: schema,
+          identity: identity,
+          timeout: timeout
+        )
+
+      {:ok, request}
+    end
+  end
+
+  defp build_transaction(%Identity{} = _identity, _params, _schema, _options) do
+    identity_must_have_a_wallet()
   end
 
   ############################
