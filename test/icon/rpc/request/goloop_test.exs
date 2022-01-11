@@ -2307,6 +2307,387 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
+  describe "shared_fee_withdraw/3 with or without options" do
+    setup do
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity = Identity.new(private_key: private_key)
+
+      {:ok, identity: identity}
+    end
+
+    test "builds RPC call for withdrawing the whole deposit", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deposit,
+                   data: %{
+                     action: :withdraw
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to)
+    end
+
+    test "encodes full withdraw correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 42
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "withdraw"
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.shared_fee_withdraw(to, value)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for withdrawing an specific amount from the deposit",
+         %{
+           identity: identity
+         } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      amount = 42
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deposit,
+                   data: %{
+                     action: :withdraw,
+                     amount: ^amount
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to, amount)
+    end
+
+    test "encodes partial deposit withdraw by amount correctly", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      amount = 42
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "withdraw",
+                   "amount" => "0x2a"
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.shared_fee_withdraw(to, amount)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds an RPC call to withdraw a deposit by id", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      hash =
+        "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransaction",
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deposit,
+                   data: %{
+                     action: :withdraw,
+                     id: ^hash
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to, hash)
+    end
+
+    test "encodes partial deposit withdraw by id correctly", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      hash =
+        "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "withdraw",
+                   "id" => ^hash
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.shared_fee_withdraw(to, hash)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "builds RPC call for icx_sendTransactionAndWait when there's timeout",
+         %{
+           identity: identity
+         } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      timeout = 5_000
+
+      assert {
+               :ok,
+               %Request{
+                 method: "icx_sendTransactionAndWait",
+                 options: %{
+                   timeout: ^timeout
+                 },
+                 params: %{
+                   from: ^from,
+                   to: ^to,
+                   version: 3,
+                   nid: 1,
+                   timestamp: _,
+                   nonce: _,
+                   dataType: :deposit,
+                   data: %{
+                     action: :withdraw
+                   }
+                 }
+               }
+             } =
+               Request.Goloop.shared_fee_withdraw(identity, to, nil,
+                 timeout: timeout
+               )
+    end
+
+    test "encodes icx_sendTransactionAndWait correctly", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      timeout = 5_000
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "deposit",
+                 "data" => %{
+                   "action" => "withdraw"
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.shared_fee_withdraw(to, nil, timeout: timeout)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "adds identity", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {:ok, %Request{options: %{identity: ^identity}}} =
+               Request.Goloop.shared_fee_withdraw(identity, to)
+    end
+
+    test "adds schema for full withdraw to the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:deposit]}, default: :deposit},
+                     data: {
+                       %{
+                         action: {{:enum, [:withdraw]}, default: :withdraw}
+                       },
+                       default: %{action: "withdraw"}
+                     }
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to)
+    end
+
+    test "adds schema for partial withdraw to the request", %{
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 42
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:deposit]}, default: :deposit},
+                     data: {
+                       %{
+                         action: {{:enum, [:withdraw]}, default: :withdraw},
+                         amount: {:loop, required: true}
+                       },
+                       default: %{action: "withdraw"}
+                     }
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to, value)
+    end
+
+    test "adds schema for partial withdraw by id to the request", %{
+      identity: identity
+    } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      hash =
+        "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+
+      assert {
+               :ok,
+               %Request{
+                 options: %{
+                   schema: %{
+                     version: {:integer, required: true, default: 3},
+                     from: {:eoa_address, required: true},
+                     to: {:score_address, required: true},
+                     stepLimit: :integer,
+                     timestamp: {:timestamp, required: true, default: _},
+                     nid: {:integer, required: true},
+                     nonce: {:integer, default: _},
+                     dataType: {{:enum, [:deposit]}, default: :deposit},
+                     data: {
+                       %{
+                         action: {{:enum, [:withdraw]}, default: :withdraw},
+                         id: {:hash, required: true}
+                       },
+                       default: %{action: "withdraw"}
+                     }
+                   }
+                 }
+               }
+             } = Request.Goloop.shared_fee_withdraw(identity, to, hash)
+    end
+
+    test "overrides any parameter in the request", %{identity: identity} do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      options = [params: %{version: 4}]
+
+      assert {:ok, %Request{params: %{version: 4}}} =
+               Request.Goloop.shared_fee_withdraw(identity, to, nil, options)
+    end
+
+    test "when params are invalid, errors", %{identity: identity} do
+      assert {
+               :error,
+               %Error{message: "to is invalid"}
+             } = Request.Goloop.shared_fee_withdraw(identity, "cx0")
+    end
+
+    test "when identity doesn't have a wallet, errors" do
+      identity = Identity.new()
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+
+      assert {
+               :error,
+               %Error{message: "identity must have a wallet"}
+             } = Request.Goloop.shared_fee_withdraw(identity, to)
+    end
+  end
+
   describe "send_transaction/1 for coin transfers" do
     setup do
       # Taken from Python ICON SDK tests.
