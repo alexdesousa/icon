@@ -133,6 +133,65 @@ defmodule IconTest do
     end
   end
 
+  describe "get_total_supply/1" do
+    setup do
+      bypass = Bypass.open()
+      identity = Identity.new(node: "http://localhost:#{bypass.port}")
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the request is successful, returns own ICX total supply in loop",
+         %{
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, 42} = Icon.get_total_supply(identity)
+    end
+
+    test "when the total supply is not valid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast total supply to loop"
+              }} = Icon.get_total_supply(identity)
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_total_supply(identity)
+    end
+  end
+
   @spec result(any()) :: binary()
   defp result(result) do
     %{

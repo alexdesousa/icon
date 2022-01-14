@@ -48,4 +48,34 @@ defmodule Icon do
       {:error, reason}
     end
   end
+
+  @doc """
+  Gets the ICX's total supply in loop (1 ICX = 10¹⁸ loop).
+
+  ## Examples
+
+  - Requesting ICX's total supply:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_balance(identity)
+  {:ok, 1_300_163_572_018_865_530_968_203_250}
+  ```
+  """
+  @spec get_total_supply(Identity.t()) :: {:ok, Loop.t()} | {:error, Error.t()}
+  def get_total_supply(identity)
+
+  def get_total_supply(%Identity{} = identity) do
+    with {:ok, request} <- Request.Goloop.get_total_supply(identity),
+         {:ok, response} <- Request.send(request),
+         :error <- Loop.load(response) do
+      reason =
+        Error.new(
+          reason: :server_error,
+          message: "cannot cast total supply to loop"
+        )
+
+      {:error, reason}
+    end
+  end
 end
