@@ -117,6 +117,10 @@ defmodule Icon.MixProject do
         Icon.Schema.Types.Signature,
         Icon.Schema.Types.String,
         Icon.Schema.Types.Timestamp
+      ],
+      "Schema Complex Types": [
+        Icon.Schema.Types.Transaction.Result,
+        Icon.Schema.Types.Transaction.Status
       ]
     ]
   end

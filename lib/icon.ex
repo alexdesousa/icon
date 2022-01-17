@@ -4,7 +4,15 @@ defmodule Icon do
   aggregator network [ICON 2.0](https://icon.foundation).
   """
   alias Icon.RPC.{Identity, Request}
-  alias Icon.Schema.{Error, Types.Address, Types.Loop}
+  alias Icon.Schema
+
+  alias Icon.Schema.{
+    Error,
+    Types.Address,
+    Types.Hash,
+    Types.Loop,
+    Types.Transaction
+  }
 
   @doc """
   Gets the balance of an EOA or SCORE `address`. If the `address` is not provided,
@@ -77,5 +85,74 @@ defmodule Icon do
 
       {:error, reason}
     end
+  end
+
+  @doc """
+  Gets a transaction result by `hash`.
+
+  ## Examples
+
+  - Requesting a transaction result by `hash`:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_balance(identity, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b")
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+  """
+  @spec get_transaction_result(Identity.t(), Hash.t()) ::
+          {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def get_transaction_result(identity, tx_hash)
+
+  def get_transaction_result(%Identity{} = identity, hash) do
+    with {:ok, request} <-
+           Request.Goloop.get_transaction_result(identity, hash),
+         {:ok, response} <- Request.send(request) do
+      load_transaction_result(response)
+    end
+  end
+
+  #########
+  # Helpers
+
+  @spec load_transaction_result(any()) ::
+          {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  defp load_transaction_result(data)
+
+  defp load_transaction_result(data) when is_map(data) do
+    Transaction.Result
+    |> Schema.generate()
+    |> Schema.new(data)
+    |> Schema.load()
+    |> Schema.apply(into: Transaction.Result)
+  end
+
+  defp load_transaction_result(_) do
+    reason =
+      Error.new(
+        reason: :server_error,
+        message: "cannot cast transaction result"
+      )
+
+    {:error, reason}
   end
 end

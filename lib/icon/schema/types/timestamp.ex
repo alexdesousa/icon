@@ -33,7 +33,7 @@ defmodule Icon.Schema.Types.Timestamp do
     :error
   end
 
-  @spec dump(any()) :: {:ok, t()} | :error
+  @spec dump(any()) :: {:ok, binary()} | :error
   @impl Icon.Schema.Type
   def dump(value)
 

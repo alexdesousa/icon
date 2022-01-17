@@ -13,7 +13,7 @@ defmodule Icon.Schema.Types.Loop do
   @impl Icon.Schema.Type
   defdelegate load(value), to: Icon.Schema.Types.Integer
 
-  @spec dump(any()) :: {:ok, t()} | :error
+  @spec dump(any()) :: {:ok, binary()} | :error
   @impl Icon.Schema.Type
   defdelegate dump(value), to: Icon.Schema.Types.Integer
 end
