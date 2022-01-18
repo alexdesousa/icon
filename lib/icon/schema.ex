@@ -145,6 +145,7 @@ defmodule Icon.Schema do
           | :binary_data
           | :boolean
           | :eoa_address
+          | :error
           | :hash
           | :integer
           | :loop
@@ -161,6 +162,7 @@ defmodule Icon.Schema do
           | {:any, [{atom(), internal_type()}], atom()}
           | {:enum, [atom()]}
           | t()
+          | Icon.Schema.Error
           | Icon.Schema.Types.Address
           | Icon.Schema.Types.BinaryData
           | Icon.Schema.Types.Boolean
@@ -480,6 +482,7 @@ defmodule Icon.Schema do
   defp expand_type(_key, :binary_data), do: Icon.Schema.Types.BinaryData
   defp expand_type(_key, :boolean), do: Icon.Schema.Types.Boolean
   defp expand_type(_key, :eoa_address), do: Icon.Schema.Types.EOA
+  defp expand_type(_key, :error), do: Icon.Schema.Error
   defp expand_type(_key, :hash), do: Icon.Schema.Types.Hash
   defp expand_type(_key, :integer), do: Icon.Schema.Types.Integer
   defp expand_type(_key, :loop), do: Icon.Schema.Types.Loop

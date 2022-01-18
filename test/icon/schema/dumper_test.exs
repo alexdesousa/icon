@@ -237,6 +237,48 @@ defmodule Icon.Schema.DumperTest do
                |> Schema.dump()
     end
 
+    test "dumps error type" do
+      params = %{
+        "error" => %Error{
+          domain: :internal,
+          reason: :server_error,
+          code: -32_000,
+          message: "Server error",
+          data:
+            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+        }
+      }
+
+      assert %Schema{
+               data: %{
+                 error: %{
+                   "code" => -32_000,
+                   "message" => "Server error",
+                   "data" =>
+                     "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+                 }
+               },
+               is_valid?: true
+             } =
+               %{error: :error}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when error type is invalid" do
+      params = %{"error" => :invalid}
+
+      assert %Schema{
+               errors: %{error: "is invalid"},
+               is_valid?: false
+             } =
+               %{error: :error}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
     test "dumps hash type" do
       hash =
         "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
@@ -710,7 +752,7 @@ defmodule Icon.Schema.DumperTest do
                %Error{
                  code: -32_602,
                  reason: :invalid_params,
-                 domain: :unknown,
+                 domain: :internal,
                  message: "integer is invalid"
                }
              } =

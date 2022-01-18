@@ -4,6 +4,76 @@ defmodule Icon.Schema.ErrorTest do
   alias Icon.Schema
   alias Icon.Schema.Error
 
+  describe "load/1" do
+    test "loads a valid error" do
+      value = %{
+        "code" => -32_000,
+        "message" => "Server error"
+      }
+
+      assert {:ok,
+              %Error{
+                code: -32_000,
+                message: "Server error",
+                reason: :server_error,
+                domain: :request
+              }} = Error.load(value)
+    end
+
+    test "loads a valid error from atom map" do
+      value = %{
+        code: -32_000,
+        message: "Server error"
+      }
+
+      assert {:ok,
+              %Error{
+                code: -32_000,
+                message: "Server error",
+                reason: :server_error,
+                domain: :request
+              }} = Error.load(value)
+    end
+
+    test "when the map has invalid keys, errors" do
+      invalid_key = "#{:erlang.phash2(make_ref())}"
+
+      value =
+        %{
+          "code" => -32_000,
+          "message" => "Server error"
+        }
+        |> Map.put(invalid_key, nil)
+
+      assert :error = Error.load(value)
+    end
+
+    test "when it's not a map, errors" do
+      assert :error = Error.load("")
+      assert :error = Error.load(42)
+      assert :error = Error.load([])
+    end
+  end
+
+  describe "dump/1" do
+    test "dumps a valid error" do
+      assert {:ok,
+              %{
+                "code" => -32_000,
+                "message" => "Server error"
+              }} =
+               Error.new([])
+               |> Error.dump()
+    end
+
+    test "when it's not a valid error, errors" do
+      assert :error = Error.dump("")
+      assert :error = Error.dump(42)
+      assert :error = Error.dump(%{})
+      assert :error = Error.dump([])
+    end
+  end
+
   describe "new/1 with map" do
     test "defaults to Server error when no code is provided" do
       assert %Error{
@@ -47,7 +117,7 @@ defmodule Icon.Schema.ErrorTest do
                %Error{
                  code: -32_602,
                  reason: :invalid_params,
-                 domain: :unknown,
+                 domain: :internal,
                  message: ^expected
                }
              } =

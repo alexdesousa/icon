@@ -535,7 +535,7 @@ defmodule Icon.RPC.RequestTest do
       assert {:error,
               %Error{
                 code: -32_602,
-                domain: :unknown,
+                domain: :internal,
                 message: "to is required",
                 reason: :invalid_params
               }} = Request.serialize(request)

@@ -2,12 +2,13 @@ defmodule Icon.Schema.Error do
   @moduledoc """
   This module defines an ICON 2.0 error.
   """
+  use Icon.Schema.Type
   alias Icon.Schema
 
   @typedoc """
   Domain of the error.
   """
-  @type domain :: :request | :contract | :unknown
+  @type domain :: :request | :contract | :internal
 
   @typedoc """
   Errors.
@@ -65,17 +66,66 @@ defmodule Icon.Schema.Error do
           data: any()
         }
 
+  @spec load(any()) :: {:ok, t()} | :error
+  @impl Icon.Schema.Type
+  def load(value)
+
+  def load(value) when is_map(value) do
+    value =
+      value
+      |> Stream.map(fn
+        {key, value} when is_binary(key) ->
+          {String.to_existing_atom(key), value}
+
+        {_key, _value} = pair ->
+          pair
+      end)
+      |> Map.new()
+      |> Map.take([:code, :message, :data])
+      |> new()
+
+    {:ok, value}
+  rescue
+    _ ->
+      :error
+  end
+
+  def load(_) do
+    :error
+  end
+
+  @spec dump(t()) :: {:ok, map()} | :error
+  @impl Icon.Schema.Type
+  def dump(error)
+
+  def dump(%__MODULE__{code: code, message: message, data: data}) do
+    value =
+      %{
+        "code" => code,
+        "message" => message,
+        "data" => data
+      }
+      |> Stream.reject(fn {_, value} -> is_nil(value) end)
+      |> Map.new()
+
+    {:ok, value}
+  end
+
+  def dump(_) do
+    :error
+  end
+
   @doc """
   Creates a new error given a `schema_or_map_or_keyword`.
   """
   @spec new(Schema.state() | map() | keyword()) :: t()
-  def new(schema_or_map_keyword)
+  def new(schema_or_map_or_keyword)
 
   def new(%Schema{is_valid?: false} = schema) do
     %__MODULE__{
       code: -32_602,
       reason: reason(schema),
-      domain: :unknown,
+      domain: :internal,
       message: message(schema)
     }
   end
