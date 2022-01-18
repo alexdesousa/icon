@@ -90,9 +90,13 @@ defmodule Icon do
   @doc """
   Gets a transaction result by `hash`.
 
-  ## Examples
+  Options:
+  - `timeout` - Timeout in milliseconds for waiting for the result of the
+  transaction in case it's pending.
 
-  - Requesting a transaction result by `hash`:
+  ## Example
+
+  - Requesting a successful transaction result by `hash`:
 
   ```elixir
   iex> identity = Icon.RPC.Identity.new()
@@ -120,11 +124,14 @@ defmodule Icon do
   @spec get_transaction_result(Identity.t(), Hash.t()) ::
           {:ok, Transaction.Result.t()}
           | {:error, Error.t()}
-  def get_transaction_result(identity, tx_hash)
+  @spec get_transaction_result(Identity.t(), Hash.t(), keyword()) ::
+          {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def get_transaction_result(identity, tx_hash, options \\ [])
 
-  def get_transaction_result(%Identity{} = identity, hash) do
+  def get_transaction_result(%Identity{} = identity, hash, options) do
     with {:ok, request} <-
-           Request.Goloop.get_transaction_result(identity, hash),
+           Request.Goloop.get_transaction_result(identity, hash, options),
          {:ok, response} <- Request.send(request) do
       load_transaction_result(response)
     end

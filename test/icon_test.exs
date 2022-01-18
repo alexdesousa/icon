@@ -203,13 +203,29 @@ defmodule IconTest do
       {:ok, bypass: bypass, identity: identity, hash: hash}
     end
 
-    test "when the request is successful, returns transaction result", %{
+    test "when the transaction is successful, returns transaction result", %{
       hash: hash,
       identity: identity,
       bypass: bypass
     } do
       Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result_from_json("test/fixtures/transaction_result.json")
+        response =
+          result(%{
+            "blockHash" =>
+              "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+            "blockHeight" => "0x250b45",
+            "cumulativeStepUsed" => "0x186a0",
+            "eventLogs" => [],
+            "logsBloom" =>
+              "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "status" => "0x1",
+            "stepPrice" => "0x2e90edd00",
+            "stepUsed" => "0x186a0",
+            "to" => "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+            "txHash" =>
+              "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+            "txIndex" => "0x1"
+          })
 
         Plug.Conn.resp(conn, 200, response)
       end)
@@ -228,6 +244,64 @@ defmodule IconTest do
                   "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
                 txIndex: 1
               }} = Icon.get_transaction_result(identity, hash)
+    end
+
+    test "when the request times out, returns transaction result with failure",
+         %{
+           hash: hash,
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response =
+          result(%{
+            "blockHash" =>
+              "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+            "blockHeight" => "0x250b45",
+            "cumulativeStepUsed" => "0x186a0",
+            "failure" => %{
+              "code" => -31_006,
+              "message" => "Timeout",
+              "data" =>
+                "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"
+            },
+            "eventLogs" => [],
+            "logsBloom" =>
+              "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "status" => "0x0",
+            "stepPrice" => "0x2e90edd00",
+            "stepUsed" => "0x186a0",
+            "to" => "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+            "txHash" =>
+              "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+            "txIndex" => "0x1"
+          })
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok,
+              %Transaction.Result{
+                status: :failure,
+                blockHash:
+                  "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+                blockHeight: 2_427_717,
+                cummulativeStepUsed: nil,
+                failure: %Error{
+                  code: -31_006,
+                  message: "Timeout",
+                  data:
+                    "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+                  reason: :timeout,
+                  domain: :request
+                },
+                stepPrice: 12_500_000_000,
+                stepUsed: 100_000,
+                to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
+                txHash:
+                  "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+                txIndex: 1
+              }} = Icon.get_transaction_result(identity, hash, timeout: 5_000)
     end
 
     test "when the result is not valid, returns error", %{
@@ -278,14 +352,6 @@ defmodule IconTest do
       "result" => result
     }
     |> Jason.encode!()
-  end
-
-  @spec result_from_json(Path.t()) :: binary()
-  defp result_from_json(path) when is_binary(path) do
-    path
-    |> File.read!()
-    |> Jason.decode!()
-    |> result()
   end
 
   @spec error(map()) :: binary()
