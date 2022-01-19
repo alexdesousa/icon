@@ -9,8 +9,10 @@ defmodule Icon do
   alias Icon.Schema.{
     Error,
     Types.Address,
+    Types.BinaryData,
     Types.Hash,
     Types.Loop,
+    Types.SCORE,
     Types.Transaction
   }
 
@@ -206,11 +208,8 @@ defmodule Icon do
 
   def transfer(%Identity{} = identity, to, value, options) do
     with {:ok, request} <-
-           Request.Goloop.transfer(identity, to, value, options),
-         {:ok, request} <- Request.add_step_limit(request),
-         {:ok, request} <- Request.sign(request),
-         {:ok, response} <- Request.send(request) do
-      load_transaction_response(response)
+           Request.Goloop.transfer(identity, to, value, options) do
+      send_transaction(request)
     end
   end
 
@@ -286,16 +285,216 @@ defmodule Icon do
 
   def send_message(%Identity{} = identity, to, message, options) do
     with {:ok, request} <-
-           Request.Goloop.send_message(identity, to, message, options),
-         {:ok, request} <- Request.add_step_limit(request),
-         {:ok, request} <- Request.sign(request),
-         {:ok, response} <- Request.send(request) do
-      load_transaction_response(response)
+           Request.Goloop.send_message(identity, to, message, options) do
+      send_transaction(request)
+    end
+  end
+
+  @doc """
+  Creates a new SCORE.
+
+  The `identity` should be created using a valid `private_key`, otherwise the
+  message cannot be sent.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transfer result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+  - `content_type` - MIME type of the SCORE contents. Defaults to
+    `application/zip`.
+  - `on_install_params` - Parameters for the function `on_install/0`.
+  - `on_install_schema` - Schema for the parameters of the function
+    `on_install/0`.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Examples
+
+  - Creates a new contract:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.install_score(identity, content)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Creates a new contract and waits 5 seconds for the result:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.install_score(identity, content, timeout: 5_000)
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "cx0000000000000000000000000000000000000000",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+
+  - Creates a new contract and passes paremeters to the `on_install` function:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.install_score(identity, content,
+  ...>   on_install_params: %{
+  ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+  ...>   },
+  ...>   on_install_schema: %{
+  ...>     address: {:address, required: true}
+  ...>   }
+  ...> )
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+  """
+  @spec install_score(Identity.t(), BinaryData.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec install_score(Identity.t(), BinaryData.t(), keyword()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def install_score(identity, content, options \\ [])
+
+  def install_score(%Identity{} = identity, content, options) do
+    with {:ok, request} <-
+           Request.Goloop.install_score(identity, content, options) do
+      send_transaction(request)
+    end
+  end
+
+  @doc """
+  Updates a SCORE.
+
+  The `identity` should be created using a valid `private_key`, otherwise the
+  message cannot be sent.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transfer result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+  - `content_type` - MIME type of the SCORE contents. Defaults to
+    `application/zip`.
+  - `on_update_params` - Parameters for the function `on_update/0`.
+  - `on_update_schema` - Schema for the parameters of the function
+    `on_update/0`.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Examples
+
+  - Updates a contract:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.update_score(identity, score_address, content)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Updates a contract and waits 5 seconds for the result:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.update_score(identity, score_address, content, timeout: 5_000)
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+
+  - Updates a contract and passes paremeters to the `on_update` function:
+
+  ```elixir
+  iex> {:ok, content} = File.read("./my-contract.javac")
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.update_score(identity, score_address, content,
+  ...>   on_update_params: %{
+  ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+  ...>   },
+  ...>   on_update_schema: %{
+  ...>     address: {:address, required: true}
+  ...>   }
+  ...> )
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+  """
+  @spec update_score(Identity.t(), SCORE.t(), BinaryData.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec update_score(Identity.t(), SCORE.t(), BinaryData.t(), keyword()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def update_score(identity, score_address, content, options \\ [])
+
+  def update_score(%Identity{} = identity, to, content, options) do
+    with {:ok, request} <-
+           Request.Goloop.update_score(identity, to, content, options) do
+      send_transaction(request)
     end
   end
 
   #########
   # Helpers
+
+  @spec send_transaction(Request.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  defp send_transaction(request)
+
+  defp send_transaction(%Request{} = request) do
+    with {:ok, request} <- Request.add_step_limit(request),
+         {:ok, request} <- Request.sign(request),
+         {:ok, response} <- Request.send(request) do
+      load_transaction_response(response)
+    end
+  end
 
   @spec load_transaction_response(any()) ::
           {:ok, Hash.t()}
