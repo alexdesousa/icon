@@ -270,6 +270,14 @@ defmodule Icon.RPC.Request do
           | {:error, Error.t()}
   def add_step_limit(request, step_limit \\ nil)
 
+  def add_step_limit(
+        %__MODULE__{method: method, params: %{stepLimit: step_limit}} = request,
+        nil
+      )
+      when method in @transactions and is_integer(step_limit) and step_limit > 0 do
+    {:ok, request}
+  end
+
   def add_step_limit(%__MODULE__{method: method} = request, nil)
       when method in @transactions do
     case estimate_step(request) do

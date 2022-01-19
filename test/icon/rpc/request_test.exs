@@ -117,6 +117,33 @@ defmodule Icon.RPC.RequestTest do
               }} = Request.add_step_limit(request)
     end
 
+    test "when the step limit is already in the transaction, doesn't estimate it",
+         %{
+           identity: identity
+         } do
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      value = 1_000_000_000_000_000_000
+      step_limit = 42
+
+      assert {:ok, %Request{} = request} =
+               Request.Goloop.transfer(identity, to, value,
+                 params: %{stepLimit: step_limit}
+               )
+
+      assert {:ok,
+              %Request{
+                method: "icx_sendTransaction",
+                options: %{
+                  identity: ^identity
+                },
+                params: %{
+                  to: ^to,
+                  value: ^value,
+                  stepLimit: ^step_limit
+                }
+              }} = Request.add_step_limit(request)
+    end
+
     test "when there's an error requesting the estimation, errors", %{
       bypass: bypass,
       identity: identity
