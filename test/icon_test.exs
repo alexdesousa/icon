@@ -494,6 +494,153 @@ defmodule IconTest do
     end
   end
 
+  describe "send_message/4" do
+    setup do
+      bypass = Bypass.open()
+
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity =
+        Identity.new(
+          private_key: private_key,
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the transaction is sent, returns hash", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+
+      tx_hash =
+        "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        response = result("0x186a0")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result(tx_hash)
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, ^tx_hash} = Icon.send_message(identity, recipient, "Hello!")
+    end
+
+    test "when the transaction is sent and doesn't timeout, returns result", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        response = result("0x186a0")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response =
+          result(%{
+            "blockHash" =>
+              "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+            "blockHeight" => "0x250b45",
+            "cumulativeStepUsed" => "0x186a0",
+            "eventLogs" => [],
+            "logsBloom" =>
+              "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "status" => "0x1",
+            "stepPrice" => "0x2e90edd00",
+            "stepUsed" => "0x186a0",
+            "to" => recipient,
+            "txHash" =>
+              "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+            "txIndex" => "0x1"
+          })
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok,
+              %Transaction.Result{
+                status: :success,
+                blockHash:
+                  "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+                blockHeight: 2_427_717,
+                cummulativeStepUsed: nil,
+                failure: nil,
+                stepPrice: 12_500_000_000,
+                stepUsed: 100_000,
+                to: ^recipient,
+                txHash:
+                  "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+                txIndex: 1
+              }} =
+               Icon.send_message(identity, recipient, "Hello!", timeout: 5_000)
+    end
+
+    test "when the response is invalid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        response = result("0x186a0")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast transaction result"
+              }} = Icon.send_message(identity, recipient, "Hello!")
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3d", fn conn ->
+        response = result("0x186a0")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.send_message(identity, recipient, "Hello!")
+    end
+  end
+
   @spec result(any()) :: binary()
   defp result(result) do
     %{

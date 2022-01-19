@@ -214,6 +214,86 @@ defmodule Icon do
     end
   end
 
+  @doc """
+  Send a signed `message` to a `recipient`.
+
+  The `identity` should be created using a valid `private_key`, otherwise the
+  message cannot be sent.
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transfer result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Examples
+
+  - Send a message to another wallet:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+  iex> Icon.send_message(identity, recipient, "Hello!")
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Send a message to another wallet and wait 5 seconds for the result:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> recipient = "hx2e243ad926ac48d15156756fce28314357d49d83"
+  iex> Icon.send_message(identity, recipient, "Hello!", timeout: 5_000)
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+  """
+  @spec send_message(Identity.t(), Schema.Types.Address.t(), binary()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec send_message(
+          Identity.t(),
+          Schema.Types.Address.t(),
+          binary(),
+          keyword()
+        ) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def send_message(identity, recipient, message, options \\ [])
+
+  def send_message(%Identity{} = identity, to, message, options) do
+    with {:ok, request} <-
+           Request.Goloop.send_message(identity, to, message, options),
+         {:ok, request} <- Request.add_step_limit(request),
+         {:ok, request} <- Request.sign(request),
+         {:ok, response} <- Request.send(request) do
+      load_transaction_response(response)
+    end
+  end
+
   #########
   # Helpers
 
