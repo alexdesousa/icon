@@ -4,6 +4,7 @@ defmodule Icon.Schema.LoaderTest do
 
   alias Icon.Schema
   alias Icon.Schema.Error
+  alias Icon.Schema.Types.EventLog
 
   describe "Icon.Schema.load/1" do
     test "parameters can be a keyword list" do
@@ -295,7 +296,7 @@ defmodule Icon.Schema.LoaderTest do
 
       assert %Schema{
                data: %{
-                 error: %{
+                 error: %Error{
                    code: -32_000,
                    message: "Server error",
                    data:
@@ -327,6 +328,55 @@ defmodule Icon.Schema.LoaderTest do
                %{error: :error}
                |> Schema.generate()
                |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "loads event_log type" do
+      params = %{
+        "event_log" => %{
+          "scoreAddress" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+          "indexed" => [
+            "Transfer(Address,Address,int)",
+            "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+            "hx2e243ad926ac48d15156756fce28314357d49d83"
+          ],
+          "data" => [
+            "0x2a"
+          ]
+        }
+      }
+
+      assert %Schema{
+               data: %{
+                 event_log: %EventLog{
+                   header: "Transfer(Address,Address,int)",
+                   name: "Transfer",
+                   score_address: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                   indexed: [
+                     "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+                     "hx2e243ad926ac48d15156756fce28314357d49d83"
+                   ],
+                   data: [
+                     42
+                   ]
+                 }
+               },
+               is_valid?: true
+             } =
+               %{event_log: :event_log}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when event_log is invalid" do
+      assert %Schema{
+               errors: %{event_log: "is invalid"},
+               is_valid?: false
+             } =
+               %{event_log: :event_log}
+               |> Schema.generate()
+               |> Schema.new(%{"event_log" => 42})
                |> Schema.load()
     end
 

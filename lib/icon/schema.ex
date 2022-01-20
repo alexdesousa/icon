@@ -30,6 +30,8 @@ defmodule Icon.Schema do
   - `:binary_data` (same as `Icon.Schema.Types.BinaryData`).
   - `:boolean` (same as `Icon.Schema.Types.Boolean`).
   - `:eoa_address` (same as `Icon.Schema.Types.EOA`).
+  - `:error` (same as `Icon.Schema.Error`).
+  - `:event_log` (same as `Icon.Schema.Types.EventLog`).
   - `:hash` (same as `Icon.Schema.Types.Hash`).
   - `:integer` (same as `Icon.Schema.Types.Integer`).
   - `:loop` (same as `Icon.Schema.Types.Loop`).
@@ -146,6 +148,7 @@ defmodule Icon.Schema do
           | :boolean
           | :eoa_address
           | :error
+          | :event_log
           | :hash
           | :integer
           | :loop
@@ -167,6 +170,7 @@ defmodule Icon.Schema do
           | Icon.Schema.Types.BinaryData
           | Icon.Schema.Types.Boolean
           | Icon.Schema.Types.EOA
+          | Icon.Schema.Types.EventLog
           | Icon.Schema.Types.Hash
           | Icon.Schema.Types.Integer
           | Icon.Schema.Types.Loop
@@ -483,6 +487,7 @@ defmodule Icon.Schema do
   defp expand_type(_key, :boolean), do: Icon.Schema.Types.Boolean
   defp expand_type(_key, :eoa_address), do: Icon.Schema.Types.EOA
   defp expand_type(_key, :error), do: Icon.Schema.Error
+  defp expand_type(_key, :event_log), do: Icon.Schema.Types.EventLog
   defp expand_type(_key, :hash), do: Icon.Schema.Types.Hash
   defp expand_type(_key, :integer), do: Icon.Schema.Types.Integer
   defp expand_type(_key, :loop), do: Icon.Schema.Types.Loop
