@@ -4,6 +4,7 @@ defmodule Icon.Schema.Error do
   """
   use Icon.Schema.Type
   alias Icon.Schema
+  alias Icon.Schema.Type
 
   @typedoc """
   Domain of the error.
@@ -73,14 +74,7 @@ defmodule Icon.Schema.Error do
   def load(value) when is_map(value) do
     value =
       value
-      |> Stream.map(fn
-        {key, value} when is_binary(key) ->
-          {String.to_existing_atom(key), value}
-
-        {_key, _value} = pair ->
-          pair
-      end)
-      |> Map.new()
+      |> Type.to_atom_map()
       |> Map.take([:code, :message, :data])
       |> new()
 
@@ -94,7 +88,7 @@ defmodule Icon.Schema.Error do
     :error
   end
 
-  @spec dump(t()) :: {:ok, map()} | :error
+  @spec dump(any()) :: {:ok, map()} | :error
   @impl Icon.Schema.Type
   def dump(error)
 

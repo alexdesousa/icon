@@ -79,4 +79,61 @@ defmodule Icon.Schema.Type do
       end
     end
   end
+
+  @doc """
+  Loads a type from some `value` using a `module`.
+  """
+  @spec load(module(), any()) :: {:ok, any()} | :error
+  def load(module, value), do: module.load(value)
+
+  @doc """
+  It's the same as `load/2` but it raises when the `value` is not valid.
+  """
+  @spec load!(module(), any()) :: any()
+  def load!(module, value) do
+    case load(module, value) do
+      {:ok, value} -> value
+      :error -> raise ArgumentError, message: "cannot load type"
+    end
+  end
+
+  @doc """
+  Dumps a type from some `value` using a `module`.
+  """
+  @spec dump(module(), any()) :: {:ok, any()} | :error
+  def dump(module, value), do: module.dump(value)
+
+  @doc """
+  It's the same as `dump/2` but it raises when the `value` is not valid.
+  """
+  @spec dump!(module(), any()) :: any()
+  def dump!(module, value) do
+    case dump(module, value) do
+      {:ok, value} -> value
+      :error -> raise ArgumentError, message: "cannot dump type"
+    end
+  end
+
+  @doc """
+  Helper function to convert a map with binary keys to a map with atom keys.
+  """
+  @spec to_atom_map(map() | any()) :: map()
+  def to_atom_map(map)
+
+  def to_atom_map(map) when is_map(map) do
+    map
+    |> Stream.map(fn {key, value} = pair ->
+      if is_binary(key), do: {String.to_existing_atom(key), value}, else: pair
+    end)
+    |> Stream.map(fn {key, value} -> {key, to_atom_map(value)} end)
+    |> Map.new()
+  end
+
+  def to_atom_map(list) when is_list(list) do
+    Enum.map(list, &to_atom_map/1)
+  end
+
+  def to_atom_map(value) do
+    value
+  end
 end
