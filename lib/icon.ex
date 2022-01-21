@@ -479,6 +479,177 @@ defmodule Icon do
     end
   end
 
+  @doc """
+  Deposits ICX in loop (1 ICX = 10¹⁸ loop) into a SCORE for paying user's fees
+  when they transact with the contract (fee sharing).
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Examples
+
+  - Deposits `1.00` ICX in a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.deposit_shared_fee(identity, score_address, 1_000_000_000_000_000_000)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Deposit `1.00` ICX in a SCORE and wait 5 seconds for the result:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.deposit_shared_fee(identity, score_address, 1_000_000_000_000_000_000,
+  ...>   timeout: 5_000
+  ...> )
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+  """
+  @spec deposit_shared_fee(Identity.t(), SCORE.t(), Loop.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec deposit_shared_fee(Identity.t(), SCORE.t(), Loop.t(), keyword()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def deposit_shared_fee(identity, score_address, amount, options \\ [])
+
+  def deposit_shared_fee(%Identity{} = identity, to, amount, options) do
+    with {:ok, request} <-
+           Request.Goloop.deposit_shared_fee(identity, to, amount, options) do
+      send_transaction(request)
+    end
+  end
+
+  @doc """
+  Withdraws ICX from a SCORE that was destined for paying user's fees when they
+  transact with the contract (fee sharing).
+
+  Options:
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Examples
+
+  - Withdraws `1.00` ICX from a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.withdraw_shared_fee(identity, score_address, 1_000_000_000_000_000_000)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Withdraws ICX using the deposit hash:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> hash = "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+  iex> Icon.withdraw_shared_fee(identity, score_address, hash)
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Withdraw the whole deposit from a SCORE and wait 5 seconds for the result:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+  iex> Icon.withdraw_shared_fee(identity, score_address, timeout: 5_000)
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+  """
+  @spec withdraw_shared_fee(Identity.t(), SCORE.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec withdraw_shared_fee(Identity.t(), SCORE.t(), nil | Loop.t() | Hash.t()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec withdraw_shared_fee(
+          Identity.t(),
+          SCORE.t(),
+          nil | Loop.t() | Hash.t(),
+          keyword()
+        ) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def withdraw_shared_fee(
+        identity,
+        score_address,
+        hash_or_amount \\ nil,
+        options \\ []
+      )
+
+  def withdraw_shared_fee(%Identity{} = identity, to, hash_or_amount, options) do
+    with {:ok, request} <-
+           Request.Goloop.withdraw_shared_fee(
+             identity,
+             to,
+             hash_or_amount,
+             options
+           ) do
+      send_transaction(request)
+    end
+  end
+
   #########
   # Helpers
 
