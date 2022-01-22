@@ -38,10 +38,17 @@ defmodule Icon.Schema.Types.Transaction do
     blockHash: :hash,
     blockHeight: :integer,
     signature: :signature,
-    dataType: enum([:message, :call, :deploy, :deposit]),
+    dataType: enum([:message, :call, :deploy, :deposit, :base]),
     data:
       any(
         [
+          base: %{
+            result: %{
+              coveredByFee: :loop,
+              coveredByOverIssuedICX: :loop,
+              issue: :loop
+            }
+          },
           message: :binary_data,
           call: %{
             method: {:string, required: true},
