@@ -159,6 +159,20 @@ defmodule Icon.Schema.DumperTest do
                |> Schema.dump()
     end
 
+    test "dumps primitive any type" do
+      data = 42
+      params = %{"any" => 42}
+
+      assert %Schema{
+               data: %{any: ^data},
+               is_valid?: true
+             } =
+               %{any: :any}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
     test "dumps binary_data type" do
       params = %{"binary_data" => "ICON 2.0"}
 

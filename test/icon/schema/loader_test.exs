@@ -203,6 +203,20 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads primitive any type" do
+      data = "0x2a"
+      params = %{"any" => data}
+
+      assert %Schema{
+               data: %{any: ^data},
+               is_valid?: true
+             } =
+               %{any: :any}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads binary_data type" do
       binary_data = "ICON 2.0"
       params = %{"binary_data" => binary_data}

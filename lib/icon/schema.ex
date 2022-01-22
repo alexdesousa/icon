@@ -27,6 +27,7 @@ defmodule Icon.Schema do
   options each key has. The available primitive types are:
 
   - `:address` (same as `Icon.Schema.Types.Address`).
+  - `:any` (does nothing with the data).
   - `:binary_data` (same as `Icon.Schema.Types.BinaryData`).
   - `:boolean` (same as `Icon.Schema.Types.Boolean`).
   - `:eoa_address` (same as `Icon.Schema.Types.EOA`).
@@ -144,6 +145,7 @@ defmodule Icon.Schema do
           | {:any, [{atom(), external_type()}], atom()}
           | {:enum, [atom()]}
           | :address
+          | :any
           | :binary_data
           | :boolean
           | :eoa_address
@@ -434,7 +436,8 @@ defmodule Icon.Schema do
   @doc """
   Generates a union of types.
   """
-  @spec any([external_type()], atom()) :: {:any, [external_type()], atom()}
+  @spec any([{atom(), external_type()}], atom()) ::
+          {:any, [{atom(), external_type()}], atom()}
   def any(types, field), do: {:any, types, field}
 
   @doc """
@@ -483,6 +486,7 @@ defmodule Icon.Schema do
   defp expand_type(key, external_type)
 
   defp expand_type(_key, :address), do: Icon.Schema.Types.Address
+  defp expand_type(_key, :any), do: Icon.Schema.Types.Any
   defp expand_type(_key, :binary_data), do: Icon.Schema.Types.BinaryData
   defp expand_type(_key, :boolean), do: Icon.Schema.Types.Boolean
   defp expand_type(_key, :eoa_address), do: Icon.Schema.Types.EOA
