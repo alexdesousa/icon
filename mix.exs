@@ -121,6 +121,7 @@ defmodule Icon.MixProject do
         Icon.Schema.Types.Timestamp
       ],
       "Schema Complex Types": [
+        Icon.Schema.Types.Transaction,
         Icon.Schema.Types.Transaction.Result,
         Icon.Schema.Types.Transaction.Status
       ]
