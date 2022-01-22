@@ -68,7 +68,7 @@ defmodule Icon do
 
   ```elixir
   iex> identity = Icon.RPC.Identity.new()
-  iex> Icon.get_balance(identity)
+  iex> Icon.total_supply(identity)
   {:ok, 1_300_163_572_018_865_530_968_203_250}
   ```
   """
@@ -102,23 +102,38 @@ defmodule Icon do
 
   ```elixir
   iex> identity = Icon.RPC.Identity.new()
-  iex> Icon.get_balance(identity, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b")
+  iex> Icon.get_transaction_result(identity, ""0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25"")
   {
     :ok,
     %Icon.Schema.Types.Transaction.Result{
-      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
-      blockHeight: 2_427_717,
+      blockHash: "0xd6e8ed8035b38a5c09de59df101c7e6258e6d7e0690d3c6c6093045a5550bb83",
+      blockHeight: 45162694,
       cummulativeStepUsed: nil,
+      eventLogs: [
+        %Icon.Schema.Types.EventLog{
+          data: ["{\\"method\\": \\"_swap\\", \\"params\\": {\\"toToken\\": \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\", \\"minimumReceive\\": \\"1000020000000000000000\\", \\"path\\": [\\"cx2609b924e33ef00b648a409245c7ea394c467824\\", \\"cxf61cd5a45dc9f91c15aa65831a30a90d59a09619\\", \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\"]}}"],
+          header: "Transfer(Address,Address,int,bytes)",
+          indexed: [
+            "hx948b9727f426ae7789741da8c796807f78ba137f",
+            "cx21e94c08c03daee80c25d8ee3ea22a20786ec231",
+            1000020000000000000000
+          ],
+          name: "Transfer",
+          score_address: "cx88fd7df7ddff82f7cc735c871dc519838cb235bb"
+        },
+        ...
+      ]
       failure: nil,
-      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      logsBloom: <<0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 16, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 1, 0, 1, 0, 0, 16, 0, 128,
+        ...>>,
       scoreAddress: nil,
       status: :success,
-      stepPrice: 12_500_000_000,
-      stepUsed: 100_000,
-      to: "hxdd3ead969f0dfb0b72265ca584092a3fb25d27e0",
-      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
-      txIndex: 1
+      stepPrice: 12500000000,
+      stepUsed: 13816635,
+      to: "cx88fd7df7ddff82f7cc735c871dc519838cb235bb",
+      txHash: "0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25",
+      txIndex: 2
     }
   }
   ```

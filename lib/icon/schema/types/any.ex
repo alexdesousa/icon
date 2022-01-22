@@ -1,6 +1,7 @@
 defmodule Icon.Schema.Types.Any do
   @moduledoc """
-  This module defines an any type.
+  This module defines a type that does not do any conversions. It is useful when
+  the types of the data are not known _a priori_.
   """
   use Icon.Schema.Type
 

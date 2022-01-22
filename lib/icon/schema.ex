@@ -314,6 +314,8 @@ defmodule Icon.Schema do
   @spec defschema(map()) :: Macro.t()
   defmacro defschema(map) do
     quote do
+      @behaviour Access
+
       @keys Map.keys(unquote(map))
 
       defstruct @keys
@@ -324,6 +326,15 @@ defmodule Icon.Schema do
       def init do
         unquote(map)
       end
+
+      @impl Access
+      defdelegate fetch(v, key), to: Map
+
+      @impl Access
+      defdelegate get_and_update(v, key, func), to: Map
+
+      @impl Access
+      defdelegate pop(v, key), to: Map
     end
   end
 

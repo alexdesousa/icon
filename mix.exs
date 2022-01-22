@@ -107,9 +107,11 @@ defmodule Icon.MixProject do
       ],
       "Schema Primitive Types": [
         Icon.Schema.Types.Address,
+        Icon.Schema.Types.Any,
         Icon.Schema.Types.BinaryData,
         Icon.Schema.Types.Boolean,
         Icon.Schema.Types.EOA,
+        Icon.Schema.Types.EventLog,
         Icon.Schema.Types.Hash,
         Icon.Schema.Types.Integer,
         Icon.Schema.Types.Loop,
