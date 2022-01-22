@@ -628,7 +628,7 @@ defmodule Icon.RPC.Request.Goloop do
   ...>     address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
   ...>     value: 1_000_000_000_000_000_000
   ...>   },
-  ...>   %{
+  ...>   schema: %{
   ...>     address: {:address, required: true},
   ...>     value: {:loop, required: true}
   ...>   }

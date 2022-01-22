@@ -291,6 +291,165 @@ defmodule Icon do
   end
 
   @doc """
+  Calls a `method` in a `score` in a signed transaction.
+
+  Options:
+  - `schema` - Method parameters schema.
+  - `timeout` - Time in milliseconds to wait for the transaction result.
+  - `params` - Extra transaction parameters for overriding the defaults.
+
+  While technically any parameter can be overriden with the `params` option, not
+  all of them make sense to do so. The following are some of the most usuful
+  parameters to modify via this option:
+
+  - `nonce` - An arbitrary number used to prevent transaction hash collision.
+  - `timestamp` - Transaction creation time. Timestamp is in microsecond.
+  - `stepLimit` - Maximum step allowance that can be used by the transaction.
+
+  ## Call Schema
+
+  The `schema` option gives defines the types of the `call_params`. This is
+  required for `method` calls with parameters, because ICON has a different
+  type representation than Elixir e.g. let's say we want to call the method
+  `transfer(from: Address, to: Address, amount: int)` for transferring an
+  `amount` of tokens `from` one EOA address `to` another. Then the schema would
+  look like this:
+
+  ```elixir
+  %{
+    from: {:eoa_address, required: true},
+    to: {:eoa_address, required: true},
+    amount: {:loop, required: true}
+  }
+  ```
+
+  Then, while doing the actual transaction call, the schema will help with the
+  conversion of the `call_params`. So, something like the following:
+
+  ```elixir
+  %{
+    from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+    to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+    amount: 1_000_000_000_000_000_000
+  }
+  ```
+
+  will be converted to the following when communicating with the node:
+
+  ```json
+  {
+    "from": "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+    "to": "hx2e243ad926ac48d15156756fce28314357d49d83",
+    "amount": "0xde0b6b3a7640000"
+  }
+  ```
+
+  ## Examples
+
+  Given the example method used in the previous section, we can call it as
+  follows:
+
+  - Transfer tokens from one wallet to another:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.transaction_call(
+  ...>   identity,
+  ...>   "cx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>   "transfer",
+  ...>   %{
+  ...>     from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+  ...>     to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>     amount: 1_000_000_000_000_000_000
+  ...>   },
+  ...>   schema: %{
+  ...>     from: {:eoa_address, required: true},
+  ...>     to: {:eoa_address, required: true},
+  ...>     amount: {:loop, required: true}
+  ...>   }
+  ...> )
+  {:ok, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"}
+  ```
+
+  - Transfer token from one wallet to another and wait 5 second for the result:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.transaction_call(
+  ...>   identity,
+  ...>   "cx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>   "transfer",
+  ...>   %{
+  ...>     from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+  ...>     to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+  ...>     amount: 1_000_000_000_000_000_000
+  ...>   },
+  ...>   schema: %{
+  ...>     from: {:eoa_address, required: true},
+  ...>     to: {:eoa_address, required: true},
+  ...>     amount: {:loop, required: true}
+  ...>   },
+  ...>   timeout: 5_000
+  ...> )
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction.Result{
+      blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
+      blockHeight: 2_427_717,
+      cummulativeStepUsed: nil,
+      failure: nil,
+      logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
+      scoreAddress: nil,
+      status: :success,
+      stepPrice: 12_500_000_000,
+      stepUsed: 100_000,
+      to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+      txHash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      txIndex: 1
+    }
+  }
+  ```
+  """
+  @spec transaction_call(Identity.t(), SCORE.t(), binary()) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec transaction_call(
+          Identity.t(),
+          SCORE.t(),
+          binary(),
+          nil | map() | keyword()
+        ) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  @spec transaction_call(
+          Identity.t(),
+          SCORE.t(),
+          binary(),
+          nil | map() | keyword(),
+          keyword()
+        ) ::
+          {:ok, Hash.t()}
+          | {:ok, Transaction.Result.t()}
+          | {:error, Error.t()}
+  def transaction_call(identity, score, method, params \\ nil, options \\ [])
+
+  def transaction_call(%Identity{} = identity, to, method, call_params, options) do
+    with {:ok, request} <-
+           Request.Goloop.transaction_call(
+             identity,
+             to,
+             method,
+             call_params,
+             options
+           ) do
+      send_transaction(request)
+    end
+  end
+
+  @doc """
   Creates a new SCORE.
 
   The `identity` should be created using a valid `private_key`, otherwise the
