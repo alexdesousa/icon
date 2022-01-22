@@ -236,7 +236,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,
                 to: "hx2e243ad926ac48d15156756fce28314357d49d83",
@@ -286,7 +286,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: %Error{
                   code: -31_006,
                   message: "Timeout",
@@ -546,7 +546,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,
@@ -694,7 +694,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,
@@ -880,7 +880,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 scoreAddress: nil,
                 stepPrice: 12_500_000_000,
@@ -1053,7 +1053,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 scoreAddress: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
                 stepPrice: 12_500_000_000,
@@ -1206,7 +1206,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,
@@ -1358,7 +1358,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,
@@ -1507,7 +1507,7 @@ defmodule IconTest do
                 blockHash:
                   "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
                 blockHeight: 2_427_717,
-                cummulativeStepUsed: nil,
+                cumulativeStepUsed: 100_000,
                 failure: nil,
                 stepPrice: 12_500_000_000,
                 stepUsed: 100_000,

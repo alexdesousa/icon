@@ -108,7 +108,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0xd6e8ed8035b38a5c09de59df101c7e6258e6d7e0690d3c6c6093045a5550bb83",
       blockHeight: 45162694,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       eventLogs: [
         %Icon.Schema.Types.EventLog{
           data: ["{\\"method\\": \\"_swap\\", \\"params\\": {\\"toToken\\": \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\", \\"minimumReceive\\": \\"1000020000000000000000\\", \\"path\\": [\\"cx2609b924e33ef00b648a409245c7ea394c467824\\", \\"cxf61cd5a45dc9f91c15aa65831a30a90d59a09619\\", \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\"]}}"],
@@ -296,7 +296,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -368,7 +368,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -511,7 +511,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -609,7 +609,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -704,7 +704,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -793,7 +793,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
@@ -873,7 +873,7 @@ defmodule Icon do
     %Icon.Schema.Types.Transaction.Result{
       blockHash: "0x52bab965acf6fa11f7e7450a87947d944ad8a7f88915e27579f21244f68c6285",
       blockHeight: 2_427_717,
-      cummulativeStepUsed: nil,
+      cumulativeStepUsed: 0,
       failure: nil,
       logsBloom: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...>>,
