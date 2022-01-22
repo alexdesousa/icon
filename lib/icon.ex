@@ -155,6 +155,106 @@ defmodule Icon do
   end
 
   @doc """
+  Gets a transaction by `hash`.
+
+  ## Example
+
+  - Requesting a successful transaction by `hash`:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_transaction_by_hash(identity, "0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25")
+  {
+    :ok,
+    %Icon.Schema.Types.Transaction{
+      blockHash: "0xd6e8ed8035b38a5c09de59df101c7e6258e6d7e0690d3c6c6093045a5550bb83",
+      blockHeight: 45162694,
+      data: %{
+        method: "transfer",
+        params: %{
+          "_data" => "0x7b226d6574686f64223a20225f73776170222c2022706172616d73223a207b22746f546f6b656e223a2022637838386664376466376464666638326637636337333563383731646335313938333863623233356262222c20226d696e696d756d52656365697665223a202231303030303230303030303030303030303030303030222c202270617468223a205b22637832363039623932346533336566303062363438613430393234356337656133393463343637383234222c2022637866363163643561343564633966393163313561613635383331613330613930643539613039363139222c2022637838386664376466376464666638326637636337333563383731646335313938333863623233356262225d7d7d",
+          "_to" => "cx21e94c08c03daee80c25d8ee3ea22a20786ec231",
+          "_value" => "0x363610bbaabe220000"
+        }
+      },
+      dataType: :call,
+      from: "hx948b9727f426ae7789741da8c796807f78ba137f",
+      nid: 1,
+      nonce: 223,
+      signature: "TTfXvXZ3NG53R2tx9D69fMvmHW8mIIWWEDZnNfOgGG1BOeGYSYzV37PWCi7ryXKKAc7e80ue937yrull8hoZxgE=",
+      stepLimit: 50000000,
+      timestamp: ~U[2022-01-22 06:48:51.250054Z],
+      to: "cx88fd7df7ddff82f7cc735c871dc519838cb235bb",
+      txHash: "0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25",
+      txIndex: 2,
+      value: 0,
+      version: 3
+    }
+  }
+  ```
+
+  The `params` key cannot be decoded beforehand, so we need to use a schema to
+  retrieve the Elixir values. Using the previous example, we would do something
+  like this:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> {:ok, tx} = Icon.get_transaction_by_hash(identity, "0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25")
+  iex> schema = %{
+  ...>   _data: :binary_data,
+  ...>   _to: :address,
+  ...>   _value: :loop
+  ...> }
+  iex> {:ok, decoded_params} = (
+  ...>   schema
+  ...>   |> Icon.Schema.generate()
+  ...>   |> Icon.Schema.new(tx.data.params)
+  ...>   |> Icon.Schema.load()
+  ...>   |> Icon.Schema.apply()
+  ...> )
+  iex> put_in(tx, [:data, :params], decoded_params)
+  %Icon.Schema.Types.Transaction{
+    blockHash: "0xd6e8ed8035b38a5c09de59df101c7e6258e6d7e0690d3c6c6093045a5550bb83",
+    blockHeight: 45162694,
+    data: %{
+      method: "transfer",
+      params: %{
+        _data: "{\\"method\\": \\"_swap\\", \\"params\\": {\\"toToken\\": \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\", \\"minimumReceive\\": \\"1000020000000000000000\\", \\"path\\": [\\"cx2609b924e33ef00b648a409245c7ea394c467824\\", \\"cxf61cd5a45dc9f91c15aa65831a30a90d59a09619\\", \\"cx88fd7df7ddff82f7cc735c871dc519838cb235bb\\"]}}",
+        _to: "cx21e94c08c03daee80c25d8ee3ea22a20786ec231",
+        _value: 1000020000000000000000
+      }
+    },
+    dataType: :call,
+    from: "hx948b9727f426ae7789741da8c796807f78ba137f",
+    nid: 1,
+    nonce: 223,
+    signature: "TTfXvXZ3NG53R2tx9D69fMvmHW8mIIWWEDZnNfOgGG1BOeGYSYzV37PWCi7ryXKKAc7e80ue937yrull8hoZxgE=", 
+    stepLimit: 50000000,
+    timestamp: ~U[2022-01-22 06:48:51.250054Z],
+    to: "cx88fd7df7ddff82f7cc735c871dc519838cb235bb",
+    txHash: "0x917def9734385cbb0c1f3e9d6fc0e46706f51348ab9cea1d7e1bf44e1ed51b25",
+    txIndex: 2,
+    value: 0,
+    version: 3
+  }
+  ```
+
+  For more information about schemas see `Icon.Schema` module.
+  """
+  @spec get_transaction_by_hash(Identity.t(), Hash.t()) ::
+          {:ok, Transaction.t()}
+          | {:error, Error.t()}
+  def get_transaction_by_hash(identity, hash)
+
+  def get_transaction_by_hash(%Identity{} = identity, hash) do
+    with {:ok, request} <-
+           Request.Goloop.get_transaction_by_hash(identity, hash),
+         {:ok, response} <- Request.send(request) do
+      load_transaction(response)
+    end
+  end
+
+  @doc """
   Transfers an ICX `amount` to a `recipient`.
 
   The `identity` should be created using a valid `private_key`, otherwise the
@@ -873,6 +973,29 @@ defmodule Icon do
       Error.new(
         reason: :server_error,
         message: "cannot cast transaction result"
+      )
+
+    {:error, reason}
+  end
+
+  @spec load_transaction(any()) ::
+          {:ok, Transaction.t()}
+          | {:error, Error.t()}
+  defp load_transaction(data)
+
+  defp load_transaction(data) when is_map(data) do
+    Transaction
+    |> Schema.generate()
+    |> Schema.new(data)
+    |> Schema.load()
+    |> Schema.apply(into: Transaction)
+  end
+
+  defp load_transaction(_) do
+    reason =
+      Error.new(
+        reason: :server_error,
+        message: "cannot cast transaction"
       )
 
     {:error, reason}
