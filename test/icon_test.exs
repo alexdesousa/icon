@@ -2,7 +2,275 @@ defmodule IconTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC.Identity
-  alias Icon.Schema.{Error, Types.Transaction}
+  alias Icon.Schema.{Error, Types.Block, Types.Transaction}
+
+  describe "get_block/2" do
+    setup do
+      bypass = Bypass.open()
+      identity = Identity.new(node: "http://localhost:#{bypass.port}")
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when no hash or height is provided, returns latest block", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response =
+          result(%{
+            "block_hash" =>
+              "d579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+            "confirmed_transaction_list" => [
+              %{
+                "data" => %{
+                  "result" => %{
+                    "coveredByFee" => "0x0",
+                    "coveredByOverIssuedICX" => "0x2ee0",
+                    "issue" => "0x0"
+                  }
+                },
+                "dataType" => "base",
+                "timestamp" => "0x5d629b9b5d886",
+                "txHash" =>
+                  "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                "version" => "0x3"
+              }
+            ],
+            "height" => 3_153_751,
+            "merkle_tree_root_hash" =>
+              "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+            "peer_id" => "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+            "prev_block_hash" =>
+              "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+            "signature" => "",
+            "time_stamp" => 1_642_849_581_258_886,
+            "version" => "2.0"
+          })
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {
+               :ok,
+               %Block{
+                 block_hash:
+                   "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+                 confirmed_transaction_list: [
+                   %Transaction{
+                     data: %{
+                       result: %{
+                         coveredByFee: 0,
+                         coveredByOverIssuedICX: 12_000,
+                         issue: 0
+                       }
+                     },
+                     dataType: :base,
+                     timestamp: ~U[2022-01-22 11:06:21.258886Z],
+                     txHash:
+                       "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                     version: 3
+                   }
+                 ],
+                 height: 3_153_751,
+                 merkle_tree_root_hash:
+                   "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+                 peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+                 prev_block_hash:
+                   "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+                 signature: nil,
+                 time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+                 version: "2.0"
+               }
+             } = Icon.get_block(identity)
+    end
+
+    test "when height is provided, returns block by height", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      height = 42
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response =
+          result(%{
+            "block_hash" =>
+              "d579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+            "confirmed_transaction_list" => [
+              %{
+                "data" => %{
+                  "result" => %{
+                    "coveredByFee" => "0x0",
+                    "coveredByOverIssuedICX" => "0x2ee0",
+                    "issue" => "0x0"
+                  }
+                },
+                "dataType" => "base",
+                "timestamp" => "0x5d629b9b5d886",
+                "txHash" =>
+                  "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                "version" => "0x3"
+              }
+            ],
+            "height" => height,
+            "merkle_tree_root_hash" =>
+              "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+            "peer_id" => "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+            "prev_block_hash" =>
+              "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+            "signature" => "",
+            "time_stamp" => 1_642_849_581_258_886,
+            "version" => "2.0"
+          })
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {
+               :ok,
+               %Block{
+                 block_hash:
+                   "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+                 confirmed_transaction_list: [
+                   %Transaction{
+                     data: %{
+                       result: %{
+                         coveredByFee: 0,
+                         coveredByOverIssuedICX: 12_000,
+                         issue: 0
+                       }
+                     },
+                     dataType: :base,
+                     timestamp: ~U[2022-01-22 11:06:21.258886Z],
+                     txHash:
+                       "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                     version: 3
+                   }
+                 ],
+                 height: ^height,
+                 merkle_tree_root_hash:
+                   "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+                 peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+                 prev_block_hash:
+                   "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+                 signature: nil,
+                 time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+                 version: "2.0"
+               }
+             } = Icon.get_block(identity, height)
+    end
+
+    test "when hash is provided, returns block by hash", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      hash =
+        "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response =
+          result(%{
+            "block_hash" => hash,
+            "confirmed_transaction_list" => [
+              %{
+                "data" => %{
+                  "result" => %{
+                    "coveredByFee" => "0x0",
+                    "coveredByOverIssuedICX" => "0x2ee0",
+                    "issue" => "0x0"
+                  }
+                },
+                "dataType" => "base",
+                "timestamp" => "0x5d629b9b5d886",
+                "txHash" =>
+                  "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                "version" => "0x3"
+              }
+            ],
+            "height" => 3_153_751,
+            "merkle_tree_root_hash" =>
+              "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+            "peer_id" => "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+            "prev_block_hash" =>
+              "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+            "signature" => "",
+            "time_stamp" => 1_642_849_581_258_886,
+            "version" => "2.0"
+          })
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {
+               :ok,
+               %Block{
+                 block_hash: ^hash,
+                 confirmed_transaction_list: [
+                   %Transaction{
+                     data: %{
+                       result: %{
+                         coveredByFee: 0,
+                         coveredByOverIssuedICX: 12_000,
+                         issue: 0
+                       }
+                     },
+                     dataType: :base,
+                     timestamp: ~U[2022-01-22 11:06:21.258886Z],
+                     txHash:
+                       "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+                     version: 3
+                   }
+                 ],
+                 height: 3_153_751,
+                 merkle_tree_root_hash:
+                   "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+                 peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+                 prev_block_hash:
+                   "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+                 signature: nil,
+                 time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+                 version: "2.0"
+               }
+             } = Icon.get_block(identity, hash)
+    end
+
+    test "when the block is not valid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast block"
+              }} = Icon.get_block(identity)
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_block(identity)
+    end
+  end
 
   describe "get_balance/1" do
     setup do

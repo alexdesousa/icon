@@ -10,11 +10,152 @@ defmodule Icon do
     Error,
     Types.Address,
     Types.BinaryData,
+    Types.Block,
     Types.Hash,
     Types.Loop,
     Types.SCORE,
     Types.Transaction
   }
+
+  @doc """
+  Gets block by `hash_or_height`. If hash or height are not provided, it will
+  retrieve the latest block.
+
+  ## Example
+
+  - Get latest block:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_block(identity)
+  {
+    :ok,
+    %Icon.Schema.Types.Block{
+      block_hash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      confirmed_transaction_list: [
+        %Icon.Schema.Types.Transaction{
+          data: %{
+            result: %{
+              coveredByFee: 0,
+              coveredByOverIssuedICX: 12_000,
+              issue: 0
+            }
+          },
+          dataType: :base,
+          timestamp: ~U[2022-01-22 11:06:21.258886Z],
+          txHash: "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+          version: 3
+        }
+      ],
+      height: 3_153_751,
+      merkle_tree_root_hash: "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+      peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+      prev_block_hash: "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+      signature: nil,
+      time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+      version: "2.0"
+    }
+  }
+  ```
+
+  - Get block by height:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_block(identity, 3_153_751)
+  {
+    :ok,
+    %Icon.Schema.Types.Block{
+      block_hash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      confirmed_transaction_list: [
+        %Icon.Schema.Types.Transaction{
+          data: %{
+            result: %{
+              coveredByFee: 0,
+              coveredByOverIssuedICX: 12_000,
+              issue: 0
+            }
+          },
+          dataType: :base,
+          timestamp: ~U[2022-01-22 11:06:21.258886Z],
+          txHash: "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+          version: 3
+        }
+      ],
+      height: 3_153_751,
+      merkle_tree_root_hash: "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+      peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+      prev_block_hash: "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+      signature: nil,
+      time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+      version: "2.0"
+    }
+  }
+  ```
+
+  - Get block by hash:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_block(identity, "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b")
+  {
+    :ok,
+    %Icon.Schema.Types.Block{
+      block_hash: "0xd579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
+      confirmed_transaction_list: [
+        %Icon.Schema.Types.Transaction{
+          data: %{
+            result: %{
+              coveredByFee: 0,
+              coveredByOverIssuedICX: 12_000,
+              issue: 0
+            }
+          },
+          dataType: :base,
+          timestamp: ~U[2022-01-22 11:06:21.258886Z],
+          txHash: "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+          version: 3
+        }
+      ],
+      height: 3_153_751,
+      merkle_tree_root_hash: "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
+      peer_id: "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
+      prev_block_hash: "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
+      signature: nil,
+      time_stamp: ~U[2022-01-22 11:06:21.258886Z],
+      version: "2.0"
+    }
+  }
+  ```
+  """
+  @spec get_block(Identity.t()) ::
+          {:ok, Block.t()}
+          | {:error, Error.t()}
+  @spec get_block(Identity.t(), nil | pos_integer() | Hash.t()) ::
+          {:ok, Block.t()}
+          | {:error, Error.t()}
+  def get_block(identity, height_or_hash \\ nil)
+
+  def get_block(identity, nil) do
+    with {:ok, request} <- Request.Goloop.get_last_block(identity),
+         {:ok, response} <- Request.send(request) do
+      load_block(response)
+    end
+  end
+
+  def get_block(identity, height) when is_integer(height) and height > 0 do
+    with {:ok, request} <- Request.Goloop.get_block_by_height(identity, height),
+         {:ok, response} <- Request.send(request) do
+      load_block(response)
+    end
+  end
+
+  def get_block(identity, hash) do
+    with {:ok, request} <- Request.Goloop.get_block_by_hash(identity, hash),
+         {:ok, response} <- Request.send(request) do
+      load_block(response)
+    end
+  end
 
   @doc """
   Gets the balance of an EOA or SCORE `address`. If the `address` is not provided,
@@ -973,6 +1114,29 @@ defmodule Icon do
       Error.new(
         reason: :server_error,
         message: "cannot cast transaction result"
+      )
+
+    {:error, reason}
+  end
+
+  @spec load_block(any()) ::
+          {:ok, Block.t()}
+          | {:error, Error.t()}
+  defp load_block(data)
+
+  defp load_block(data) when is_map(data) do
+    Block
+    |> Schema.generate()
+    |> Schema.new(data)
+    |> Schema.load()
+    |> Schema.apply(into: Block)
+  end
+
+  defp load_block(_) do
+    reason =
+      Error.new(
+        reason: :server_error,
+        message: "cannot cast block"
       )
 
     {:error, reason}
