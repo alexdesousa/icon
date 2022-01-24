@@ -108,6 +108,10 @@ defmodule Icon.RPC.IdentityTest do
                address: ^expected
              } = Identity.new(private_key: private_key)
     end
+
+    test "generates a private key" do
+      assert %Identity{key: %Curvy.Key{}} = Identity.new(private_key: :generate)
+    end
   end
 
   describe "has_address/1" do

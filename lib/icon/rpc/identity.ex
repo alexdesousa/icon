@@ -147,7 +147,7 @@ defmodule Icon.RPC.Identity do
           | {:network_id, pos_integer()}
           | {:network_id, Icon.Schema.Types.BinaryData.t()}
           | {:network_id, network_name()}
-          | {:private_key, binary()}
+          | {:private_key, :generate | binary()}
 
   @typedoc """
   Initialization options.
@@ -292,6 +292,10 @@ defmodule Icon.RPC.Identity do
 
   defp maybe_add_key(%__MODULE__{} = identity, nil) do
     identity
+  end
+
+  defp maybe_add_key(%__MODULE__{} = identity, :generate) do
+    %{identity | key: Curvy.Key.generate()}
   end
 
   defp maybe_add_key(%__MODULE__{} = identity, private_key)
