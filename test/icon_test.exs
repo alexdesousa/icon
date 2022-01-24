@@ -460,6 +460,171 @@ defmodule IconTest do
     end
   end
 
+  describe "call/5" do
+    setup do
+      bypass = Bypass.open()
+
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity =
+        Identity.new(
+          private_key: private_key,
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the call is successful (without params), returns the raw value",
+         %{
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, "0x2a"} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "method"
+               )
+    end
+
+    test "when the call is successful (without params) and response schema, returns value",
+         %{
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, 42} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "method",
+                 nil,
+                 response_schema: :integer
+               )
+    end
+
+    test "when the call is successful (with params), returns raw value", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x1")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, "0x1"} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "transfer",
+                 %{
+                   from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+                   to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+                   amount: 1_000_000_000_000_000_000
+                 },
+                 call_schema: %{
+                   from: {:eoa_address, required: true},
+                   to: {:eoa_address, required: true},
+                   amount: {:loop, required: true}
+                 }
+               )
+    end
+
+    test "when the call is successful (with params) and response schema, returns value",
+         %{
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x1")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, true} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "transfer",
+                 %{
+                   from: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+                   to: "hx2e243ad926ac48d15156756fce28314357d49d83",
+                   amount: 1_000_000_000_000_000_000
+                 },
+                 call_schema: %{
+                   from: {:eoa_address, required: true},
+                   to: {:eoa_address, required: true},
+                   amount: {:loop, required: true}
+                 },
+                 response_schema: :boolean
+               )
+    end
+
+    test "when the response is invalid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast call response"
+              }} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "method",
+                 nil,
+                 response_schema: :integer
+               )
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} =
+               Icon.call(
+                 identity,
+                 "cx2e243ad926ac48d15156756fce28314357d49d83",
+                 "method"
+               )
+    end
+  end
+
   describe "get_transaction_result/2" do
     setup do
       bypass = Bypass.open()
@@ -1101,7 +1266,7 @@ defmodule IconTest do
                    to: "hx2e243ad926ac48d15156756fce28314357d49d83",
                    amount: 1_000_000_000_000_000_000
                  },
-                 schema: %{
+                 call_schema: %{
                    from: {:eoa_address, required: true},
                    to: {:eoa_address, required: true},
                    amount: {:loop, required: true}
@@ -1167,7 +1332,7 @@ defmodule IconTest do
                    to: "hx2e243ad926ac48d15156756fce28314357d49d83",
                    amount: 1_000_000_000_000_000_000
                  },
-                 schema: %{
+                 call_schema: %{
                    from: {:eoa_address, required: true},
                    to: {:eoa_address, required: true},
                    amount: {:loop, required: true}

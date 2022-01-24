@@ -201,6 +201,98 @@ defmodule Icon do
   end
 
   @doc """
+  Calls a readonly SCORE `method` (no transaction).
+
+  The `identity` should be created using a valid `private_key`, otherwise the
+  call cannot be executed.
+
+  Options:
+  - `call_schema` - Schema to validate the `params`. When no schema is provided,
+    the default schema `:any` will be used instead.
+  - `response_schema` - Schema for transforming the incoming values. When no
+    schema is provided, the default schema `:any` will be used instead.
+
+  ## Example
+
+  - Calling the method `getBalance` without parameters:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.call(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   "getBalance",
+  ...> )
+  {:ok, "0x2a"}
+  ```
+
+  - Calling the method `getBalance` with an address as parameter without type
+    conversion:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.call(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   "getBalance",
+  ...>   %{address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"},
+  ...> )
+  {:ok, "0x2a"}
+  ```
+
+  - Calling the method `getBalance` with an address as parameter with type
+    conversion using a `call_schema` (recommended):
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.call(
+  ...>   identity,
+  ...>   "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+  ...>   "getBalance",
+  ...>   %{address: "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"},
+  ...>   call_schema: %{address: {:address, required: true}},
+  ...>   response_schema: :loop
+  ...> )
+  {:ok, 42}
+  ```
+  """
+  @spec call(Identity.t(), SCORE.t(), binary()) ::
+          {:ok, any()}
+          | {:error, Error.t()}
+  @spec call(Identity.t(), SCORE.t(), binary(), nil | map() | keyword()) ::
+          {:ok, any()}
+          | {:error, Error.t()}
+  @spec call(
+          Identity.t(),
+          SCORE.t(),
+          binary(),
+          nil | map() | keyword(),
+          keyword()
+        ) ::
+          {:ok, any()}
+          | {:error, Error.t()}
+  def call(identity, score_address, method, params \\ nil, options \\ [])
+
+  def call(%Identity{} = identity, to, method, params, options) do
+    options =
+      case options[:call_schema] do
+        nil ->
+          options
+
+        value ->
+          options
+          |> Keyword.delete(:call_schema)
+          |> Keyword.put(:schema, value)
+      end
+
+    with {:ok, request} <-
+           Request.Goloop.call(identity, to, method, params, options),
+         {:ok, response} <- Request.send(request) do
+      load_call_response(response, options)
+    end
+  end
+
+  @doc """
   Gets the ICX's total supply in loop (1 ICX = 10¹⁸ loop).
 
   ## Examples
@@ -369,7 +461,7 @@ defmodule Icon do
     from: "hx948b9727f426ae7789741da8c796807f78ba137f",
     nid: 1,
     nonce: 223,
-    signature: "TTfXvXZ3NG53R2tx9D69fMvmHW8mIIWWEDZnNfOgGG1BOeGYSYzV37PWCi7ryXKKAc7e80ue937yrull8hoZxgE=", 
+    signature: "TTfXvXZ3NG53R2tx9D69fMvmHW8mIIWWEDZnNfOgGG1BOeGYSYzV37PWCi7ryXKKAc7e80ue937yrull8hoZxgE=",
     stepLimit: 50000000,
     timestamp: ~U[2022-01-22 06:48:51.250054Z],
     to: "cx88fd7df7ddff82f7cc735c871dc519838cb235bb",
@@ -550,7 +642,7 @@ defmodule Icon do
   Calls a `method` in a `score` in a signed transaction.
 
   Options:
-  - `schema` - Method parameters schema.
+  - `call_schema` - Method parameters schema.
   - `timeout` - Time in milliseconds to wait for the transaction result.
   - `params` - Extra transaction parameters for overriding the defaults.
 
@@ -564,7 +656,7 @@ defmodule Icon do
 
   ## Call Schema
 
-  The `schema` option gives defines the types of the `call_params`. This is
+  The `call_schema` option gives defines the types of the `call_params`. This is
   required for `method` calls with parameters, because ICON has a different
   type representation than Elixir e.g. let's say we want to call the method
   `transfer(from: Address, to: Address, amount: int)` for transferring an
@@ -618,7 +710,7 @@ defmodule Icon do
   ...>     to: "hx2e243ad926ac48d15156756fce28314357d49d83",
   ...>     amount: 1_000_000_000_000_000_000
   ...>   },
-  ...>   schema: %{
+  ...>   call_schema: %{
   ...>     from: {:eoa_address, required: true},
   ...>     to: {:eoa_address, required: true},
   ...>     amount: {:loop, required: true}
@@ -640,7 +732,7 @@ defmodule Icon do
   ...>     to: "hx2e243ad926ac48d15156756fce28314357d49d83",
   ...>     amount: 1_000_000_000_000_000_000
   ...>   },
-  ...>   schema: %{
+  ...>   call_schema: %{
   ...>     from: {:eoa_address, required: true},
   ...>     to: {:eoa_address, required: true},
   ...>     amount: {:loop, required: true}
@@ -693,6 +785,17 @@ defmodule Icon do
   def transaction_call(identity, score, method, params \\ nil, options \\ [])
 
   def transaction_call(%Identity{} = identity, to, method, call_params, options) do
+    options =
+      case options[:call_schema] do
+        nil ->
+          options
+
+        value ->
+          options
+          |> Keyword.delete(:call_schema)
+          |> Keyword.put(:schema, value)
+      end
+
     with {:ok, request} <-
            Request.Goloop.transaction_call(
              identity,
@@ -1067,6 +1170,31 @@ defmodule Icon do
 
   #########
   # Helpers
+
+  @spec load_call_response(any(), keyword()) ::
+          {:ok, any()} | {:error, Error.t()}
+  defp load_call_response(response, options)
+
+  defp load_call_response(response, options) do
+    (options[:response_schema] || :any)
+    |> Schema.generate()
+    |> Schema.new(response)
+    |> Schema.load()
+    |> Schema.apply()
+    |> case do
+      {:ok, _} = ok ->
+        ok
+
+      {:error, _} ->
+        reason =
+          Error.new(
+            reason: :server_error,
+            message: "cannot cast call response"
+          )
+
+        {:error, reason}
+    end
+  end
 
   @spec send_transaction(Request.t()) ::
           {:ok, Hash.t()}
