@@ -158,49 +158,6 @@ defmodule Icon do
   end
 
   @doc """
-  Gets the balance of an EOA or SCORE `address`. If the `address` is not provided,
-  it uses the one in the `identity`. The balance is returned in loop
-  (1 ICX = 10¹⁸ loop).
-
-  ## Examples
-
-  - Requesting the balance of the loaded identity:
-
-  ```elixir
-  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
-  iex> Icon.get_balance(identity)
-  {:ok, 2_045_995_000_000_000_000_000}
-  ```
-
-  - Requesting the balance of a wallet:
-
-  ```elixir
-  iex> identity = Icon.RPC.Identity.new()
-  iex> Icon.get_balance(identity, "hxbe258ceb872e08851f1f59694dac2558708ece11")
-  {:ok, 0}
-  ```
-  """
-  @spec get_balance(Identity.t()) :: {:ok, Loop.t()} | {:error, Error.t()}
-  @spec get_balance(Identity.t(), nil | Address.t()) ::
-          {:ok, Loop.t()}
-          | {:error, Error.t()}
-  def get_balance(identity, address \\ nil)
-
-  def get_balance(%Identity{} = identity, address) do
-    with {:ok, request} <- Request.Goloop.get_balance(identity, address),
-         {:ok, response} <- Request.send(request),
-         :error <- Loop.load(response) do
-      reason =
-        Error.new(
-          reason: :server_error,
-          message: "cannot cast balance to loop"
-        )
-
-      {:error, reason}
-    end
-  end
-
-  @doc """
   Calls a readonly SCORE `method` (no transaction).
 
   The `identity` should be created using a valid `private_key`, otherwise the
@@ -289,6 +246,127 @@ defmodule Icon do
            Request.Goloop.call(identity, to, method, params, options),
          {:ok, response} <- Request.send(request) do
       load_call_response(response, options)
+    end
+  end
+
+  @doc """
+  Gets the balance of an EOA or SCORE `address`. If the `address` is not provided,
+  it uses the one in the `identity`. The balance is returned in loop
+  (1 ICX = 10¹⁸ loop).
+
+  ## Examples
+
+  - Requesting the balance of the loaded identity:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...")
+  iex> Icon.get_balance(identity)
+  {:ok, 2_045_995_000_000_000_000_000}
+  ```
+
+  - Requesting the balance of a wallet:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_balance(identity, "hxbe258ceb872e08851f1f59694dac2558708ece11")
+  {:ok, 0}
+  ```
+  """
+  @spec get_balance(Identity.t()) :: {:ok, Loop.t()} | {:error, Error.t()}
+  @spec get_balance(Identity.t(), nil | Address.t()) ::
+          {:ok, Loop.t()}
+          | {:error, Error.t()}
+  def get_balance(identity, address \\ nil)
+
+  def get_balance(%Identity{} = identity, address) do
+    with {:ok, request} <- Request.Goloop.get_balance(identity, address),
+         {:ok, response} <- Request.send(request),
+         :error <- Loop.load(response) do
+      reason =
+        Error.new(
+          reason: :server_error,
+          message: "cannot cast balance to loop"
+        )
+
+      {:error, reason}
+    end
+  end
+
+  @doc """
+  Gets SCORE API.
+
+  ## Example
+
+  - Gets the API of a SCORE:
+
+  ```elixir
+  iex> identity = Icon.RPC.Identity.new()
+  iex> Icon.get_score_api(identity, "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32")
+  {
+    :ok,
+    [
+      %{
+        "type" => "function",
+        "name" => "balanceOf",
+        "inputs" => [
+          %{
+            "name" => "_owner",
+            "type" => "Address"
+          }
+        ],
+        "outputs" => [
+          %{
+            "type" => "int"
+          }
+        ],
+        "readonly" => "0x1"
+      },
+      ...
+    ]
+  }
+  ```
+
+  ## API Entries
+
+  Each member of the list will have the following keys:
+
+  Key        | Description
+  :--------- | :----------
+  `type`     | Either `function`, `fallback` or `eventlog`.
+  `name`     | Name of the function or the event log.
+  `inputs`   | A list of parameters the function or the event receives.
+  `outputs`  | A list of values a function returns.
+  `readonly` | Whether the function call can be done without a transaction or not.
+  `payable`  | Whether the function can be paid or not.
+
+  > Note: Both `readonly` and `payable` will be returned in the ICON 2.0
+  > representation or a boolean value e.g. `0x1` for `true`.
+
+  Each input will have the following keys:
+
+  Key       | Description
+  :-------- | :----------
+  `name`    | Parameter name.
+  `type`    | Parameter type. Either `int`, `str`, `bytes`, `bool` or `Address`.
+  `indexed` | (Only for event logs) if the parameter is indexed or not.
+
+  > Note: `indexed` will be returned in the ICON 2.0 representation of a boolean
+  > e.g. `0x1` for `true`.
+
+  Each output will have the following keys:
+
+  Key    | Description
+  :----- | :----------
+  `type` | Result type. Either `int`, `str`, `bytes`, `bool`, `Address`, `dict` or `list`.
+  """
+  @spec get_score_api(Identity.t(), SCORE.t()) ::
+          {:ok, list()}
+          | {:error, Error.t()}
+  def get_score_api(identity, score_address)
+
+  def get_score_api(%Identity{} = identity, score_address) do
+    with {:ok, request} <- Request.Goloop.get_score_api(identity, score_address) do
+      Request.send(request)
     end
   end
 

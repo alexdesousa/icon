@@ -272,194 +272,6 @@ defmodule IconTest do
     end
   end
 
-  describe "get_balance/1" do
-    setup do
-      bypass = Bypass.open()
-
-      # Taken from Python ICON SDK tests.
-      private_key =
-        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
-
-      identity =
-        Identity.new(
-          private_key: private_key,
-          node: "http://localhost:#{bypass.port}"
-        )
-
-      {:ok, bypass: bypass, identity: identity}
-    end
-
-    test "when the request is successful, returns own balance in loop", %{
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("0x2a")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:ok, 42} = Icon.get_balance(identity)
-    end
-
-    test "when the balance is not valid, returns error", %{
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("invalid")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :server_error,
-                message: "cannot cast balance to loop"
-              }} = Icon.get_balance(identity)
-    end
-
-    test "when server responds with an error, errors", %{
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        error =
-          error(%{
-            code: -31_000,
-            message: "System error"
-          })
-
-        Plug.Conn.resp(conn, 400, error)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :system_error,
-                message: "System error"
-              }} = Icon.get_balance(identity)
-    end
-  end
-
-  describe "get_balance/2" do
-    setup do
-      bypass = Bypass.open()
-      identity = Identity.new(node: "http://localhost:#{bypass.port}")
-      wallet = "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
-
-      {:ok, bypass: bypass, identity: identity, wallet: wallet}
-    end
-
-    test "when the request is successful, returns own balance in loop", %{
-      wallet: wallet,
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("0x2a")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:ok, 42} = Icon.get_balance(identity, wallet)
-    end
-
-    test "when the balance is not valid, returns error", %{
-      wallet: wallet,
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("invalid")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :server_error,
-                message: "cannot cast balance to loop"
-              }} = Icon.get_balance(identity, wallet)
-    end
-
-    test "when server responds with an error, errors", %{
-      wallet: wallet,
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        error =
-          error(%{
-            code: -31_000,
-            message: "System error"
-          })
-
-        Plug.Conn.resp(conn, 400, error)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :system_error,
-                message: "System error"
-              }} = Icon.get_balance(identity, wallet)
-    end
-  end
-
-  describe "get_total_supply/1" do
-    setup do
-      bypass = Bypass.open()
-      identity = Identity.new(node: "http://localhost:#{bypass.port}")
-
-      {:ok, bypass: bypass, identity: identity}
-    end
-
-    test "when the request is successful, returns own ICX total supply in loop",
-         %{
-           identity: identity,
-           bypass: bypass
-         } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("0x2a")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:ok, 42} = Icon.get_total_supply(identity)
-    end
-
-    test "when the total supply is not valid, returns error", %{
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        response = result("invalid")
-        Plug.Conn.resp(conn, 200, response)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :server_error,
-                message: "cannot cast total supply to loop"
-              }} = Icon.get_total_supply(identity)
-    end
-
-    test "when server responds with an error, errors", %{
-      identity: identity,
-      bypass: bypass
-    } do
-      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
-        error =
-          error(%{
-            code: -31_000,
-            message: "System error"
-          })
-
-        Plug.Conn.resp(conn, 400, error)
-      end)
-
-      assert {:error,
-              %Error{
-                reason: :system_error,
-                message: "System error"
-              }} = Icon.get_total_supply(identity)
-    end
-  end
-
   describe "call/5" do
     setup do
       bypass = Bypass.open()
@@ -622,6 +434,261 @@ defmodule IconTest do
                  "cx2e243ad926ac48d15156756fce28314357d49d83",
                  "method"
                )
+    end
+  end
+
+  describe "get_balance/1" do
+    setup do
+      bypass = Bypass.open()
+
+      # Taken from Python ICON SDK tests.
+      private_key =
+        "8ad9889bcee734a2605a6c4c50dd8acd28f54e62b828b2c8991aa46bd32976bf"
+
+      identity =
+        Identity.new(
+          private_key: private_key,
+          node: "http://localhost:#{bypass.port}"
+        )
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the request is successful, returns own balance in loop", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, 42} = Icon.get_balance(identity)
+    end
+
+    test "when the balance is not valid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast balance to loop"
+              }} = Icon.get_balance(identity)
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_balance(identity)
+    end
+  end
+
+  describe "get_balance/2" do
+    setup do
+      bypass = Bypass.open()
+      identity = Identity.new(node: "http://localhost:#{bypass.port}")
+      wallet = "hxfd7e4560ba363f5aabd32caac7317feeee70ea57"
+
+      {:ok, bypass: bypass, identity: identity, wallet: wallet}
+    end
+
+    test "when the request is successful, returns own balance in loop", %{
+      wallet: wallet,
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, 42} = Icon.get_balance(identity, wallet)
+    end
+
+    test "when the balance is not valid, returns error", %{
+      wallet: wallet,
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast balance to loop"
+              }} = Icon.get_balance(identity, wallet)
+    end
+
+    test "when server responds with an error, errors", %{
+      wallet: wallet,
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_balance(identity, wallet)
+    end
+  end
+
+  describe "get_score_api/2" do
+    setup do
+      bypass = Bypass.open()
+      identity = Identity.new(node: "http://localhost:#{bypass.port}")
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the request is successful, returns SCORE API", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      score_address = "cx21e94c08c03daee80c25d8ee3ea22a20786ec231"
+
+      api = [
+        %{
+          "type" => "function",
+          "name" => "balanceOf",
+          "inputs" => [
+            %{
+              "name" => "_owner",
+              "type" => "Address"
+            }
+          ],
+          "outputs" => [
+            %{
+              "type" => "int"
+            }
+          ],
+          "readonly" => "0x1"
+        }
+      ]
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result(api)
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, ^api} = Icon.get_score_api(identity, score_address)
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      score_address = "cx21e94c08c03daee80c25d8ee3ea22a20786ec231"
+
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_score_api(identity, score_address)
+    end
+  end
+
+  describe "get_total_supply/1" do
+    setup do
+      bypass = Bypass.open()
+      identity = Identity.new(node: "http://localhost:#{bypass.port}")
+
+      {:ok, bypass: bypass, identity: identity}
+    end
+
+    test "when the request is successful, returns own ICX total supply in loop",
+         %{
+           identity: identity,
+           bypass: bypass
+         } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("0x2a")
+
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:ok, 42} = Icon.get_total_supply(identity)
+    end
+
+    test "when the total supply is not valid, returns error", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        response = result("invalid")
+        Plug.Conn.resp(conn, 200, response)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :server_error,
+                message: "cannot cast total supply to loop"
+              }} = Icon.get_total_supply(identity)
+    end
+
+    test "when server responds with an error, errors", %{
+      identity: identity,
+      bypass: bypass
+    } do
+      Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+        error =
+          error(%{
+            code: -31_000,
+            message: "System error"
+          })
+
+        Plug.Conn.resp(conn, 400, error)
+      end)
+
+      assert {:error,
+              %Error{
+                reason: :system_error,
+                message: "System error"
+              }} = Icon.get_total_supply(identity)
     end
   end
 
