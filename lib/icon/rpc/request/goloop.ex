@@ -205,11 +205,12 @@ defmodule Icon.RPC.Request.Goloop do
         %Identity{address: from} = identity,
         to,
         method,
-        params,
+        call_params,
         options
       )
       when has_address(identity) do
-    call_schema = options[:schema]
+    call_schema =
+      if is_nil(call_params), do: nil, else: options[:schema] || :any
 
     schema = %{
       from: {:eoa_address, required: true},
@@ -231,7 +232,7 @@ defmodule Icon.RPC.Request.Goloop do
       to: to,
       data: %{
         method: method,
-        params: params
+        params: call_params
       }
     }
 
@@ -690,7 +691,8 @@ defmodule Icon.RPC.Request.Goloop do
         params: call_params
       })
 
-    call_schema = options[:schema]
+    call_schema =
+      if is_nil(call_params), do: nil, else: options[:schema] || :any
 
     schema =
       base_transaction_schema()

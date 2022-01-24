@@ -140,7 +140,7 @@ defmodule Icon.RPC.Request.GoloopTest do
     end
   end
 
-  describe "readonly_call/3, readonly_call/5" do
+  describe "call/3, call/5" do
     setup do
       # Taken from Python ICON SDK tests.
       private_key =
@@ -265,9 +265,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                )
     end
 
-    test "when params schema is empty, ignores parameters", %{
-      identity: identity
-    } do
+    test "when params schema is empty, loads the parameters without conversion",
+         %{
+           identity: identity
+         } do
       from = identity.address
       to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       method = "getBalance"
@@ -282,7 +283,10 @@ defmodule Icon.RPC.Request.GoloopTest do
                    to: ^to,
                    dataType: :call,
                    data: %{
-                     method: "getBalance"
+                     method: "getBalance",
+                     params: %{
+                       address: ^from
+                     }
                    }
                  }
                }
@@ -314,6 +318,35 @@ defmodule Icon.RPC.Request.GoloopTest do
              } =
                identity
                |> Request.Goloop.call(to, method, params, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes it correctly without schema", %{identity: identity} do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "getBalance"
+      params = %{address: from}
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_call",
+               "params" => %{
+                 "from" => ^from,
+                 "to" => ^to,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => "getBalance",
+                   "params" => %{
+                     "address" => ^from
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.call(to, method, params)
                |> elem(1)
                |> Jason.encode!()
                |> Jason.decode!()
@@ -1169,6 +1202,46 @@ defmodule Icon.RPC.Request.GoloopTest do
                |> Jason.decode!()
     end
 
+    test "encodes icx_sendTransaction without schema correctly", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: "0xde0b6b3a7640000"
+      }
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransaction",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => ^method,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83",
+                     "value" => "0xde0b6b3a7640000"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.transaction_call(to, method, params)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
     test "encodes icx_sendTransaction without parameters correctly", %{
       identity: identity
     } do
@@ -1263,6 +1336,48 @@ defmodule Icon.RPC.Request.GoloopTest do
         },
         timeout: 5_000
       ]
+
+      assert %{
+               "id" => _id,
+               "jsonrpc" => "2.0",
+               "method" => "icx_sendTransactionAndWait",
+               "params" => %{
+                 "version" => "0x3",
+                 "from" => ^from,
+                 "to" => ^to,
+                 "timestamp" => "0x" <> _timestamp,
+                 "nid" => "0x1",
+                 "nonce" => "0x" <> _nonce,
+                 "dataType" => "call",
+                 "data" => %{
+                   "method" => ^method,
+                   "params" => %{
+                     "address" => "hx2e243ad926ac48d15156756fce28314357d49d83",
+                     "value" => "0xde0b6b3a7640000"
+                   }
+                 }
+               }
+             } =
+               identity
+               |> Request.Goloop.transaction_call(to, method, params, options)
+               |> elem(1)
+               |> Jason.encode!()
+               |> Jason.decode!()
+    end
+
+    test "encodes icx_sendTransactionAndWait without schema correctly", %{
+      identity: identity
+    } do
+      from = identity.address
+      to = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
+      method = "transfer"
+
+      params = %{
+        address: "hx2e243ad926ac48d15156756fce28314357d49d83",
+        value: "0xde0b6b3a7640000"
+      }
+
+      options = [timeout: 5_000]
 
       assert %{
                "id" => _id,

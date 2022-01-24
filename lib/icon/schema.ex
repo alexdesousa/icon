@@ -169,6 +169,7 @@ defmodule Icon.Schema do
           | t()
           | Icon.Schema.Error
           | Icon.Schema.Types.Address
+          | Icon.Schema.Types.Any
           | Icon.Schema.Types.BinaryData
           | Icon.Schema.Types.Boolean
           | Icon.Schema.Types.EOA
@@ -341,15 +342,19 @@ defmodule Icon.Schema do
   @doc """
   Generates a new schema state.
   """
-  @spec new(t(), map() | keyword()) :: state()
+  @spec new(t(), map() | keyword() | any()) :: state()
   def new(schema, params)
 
-  def new(schema, params) when is_list(params) do
-    new(schema, Map.new(params))
+  def new(%{"$__SCHEMA__": _} = schema, params) do
+    %Schema{schema: schema, params: %{"$__SCHEMA__": params}}
   end
 
   def new(schema, params) when is_map(params) do
     %Schema{schema: schema, params: params}
+  end
+
+  def new(schema, params) when is_list(params) do
+    new(schema, Map.new(params))
   end
 
   @doc """
@@ -377,11 +382,59 @@ defmodule Icon.Schema do
   end
 
   @doc """
-  Generates a full `schema`, given a schema definition. It caches the generated
-  schema, to avoid regenarating the same every time.
+  Generates a full `type_or_schema`, given a schema definition. It caches the
+  generated schema, to avoid regenarating the same every time.
   """
-  @spec generate(t()) :: t() | no_return()
-  def generate(schema)
+  @spec generate(type() | t()) :: t() | no_return()
+  def generate(type_or_schema)
+
+  def generate({:any, _, _}) do
+    raise ArgumentError, message: "any/3 cannot be used as primitive schema"
+  end
+
+  def generate({:list, _} = list), do: generate(%{"$__SCHEMA__": list})
+  def generate({:enum, _} = enum), do: generate(%{"$__SCHEMA__": enum})
+  def generate({_, _} = type), do: generate(%{"$__SCHEMA__": type})
+
+  def generate(primitive)
+      when primitive in [
+             :address,
+             :any,
+             :binary_data,
+             :boolean,
+             :eoa_address,
+             :error,
+             :event_log,
+             :hash,
+             :integer,
+             :loop,
+             :score_address,
+             :signature,
+             :string,
+             :timestamp
+           ] do
+    generate(%{"$__SCHEMA__": primitive})
+  end
+
+  def generate(module)
+      when module in [
+             Icon.Schema.Error,
+             Icon.Schema.Types.Address,
+             Icon.Schema.Types.Any,
+             Icon.Schema.Types.BinaryData,
+             Icon.Schema.Types.Boolean,
+             Icon.Schema.Types.EOA,
+             Icon.Schema.Types.EventLog,
+             Icon.Schema.Types.Hash,
+             Icon.Schema.Types.Integer,
+             Icon.Schema.Types.Loop,
+             Icon.Schema.Types.SCORE,
+             Icon.Schema.Types.Signature,
+             Icon.Schema.Types.String,
+             Icon.Schema.Types.Timestamp
+           ] do
+    generate(%{"$__SCHEMA__": module})
+  end
 
   def generate(schema) when is_atom(schema) do
     with {:module, module} <- Code.ensure_compiled(schema),
@@ -420,6 +473,10 @@ defmodule Icon.Schema do
           {:ok, map()}
           | {:error, Error.t()}
   def apply(state, options \\ [])
+
+  def apply(%Schema{is_valid?: true, data: %{"$__SCHEMA__": data}}, _options) do
+    {:ok, data}
+  end
 
   def apply(%Schema{is_valid?: true, data: data}, options) do
     case options[:into] do
