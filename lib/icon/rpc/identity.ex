@@ -12,7 +12,7 @@ defmodule Icon.RPC.Identity do
   transactions is necessary we add a wallet to our identity.
 
   Identities have the following fields:
-  - `network_id` - Which is either the name (network_name/0) or the network ID
+  - `network_id` - Which is either the name (`network_name/0`) or the network ID
     number. Defaults to `:mainnet` (it's the same as `1`).
   - `node` - The URL to the node we want to use. It has default node URL per
     `network_id` for convinience, but they can be overriden.
