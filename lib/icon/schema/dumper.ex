@@ -1,6 +1,7 @@
 defmodule Icon.Schema.Dumper do
   @moduledoc false
   alias Icon.Schema
+  alias Icon.Schema.Loader
 
   @spec dumper(atom(), Schema.internal_type(), keyword()) ::
           (Schema.t() -> Schema.t())
@@ -140,13 +141,13 @@ defmodule Icon.Schema.Dumper do
 
   @spec dump_any(Schema.state(), atom(), keyword(), keyword()) :: Schema.state()
   defp dump_any(%Schema{} = state, key, choices, options) do
-    with field when not is_nil(field) <- options[:field],
-         loader = state.schema[field].loader,
-         %Schema{data: data, is_valid?: true} <- loader.(state),
-         value = data[field],
-         type when not is_nil(type) <- choices[value] do
+    with {:ok, field} <- Loader.load_field(state, options[:field]),
+         type when not is_nil(type) <- choices[field] do
       dump(key, type).(state)
     else
+      :ok ->
+        state
+
       _ ->
         Schema.add_error(state, key, :is_invalid)
     end

@@ -142,15 +142,36 @@ defmodule Icon.Schema.Loader do
 
   @spec load_any(Schema.state(), atom(), keyword(), keyword()) :: Schema.state()
   defp load_any(%Schema{} = state, key, choices, options) do
-    with field when not is_nil(field) <- options[:field],
-         loader = state.schema[field].loader,
-         %Schema{data: data, is_valid?: true} <- loader.(state),
-         value = data[field],
-         type when not is_nil(type) <- choices[value] do
+    with {:ok, field} <- load_field(state, options[:field]),
+         type when not is_nil(type) <- choices[field] do
       load(key, type).(state)
     else
+      :ok ->
+        state
+
       _ ->
         Schema.add_error(state, key, :is_invalid)
+    end
+  end
+
+  @doc false
+  @spec load_field(Schema.state(), atom()) :: :ok | {:ok, atom()} | :error
+  def load_field(state, field_name)
+
+  def load_field(%Schema{} = _state, nil), do: :error
+
+  def load_field(%Schema{} = state, field) do
+    loader = state.schema[field].loader
+
+    case loader.(state) do
+      %Schema{data: data, is_valid?: true} when is_map_key(data, field) ->
+        {:ok, data[field]}
+
+      %Schema{data: _, is_valid?: true} ->
+        :ok
+
+      _ ->
+        :error
     end
   end
 end

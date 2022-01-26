@@ -731,6 +731,23 @@ defmodule Icon.Schema.DumperTest do
                |> Schema.dump()
     end
 
+    test "does nothing when field is empty and any is not required" do
+      assert %Schema{
+               data: %{},
+               errors: errors,
+               is_valid?: true
+             } =
+               %{
+                 type: enum([:score, :eoa]),
+                 address: any([score: :score_address, hash: :hash], :type)
+               }
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.dump()
+
+      assert errors == %{}
+    end
+
     test "dumps delegated module type" do
       defmodule Int do
         use Icon.Schema.Type, delegate_to: Icon.Schema.Types.Integer

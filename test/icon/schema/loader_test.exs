@@ -1143,6 +1143,53 @@ defmodule Icon.Schema.LoaderTest do
       end
     end
 
+    test "does nothing when field is not present and any is not required" do
+      assert %Schema{
+               data: %{},
+               errors: errors,
+               is_valid?: true
+             } =
+               %{
+                 type: enum([:score, :eoa]),
+                 address: any([score: :score_address, eoa: :eoa_address], :type)
+               }
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+
+      assert errors == %{}
+    end
+
+    test "errors when field is not present and any is required" do
+      assert %Schema{
+               errors: %{address: "is invalid"},
+               is_valid?: false
+             } =
+               %{
+                 type: enum([:score, :eoa]),
+                 address: {
+                   any([score: :score_address, eoa: :eoa_address], :type),
+                   required: true
+                 }
+               }
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+    end
+
+    test "errors when field is nil" do
+      assert %Schema{
+               errors: %{address: "is invalid"},
+               is_valid?: false
+             } =
+               %{
+                 address: any([score: :score_address, eoa: :eoa_address], nil)
+               }
+               |> Schema.generate()
+               |> Schema.new(%{})
+               |> Schema.load()
+    end
+
     test "loads any type in schema" do
       address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 
