@@ -44,7 +44,7 @@ defmodule Icon.MixProject do
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
       {:bypass, "~> 2.1", only: :test},
-      {:ex_doc, "~> 0.26", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test, runtime: false}
@@ -63,7 +63,7 @@ defmodule Icon.MixProject do
   defp package do
     [
       description: @description,
-      files: ["lib", "mix.ex", "README.md", "CHANGELOG.md"],
+      files: ["lib", "mix.exs", "README.md", "CHANGELOG.md"],
       maintainers: ["Alexander de Sousa"],
       licenses: ["MIT"],
       links: %{
