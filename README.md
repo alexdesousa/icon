@@ -7,12 +7,27 @@
 `Icon` is a library for interacting with the interoperable decentralized
 aggregator network [ICON 2.0](https://icon.foundation).
 
+This document gives a general overview of the current state of the project and
+its future:
+
+- [Motivation](#motivation)
+- [Overview](#overview)
+  + [Example: Transferring ICX](#example-transferring-icx)
+  + [Example: SCORE Transaction Call](#example-score-transaction-call)
+- [Wallets and Node Connections](#wallets-and-node-connections)
+- [TODO](#todo)
+- [Installation](#installation)
+  + [Containerized Testing](#containerized-testing)
+  + [Installing Elixir](#installing-elixir)
+
+## Motivation
+
 The motivation for building a SDK in Elixir is to be able to use:
 
-- The battle tested Erlang runtime and Erlang supervisors,
-- The Elixir amazing libraries,
+- The battle-tested Erlang runtime and Erlang supervisors,
+- The amazing Elixir real-time libraries,
 - Documentation as first class citizen,
-- My favorite language (strong bias here)
+- And my favorite language (strong bias here)
 
 while writing client applications for ICON 2.0.
 
@@ -26,13 +41,37 @@ you're better off using one of the official ones:
 
 ## Overview
 
-Every single JSON API v3 method is implemented already (no BTP nor IISS
+Every single JSON API v3 method is already implemented (no BTP nor IISS
 extensions yet).
 
 For most applications, we'll need just two modules:
 
 - `Icon` - where we'll find the JSON RPC API.
-- `Icon.RPC.Identity` - where we'll find the wallet and network information.
+- `Icon.RPC.Identity` - where we'll find the wallet and node connection
+  initialization.
+
+Though this SDK was heavily inspired by the
+[ICON Python SDK](https://github.com/icon-project/icon-sdk-python), it difers
+slightly from it:
+
+- (Mostly) automatic type translation from ICON 2.0 representation to Elixir's
+  for both inputs and outputs.
+- Automatic `stepLimit` estimation via `debug_estimateStep` method (it can be
+  overriden).
+- `icx_sendTransaction` method become several function calls depending of the
+  objective of the transaction:
+  + `Icon.transfer/4` for transferring ICX from an EOA address to another
+    address (EOA or SCORE).
+  + `Icon.send_message/4` for sending messages from an EOA address to another.
+  + `Icon.transaction_call/5` for calling SCORE functions.
+  + `Icon.install_score/3` for installing SCOREs in the ICON blockchain.
+  + `Icon.update_score/4` for updating SCOREs in the ICON blockchain.
+  + `Icon.deposit_shared_fee/4` for withdrawing shared fees from SCOREs.
+  + `Icon.withdraw_shared_fee/4` for depositing shared fees into SCOREs.
+- Any of the previous function calls can use `icx_sendTransactionAndWait` just
+  by setting a `timeout` in the options.
+
+### Example: Transferring ICX
 
 The following example shows how to send 1 ICX from our wallet to another:
 
@@ -45,7 +84,9 @@ iex> Icon.transfer(identity, "hx2e243ad926ac48d15156756fce28314357d49d83", 1_000
 > *Note*: In this library, ICX is always expressed in _loop_ as units, where
 > 1 ICX = 10¹⁸ loop.
 
-And the following example calls a fuction in a SCORE in the Sejong testnet:
+### Example: SCORE Transaction Call
+
+The following example calls a fuction in a SCORE in the Sejong testnet:
 
 ```elixir
 iex> identity = Icon.RPC.Identity.new(private_key: "8ad9...", network_id: :sejong)
@@ -73,7 +114,7 @@ iex> Icon.transaction_call(
 > [Optimus Finance](https://optimus.finance) SCORE for claiming rewards from
 > strategies.
 
-## Identities
+### Wallets and Node Connections
 
 Every request to the API requires an `Icon.RPC.Identity.t()` instance. There
 are two types of identities:
@@ -129,12 +170,14 @@ installed by adding `icon` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:icon, "~> 0.1.0"}
+    {:icon, "~> 0.1"}
   ]
 end
 ```
 
-Or if you just want to try it out, you can run this project inside a docker
+### Containerized Testing
+
+If you just want to try it out, you can run this project inside a docker
 container with Elixir:
 
 ```bash
