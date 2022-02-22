@@ -13,6 +13,7 @@ defmodule Icon.MixProject do
       app: @app,
       version: @version,
       elixir: "~> 1.12",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
@@ -38,12 +39,16 @@ defmodule Icon.MixProject do
     ]
   end
 
+  def elixirc_paths(:test), do: ["lib", "test/support"]
+  def elixirc_paths(_), do: ["lib"]
+
   defp deps do
     [
       {:finch, "~> 0.10"},
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
       {:bypass, "~> 2.1", only: :test},
+      {:plug_cowboy, "~> 2.0", pnly: :test},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
