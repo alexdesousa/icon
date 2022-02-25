@@ -503,10 +503,10 @@ defmodule Icon.Schema do
   Applies schema `state`.
   """
   @spec apply(state()) ::
-          {:ok, map()}
+          {:ok, any()}
           | {:error, Error.t()}
   @spec apply(state(), keyword()) ::
-          {:ok, map()}
+          {:ok, any()}
           | {:error, Error.t()}
   def apply(state, options \\ [])
 
