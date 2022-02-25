@@ -1254,11 +1254,13 @@ defmodule Icon do
   defp load_call_response(response, options)
 
   defp load_call_response(response, options) do
-    (options[:response_schema] || :any)
+    response_schema = options[:response_schema] || :any
+
+    response_schema
     |> Schema.generate()
     |> Schema.new(response)
     |> Schema.load()
-    |> Schema.apply()
+    |> apply_call_response(response_schema)
     |> case do
       {:ok, _} = ok ->
         ok
@@ -1271,6 +1273,17 @@ defmodule Icon do
           )
 
         {:error, reason}
+    end
+  end
+
+  @spec apply_call_response(Schema.state(), Schema.t()) ::
+          {:ok, any()}
+          | {:error, Error.t()}
+  defp apply_call_response(state, schema) do
+    if is_atom(schema) and function_exported?(schema, :__schema__, 0) do
+      Schema.apply(state, into: schema)
+    else
+      Schema.apply(state)
     end
   end
 
