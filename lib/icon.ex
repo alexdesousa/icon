@@ -1254,11 +1254,20 @@ defmodule Icon do
   defp load_call_response(response, options)
 
   defp load_call_response(response, options) do
-    (options[:response_schema] || :any)
+    response_schema = options[:response_schema] || :any
+
+    apply =
+      if function_exported?(response_schema, :__schema__, 0) do
+        fn x -> Schema.apply(x, into: response_schema) end
+      else
+        fn x -> Schema.apply(x) end
+      end
+
+    response_schema
     |> Schema.generate()
     |> Schema.new(response)
     |> Schema.load()
-    |> Schema.apply()
+    |> apply.()
     |> case do
       {:ok, _} = ok ->
         ok
