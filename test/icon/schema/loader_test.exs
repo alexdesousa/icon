@@ -187,6 +187,22 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads $variable type" do
+      data = %{
+        "0" => "0x2a",
+        "1" => "0x54"
+      }
+
+      assert %Schema{
+               data: %{"0" => 42, "1" => 84},
+               is_valid?: true
+             } =
+               %{"$variable": :loop}
+               |> Schema.generate()
+               |> Schema.new(data)
+               |> Schema.load()
+    end
+
     test "loads address type" do
       address = "hxbe258ceb872e08851f1f59694dac2558708ece11"
 
