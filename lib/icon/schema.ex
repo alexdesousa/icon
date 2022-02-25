@@ -63,6 +63,34 @@ defmodule Icon.Schema do
   > Note: `nil` and `""` are considered empty values. They will be ignored for
   > not mandatory keys and will add errors for mandatory keys.
 
+  ## Variable Keys
+
+  In certain cases, the keys of a map will not be defined in advaced. The
+  wildcard key `":$variable"` can be used to catch those variable keys e.g. the
+  following schema defines a map of variable keys that map to `:loop` values:
+
+  ```elixir
+  %{"$variable": :loop}
+  ```
+
+  So, if we get the following:
+
+  ```elixir
+  %{
+    "0" => "0x2a",
+    "1" => "0x54"
+  }
+  ```
+
+  it will load it as follows:
+
+  ```elixir
+  %{
+    "0" => 42,
+    "1" => 84
+  }
+  ```
+
   ## Schema Caching
 
   When a schema is generated with the function `generate/1`, it is also cached
@@ -243,6 +271,14 @@ defmodule Icon.Schema do
 
   @doc false
   @spec retrieve(atom(), keyword()) :: (state() -> state())
+  def retrieve(key, options)
+
+  def retrieve(:"$variable", _options) do
+    fn %Schema{params: params} = state ->
+      %{state | data: params}
+    end
+  end
+
   def retrieve(key, options) do
     fn %Schema{} = state ->
       required? = options[:required] || false

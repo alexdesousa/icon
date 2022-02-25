@@ -20,6 +20,14 @@ defmodule Icon.Schema.Loader do
           (Schema.state() -> Schema.state())
   defp load(key, module)
 
+  defp load(:"$variable", type) do
+    fn %Schema{data: data} = state ->
+      Enum.reduce(data, state, fn {key, _}, state ->
+        load_variable(state, key, type)
+      end)
+    end
+  end
+
   defp load(key, module) when is_atom(module) do
     fn %Schema{} = state ->
       if function_exported?(module, :__schema__, 0) do
@@ -173,5 +181,13 @@ defmodule Icon.Schema.Loader do
       _ ->
         :error
     end
+  end
+
+  @spec load_variable(Schema.state(), binary(), Schema.internal_type()) ::
+          Schema.state()
+  defp load_variable(state, key, type)
+
+  defp load_variable(%Schema{} = state, key, type) do
+    load(key, type).(state)
   end
 end

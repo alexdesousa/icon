@@ -20,6 +20,14 @@ defmodule Icon.Schema.Dumper do
           (Schema.state() -> Schema.state())
   defp dump(key, module)
 
+  defp dump(:"$variable", type) do
+    fn %Schema{data: data} = state ->
+      Enum.reduce(data, state, fn {key, _}, state ->
+        dump_variable(state, key, type)
+      end)
+    end
+  end
+
   defp dump(key, module) when is_atom(module) do
     fn %Schema{} = state ->
       if function_exported?(module, :__schema__, 0) do
@@ -151,5 +159,13 @@ defmodule Icon.Schema.Dumper do
       _ ->
         Schema.add_error(state, key, :is_invalid)
     end
+  end
+
+  @spec dump_variable(Schema.state(), binary(), Schema.internal_type()) ::
+          Schema.state()
+  defp dump_variable(state, key, type)
+
+  defp dump_variable(%Schema{} = state, key, type) do
+    dump(key, type).(state)
   end
 end
