@@ -48,6 +48,7 @@ defmodule Icon.MixProject do
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
       {:websockex, "~> 0.4"},
+      {:yggdrasil, "~> 6.0"},
       {:bypass, "~> 2.1", only: :test},
       {:plug_cowboy, "~> 2.0", pnly: :test},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
