@@ -9,7 +9,8 @@ defmodule Icon.Application do
   @impl Application
   def start(_type, _args) do
     children = [
-      {Finch, name: Icon.Finch}
+      {Finch, name: Icon.Finch},
+      {Yggdrasil.Adapter.Icon, []}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Icon.App)
