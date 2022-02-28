@@ -105,7 +105,10 @@ defmodule Icon.MixProject do
       "JSON RPC v3": [
         Icon.RPC.Identity,
         Icon.RPC.Request,
-        Icon.RPC.Request.Goloop
+        Icon.RPC.Request.Goloop,
+        Yggdrasil.Adapter.Icon,
+        Yggdrasil.Subscriber.Adapter.Icon,
+        Yggdrasil.Publisher.Adapter.Icon
       ],
       "Schema Behaviours": [
         Icon.Schema,
