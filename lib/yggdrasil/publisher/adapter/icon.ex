@@ -56,7 +56,7 @@ defmodule Yggdrasil.Publisher.Adapter.Icon do
     reason =
       Error.new(
         code: -32_600,
-        message: "Cannot publish messages in the ICON 2.0 blockchain"
+        message: "cannot publish messages in the ICON 2.0 blockchain"
       )
 
     {:reply, {:error, reason}, nil}
