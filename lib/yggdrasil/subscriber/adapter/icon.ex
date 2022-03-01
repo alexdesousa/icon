@@ -6,6 +6,11 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   - `:source` - Either `:block` or `:event` (required).
   - `:identity` - `Icon.RPC.Identity` instance pointed to the right network.
   - `:data` - Data for the subscription.
+  - `:from_height` - Height to start receiving messages. Defaults to `:latest`.
+
+  > **Important**: We need to be careful when using `from_height` in the channel
+  > because `Yggdrasil` will restart the synchronization process from the
+  > chosen height if the process crashes.
 
   e.g. given a proper channel name, then we can subscribe to ICON 2.0 `:block`
   websocket:
@@ -46,14 +51,14 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   defstruct url: nil,
             channel: nil,
             state: :initializing,
-            height: nil
+            height: :latest
 
   @typedoc false
   @type t :: %State{
           url: url :: binary(),
           channel: channel :: Channel.t(),
           state: state :: :initializing | :connected | :disconnected,
-          height: height :: nil | pos_integer()
+          height: height :: :latest | pos_integer()
         }
 
   ################################
@@ -199,6 +204,16 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
   @spec add_height(State.t()) :: State.t() | no_return()
   defp add_height(state)
+
+  defp add_height(
+         %State{
+           height: :latest,
+           channel: %Channel{name: %{from_height: height}}
+         } = state
+       )
+       when is_integer(height) do
+    %{state | height: height}
+  end
 
   defp add_height(%State{channel: %Channel{name: info}} = state) do
     identity = info[:identity] || Identity.new()
