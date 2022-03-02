@@ -44,9 +44,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias Icon.RPC.Identity
   alias Icon.Schema
   alias Yggdrasil.Channel
+  alias Yggdrasil.Subscriber.Adapter.Icon.Message
   alias Yggdrasil.Subscriber.Manager
   alias Yggdrasil.Subscriber.Publisher
-  alias Yggdrasil.Subscriber.Adapter.Icon.Message
 
   @doc false
   defstruct url: nil,
@@ -112,8 +112,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
       {:ok, %{"code" => code, "message" => message}} ->
         crash(state, Schema.Error.new(code: code, message: message))
 
-      {:ok, decoded} ->
-        Publisher.notify(channel, decoded)
+      {:ok, event} when is_map(event) ->
+        Publisher.notify(channel, event)
+        {:ok, state}
+
+      {:ok, events} when is_list(events) ->
+        Enum.each(events, &Publisher.notify(channel, &1))
         {:ok, state}
 
       {:error, _} ->
