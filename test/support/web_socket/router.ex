@@ -2,6 +2,8 @@ defmodule Icon.WebSocket.Router do
   @moduledoc false
   use Plug.Router
 
+  import ExUnit.Assertions
+
   alias Plug.Adapters.Cowboy
 
   defstruct [:pid, :ref, :host]
@@ -14,27 +16,74 @@ defmodule Icon.WebSocket.Router do
     send_resp(conn, 200, "Hello from the websocket server")
   end
 
-  @spec start(binary()) :: t() | no_return()
-  @spec start(nil | pid(), binary()) :: t() | no_return()
-  def start(pid \\ nil, path)
+  defmodule Handler do
+    @behaviour :cowboy_handler
 
-  def start(nil, path) do
-    start(self(), path)
+    @impl :cowboy_handler
+    def init(req, [%{bypass: bypass} = state]) do
+      {:ok, req_body, req} = :cowboy_req.read_body(req)
+
+      req_headers =
+        req
+        |> :cowboy_req.headers()
+        |> Enum.map(fn {key, value} -> {'#{key}', value} end)
+
+      request = {
+        'http://localhost:#{bypass.port}/api/v3',
+        req_headers,
+        'application/json',
+        req_body
+      }
+
+      {:ok, {{_, status, _}, resp_headers, resp_body}} =
+        :httpc.request(:post, request, [], [])
+
+      resp_headers =
+        resp_headers
+        |> Enum.map(fn {key, value} -> {"#{key}", "#{value}"} end)
+        |> Map.new()
+
+      req =
+        :cowboy_req.reply(
+          _status = status,
+          _headers = resp_headers,
+          _body = resp_body,
+          _req = req
+        )
+
+      {:ok, req, state}
+    end
   end
 
-  def start(pid, path) do
+  @spec start(keyword()) :: t() | no_return()
+  @spec start(nil | pid(), keyword()) :: t() | no_return()
+  def start(pid \\ nil, options)
+
+  def start(nil, options) do
+    start(self(), options)
+  end
+
+  def start(pid, options) do
     ref = make_ref()
     port = get_port()
     host = "http://localhost:#{port}"
+    path = "/api/v3/icon_dex/#{options[:channel]}"
 
     state = %{
       host: host,
       path: path,
+      bypass: options[:bypass],
       caller: pid
     }
 
     opts = [
-      dispatch: [{:_, [{path, Icon.WebSocket.Server, [state]}]}],
+      dispatch: [
+        {:_,
+         [
+           {path, Icon.WebSocket.Server, [state]},
+           {:_, Handler, [state]}
+         ]}
+      ],
       port: port,
       ref: ref
     ]
@@ -44,7 +93,7 @@ defmodule Icon.WebSocket.Router do
         %__MODULE__{ref: ref, host: host}
 
       {:error, :eaddrinuse} ->
-        start(pid, path)
+        start(pid, options)
     end
   end
 
@@ -53,20 +102,34 @@ defmodule Icon.WebSocket.Router do
     Cowboy.shutdown(ref)
   end
 
-  @spec trigger_frame(t(), :cowboy_ws.frame()) :: t()
-  def trigger_frame(%__MODULE__{pid: nil} = websocket, frame) do
-    receive do
-      {:websocket, pid} ->
-        trigger_frame(%{websocket | pid: pid}, frame)
-    after
-      500 ->
-        raise "No WebSocket process found"
-    end
+  @spec trigger_message(t(), map()) :: t()
+  def trigger_message(router, message)
+
+  def trigger_message(%__MODULE__{pid: nil} = router, %{"code" => _} = message) do
+    assert_receive {:websocket, pid}, 500, "no websocket process found"
+    trigger_message(%{router | pid: pid}, message)
   end
 
-  def trigger_frame(%__MODULE__{pid: pid} = websocket, frame) do
-    send(pid, {:send, frame})
-    websocket
+  def trigger_message(%__MODULE__{pid: nil} = router, message) do
+    assert_receive {:websocket, pid}, 500, "no websocket process found"
+
+    %{router | pid: pid}
+    |> trigger_message(%{"code" => 0})
+    |> trigger_message(message)
+  end
+
+  def trigger_message(%__MODULE__{pid: pid} = router, %{"code" => _} = message) do
+    encoded = Jason.encode!(message)
+    send(pid, {:send, {:text, encoded}, self()})
+    assert_receive :ok, 500, "cannot initialize the websocket connection"
+    router
+  end
+
+  def trigger_message(%__MODULE__{pid: pid} = router, message) do
+    encoded = Jason.encode!(message)
+    send(pid, {:send, {:text, encoded}, self()})
+    assert_receive :ok, 500, "cannot send frame"
+    router
   end
 
   #########

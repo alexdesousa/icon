@@ -2,7 +2,7 @@ defmodule Icon.WebSocket.Server do
   @moduledoc false
   @behaviour :cowboy_websocket
 
-  defstruct [:host, :caller, :handler, :path, :req]
+  defstruct [:host, :caller, :handler, :path, :bypass, :req]
 
   @impl :cowboy_websocket
   def init(req, [params]) do
@@ -20,12 +20,13 @@ defmodule Icon.WebSocket.Server do
   end
 
   @impl :cowboy_websocket
-  def websocket_info({:send, frame}, state) do
+  def websocket_info({:send, frame, pid}, state) do
+    send(pid, :ok)
     {:reply, frame, state}
   end
 
   @impl :cowboy_websocket
   def websocket_handle(_frame, state) do
-    {:reply, :close, state}
+    {:ok, state}
   end
 end
