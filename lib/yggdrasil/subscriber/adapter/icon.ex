@@ -46,6 +46,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias Yggdrasil.Channel
   alias Yggdrasil.Subscriber.Manager
   alias Yggdrasil.Subscriber.Publisher
+  alias Yggdrasil.Subscriber.Adapter.Icon.Message
 
   @doc false
   defstruct url: nil,
@@ -89,8 +90,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @impl WebSockex
   def handle_info(call, state)
 
-  def handle_info(:init, %State{} = state) do
-    {:reply, initial_message(state), state}
+  def handle_info(:init, %State{height: height, channel: channel} = state) do
+    {:reply, Message.encode(height, channel), state}
+  end
+
+  def handle_info(_, state) do
+    {:ok, state}
   end
 
   @impl WebSockex
@@ -225,39 +230,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
       {:error, %Schema.Error{} = error} ->
         crash(state, error)
     end
-  end
-
-  @spec initial_message(State.t()) :: WebSockex.frame()
-  defp initial_message(state)
-
-  defp initial_message(%State{
-         height: height,
-         channel: %Channel{name: %{source: :block}} = channel
-       }) do
-    build_block_message(height, channel)
-  end
-
-  defp initial_message(%State{
-         height: height,
-         channel: %Channel{name: %{source: :event}} = channel
-       }) do
-    build_event_message(height, channel)
-  end
-
-  @spec build_block_message(pos_integer(), Channel.t()) :: any()
-  defp build_block_message(height, channel)
-
-  defp build_block_message(height, %Channel{} = _channel) do
-    {:ok, height} = Icon.Schema.Types.Integer.dump(height)
-    {:text, Jason.encode!(%{height: height})}
-  end
-
-  @spec build_event_message(pos_integer(), Channel.t()) :: any()
-  defp build_event_message(height, channel)
-
-  defp build_event_message(height, %Channel{name: %{data: %{event: event}}}) do
-    {:ok, height} = Icon.Schema.Types.Integer.dump(height)
-    {:text, Jason.encode!(%{height: height, event: event})}
   end
 
   #################
