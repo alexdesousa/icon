@@ -132,6 +132,7 @@ defmodule Icon.MixProject do
       ],
       "Schema Complex Types": [
         Icon.Schema.Types.Block,
+        Icon.Schema.Types.Block.Tick,
         Icon.Schema.Types.Transaction,
         Icon.Schema.Types.Transaction.Result,
         Icon.Schema.Types.Transaction.Status
