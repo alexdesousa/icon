@@ -175,8 +175,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     :ok
   end
 
-  #########
-  # Helpers
+  ########################
+  # Initialization helpers
 
   @spec gen_state(Channel.t()) :: State.t()
   defp gen_state(channel)
