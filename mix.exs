@@ -105,10 +105,13 @@ defmodule Icon.MixProject do
       "JSON RPC v3": [
         Icon.RPC.Identity,
         Icon.RPC.Request,
-        Icon.RPC.Request.Goloop,
+        Icon.RPC.Request.Goloop
+      ],
+      "ICON 2.0 WebSocket": [
         Yggdrasil.Adapter.Icon,
+        Yggdrasil.Publisher.Adapter.Icon,
         Yggdrasil.Subscriber.Adapter.Icon,
-        Yggdrasil.Publisher.Adapter.Icon
+        Yggdrasil.Subscriber.Adapter.Icon.Message
       ],
       "Schema Behaviours": [
         Icon.Schema,
