@@ -8,6 +8,54 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
   alias Yggdrasil.Channel
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
 
+  describe "publish/2" do
+    setup do
+      bypass = Bypass.open()
+
+      channel = %Channel{
+        name: %{
+          source: :event,
+          data: %{
+            addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+            event: "Transfer(Address,Address,int)"
+          },
+          identity: Identity.new(node: "http://localhost:#{bypass.port}")
+        }
+      }
+
+      {:ok, bypass: bypass, channel: channel}
+    end
+
+    test "succeeds on correct websocket setup", %{
+      channel: channel
+    } do
+      %Task{ref: ref} = Message.publish(channel, ~s({"code":0}))
+      assert_receive {^ref, :ok}
+    end
+
+    test "fails on error websocket setup", %{
+      channel: channel
+    } do
+      message = ~s({"code":-32000, "message":"error"})
+      %Task{ref: ref} = Message.publish(channel, message)
+      assert_receive {^ref, {:error, %Error{code: -32_000, message: "error"}}}
+    end
+
+    test "fails on decoding error", %{
+      channel: channel
+    } do
+      message = ~s({)
+      %Task{ref: ref} = Message.publish(channel, message)
+
+      assert_receive {^ref,
+                      {:error,
+                       %Error{
+                         code: -32_000,
+                         message: "cannot decode channel message"
+                       }}}
+    end
+  end
+
   describe "decode/2 for block" do
     setup do
       bypass = Bypass.open()
