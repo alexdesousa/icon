@@ -15,6 +15,9 @@ its future:
   + [Example: Transferring ICX](#example-transferring-icx)
   + [Example: SCORE Transaction Call](#example-score-transaction-call)
 - [Wallets and Node Connections](#wallets-and-node-connections)
+- [Realtime Updates](#realtime-updates)
+  + [Example: Subscribing to Blocks](#example-subscribing-to-blocks)
+  + [Example: Subscribing to Events](#example-subscribing-to-events)
 - [TODO](#todo)
 - [Installation](#installation)
   + [Containerized Testing](#containerized-testing)
@@ -151,6 +154,121 @@ are two types of identities:
 For more customization options, checkout the module `Icon.RPC.Identity`
 documentation.
 
+## Realtime Updates
+
+It is possible to subscribe to the ICON 2.0 websocket to get either or both
+block and event log updates in realtime. It leverages
+[Yggdrasil](https://github.com/gmtprime/yggdrasil) (built with `Phoenix.PubSub`)
+for handling incoming messages.
+
+The channel has two main fields:
+
+- `adapter` - Which for this specific adapter, it should be set to `:icon`.
+- `name` - Where we'll find information of the websocket connection. For this
+  adapter, it is a map with the following keys:
+  + `source` - Whether `:block` or `:event` (required).
+  + `identity` - `Icon.RPC.Identity` instance pointed to the right network. It
+    defaults to Mainnet if no identity is provided.
+  + `from_height` - Block height from which we should start receiving messages.
+    It defaults to `:latest`.
+  + `data` - It varies depending on the `source` chosen (see
+    `Yggdrasil.Adapter.Icon` for more information).
+
+> **Important**: We need to be careful when using `from_height` in the channel
+> because `Yggdrasil` will restart the synchronization process from the
+> chosen height if the process crashes.
+
+### Example: Subscribing to Blocks
+
+We can subscribe to blocks using `Yggdrasil.subscribe/1`:
+
+```elixir
+iex> channel = [name: %{source: :block}, adapter: :icon]
+iex> Yggdrasil.subscribe(channel)
+:ok
+```
+
+and our subscriber process will get notifications in its mailbox every time a
+block is produced. If we use `flush/0` to flush the messages from the IEX
+mailbox, we'll get something like the following:
+
+```elixir
+iex> flush()
+{:Y_CONNECTED, %Yggdrasil.Channel{adapter: :icon, ...}}
+{:Y_EVENT, %Yggdrasil.Channel{adapter: :icon, ...}, %Icon.Schema.Types.Block.Tick{height: 42, hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"}}
+...
+```
+
+When we're done, we can unsubscribe using the following:
+
+```elixir
+iex> Yggdrasil.unsubscribe(channel)
+:ok
+```
+
+> **Note**: Also we can subscribe to one or more events using the block
+> subscription. We'll get both `Icon.Schema.Types.Block.Tick.t()` and
+> `Icon.Schema.Types.EventLog.t()`. For this, we need to provide a list of
+> events we want to subscribe to in the `data` field:
+>
+> ```elixir
+> iex> channel = [
+> ...>   adapter: :icon,
+> ...>   name: %{
+> ...>     source: :block,
+> ...>     data: [
+> ...>       %{
+> ...>         event: "Transfer(Address,Address,int)"
+> ...>       }
+> ...>     ]
+> ...>   }
+> ...> ]
+> iex> Yggdrasil.subscribe(channel)
+> :ok
+> ```
+> 
+> For more info about the notifications, check the next section.
+
+### Example: Subscribing to Events
+
+Following the previous example, if we're only interested in a single event, we
+can just subscribe to it e.g. the following shows a subscription to the event
+`Transfer(Address,Address,int)` for the SCORE address
+`cx31f04b8d24628463db5ac9f04a7d33ba32e44680`:
+
+```elixir
+iex> channel = [
+...>   adapter: :icon,
+...>   name: %{
+...>     source: :event,
+...>     data: %{
+...>       addr: "cx31f04b8d24628463db5ac9f04a7d33ba32e44680",
+...>       event: "Transfer(Address,Address,int)"
+...>     }
+...>   }
+...> ]
+iex> Yggdrasil.subscribe(channel)
+:ok
+```
+
+Our subscriber process will get notifications in its mailbox every time an
+event matches our query. If we use `flush/0` to flush the messages from the IEX
+mailbox, we'll get something like the following:
+
+```elixir
+iex> flush()
+{:Y_CONNECTED, %Yggdrasil.Channel{adapter: :icon, ...}}
+{:Y_EVENT, %Yggdrasil.Channel{adapter: :icon, ...}, %Icon.Schema.Types.EventLog{header: "Transfer(Address,Address,int)", indexed: ["hxfd7e4560ba363f5aabd32caac7317feeee70ea57", "hxbe7e4560ba363f5aabd32caac7317feeee70ea57"], ...}}
+...
+```
+
+Also, when we're done, we can unsubscribe using the following:
+
+```elixir
+iex> Yggdrasil.unsubscribe(channel)
+:ok
+```
+
 ## TODO
 
 The following is a list of functionalities this SDK aims to support in the
@@ -159,7 +277,7 @@ future:
 - [x] [Goloop API](https://www.icondev.io/icon-node/goloop/json-rpc/jsonrpc_v3)
 - [ ] Automatic SCORE API generation from `Icon.get_score_api/2` function.
 - [ ] [BTP Extension](https://www.icondev.io/icon-node/goloop/json-rpc/btp_extension)
-- [ ] [Yggdrasil](https://github.com/gmtprime/yggdrasil) support for BTP websockets.
+- [x] [Yggdrasil](https://github.com/gmtprime/yggdrasil) support for BTP websockets.
 - [ ] [IISS Extension](https://www.icondev.io/icon-node/goloop/json-rpc/iiss_extension)
 
 ## Installation
