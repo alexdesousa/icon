@@ -14,6 +14,17 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
   alias Icon.Schema
   alias Icon.Schema.Type
   alias Yggdrasil.Channel
+  alias Yggdrasil.Subscriber.Publisher
+
+  @doc """
+  Publishes notifications in a channel.
+  """
+  @spec publish(Channel.t(), map()) :: Task.t()
+  def publish(channel, notification)
+
+  def publish(channel, notification) do
+    Task.async(fn -> do_publish(channel, notification) end)
+  end
 
   @doc """
   Decodes an incoming message from the ICON 2.0 websocket.
@@ -43,6 +54,37 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
       |> Jason.encode!()
 
     {:text, data}
+  end
+
+  ####################
+  # Publishing helpers
+
+  @spec do_publish(Channel.t(), binary() | map()) ::
+          :ok
+          | {:error, Schema.Error.t()}
+  defp do_publish(%Channel{} = channel, notification)
+       when is_binary(notification) do
+    case Jason.decode(notification) do
+      {:ok, %{"code" => 0}} ->
+        :ok
+
+      {:ok, %{"code" => code, "message" => message}} ->
+        {:error, Schema.Error.new(code: code, message: message)}
+
+      {:ok, notification} when is_map(notification) ->
+        do_publish(channel, notification)
+
+      {:error, _} ->
+        reason = "cannot decode channel message"
+        {:error, Schema.Error.new(code: -32_000, message: reason)}
+    end
+  end
+
+  defp do_publish(%Channel{} = channel, notification) do
+    with {:ok, messages} <- decode(channel, notification) do
+      Enum.each(messages, &Publisher.notify(channel, &1))
+      :ok
+    end
   end
 
   ##################

@@ -46,7 +46,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias Yggdrasil.Channel
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
   alias Yggdrasil.Subscriber.Manager
-  alias Yggdrasil.Subscriber.Publisher
 
   @doc false
   defstruct url: nil,
@@ -94,6 +93,10 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     {:reply, Message.encode(height, channel), state}
   end
 
+  def handle_info({_ref, {:error, %Schema.Error{} = error}}, state) do
+    crash(state, error)
+  end
+
   def handle_info(_, state) do
     {:ok, state}
   end
@@ -101,29 +104,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @impl WebSockex
   def handle_frame(frame, state)
 
-  def handle_frame(
-        {:text, frame},
-        %State{channel: %Channel{} = channel} = state
-      ) do
-    case Jason.decode(frame) do
-      {:ok, %{"code" => 0}} ->
-        {:ok, state}
-
-      {:ok, %{"code" => code, "message" => message}} ->
-        crash(state, Schema.Error.new(code: code, message: message))
-
-      {:ok, event} when is_map(event) ->
-        Publisher.notify(channel, event)
-        {:ok, state}
-
-      {:ok, events} when is_list(events) ->
-        Enum.each(events, &Publisher.notify(channel, &1))
-        {:ok, state}
-
-      {:error, _} ->
-        reason = "cannot decode channel message"
-        crash(state, Schema.Error.new(code: -32_000, message: reason))
-    end
+  def handle_frame({:text, frame}, %State{channel: channel} = state) do
+    Message.publish(channel, frame)
+    {:ok, state}
   end
 
   def handle_frame(_, %State{} = state) do

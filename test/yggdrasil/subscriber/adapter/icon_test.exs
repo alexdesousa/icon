@@ -2,6 +2,8 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC.Identity
+  alias Icon.Schema.Types.Block.Tick
+  alias Icon.Schema.Types.EventLog
   alias Icon.WebSocket.Router
 
   @moduletag capture_log: true
@@ -27,16 +29,22 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       channel: channel
     } do
       Bypass.expect(bypass, "POST", "/api/v3", fn conn ->
-        Plug.Conn.resp(conn, 200, block(42))
+        result = result(%{"height" => 42})
+        Plug.Conn.resp(conn, 200, result)
       end)
 
       assert :ok = Yggdrasil.subscribe(channel)
       assert_receive {:Y_CONNECTED, _}, 1_000
 
-      _router = block_events(router, [42, 43])
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d"
+      }
 
-      assert_receive {:Y_EVENT, _, %{"height" => "0x2a"}}, 1_000
-      assert_receive {:Y_EVENT, _, %{"height" => "0x2b"}}, 1_000
+      _router = Router.trigger_message(router, notification)
+
+      assert_receive {:Y_EVENT, _, %Tick{height: 42}}, 1_000
 
       assert :ok = Yggdrasil.unsubscribe(channel)
       assert_receive {:Y_DISCONNECTED, _}, 1_000
@@ -69,100 +77,72 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       router: router,
       channel: channel
     } do
+      tx_hash =
+        "0xf8773bc17c4b84753a8dbb7bcf663c5a7b90d84770949d2966857fe1106ee5e9"
+
       Bypass.expect(bypass, "POST", "/api/v3", fn conn ->
-        Plug.Conn.resp(conn, 200, block(42))
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+        result =
+          case Jason.decode!(body) do
+            %{"method" => "icx_getLastBlock"} ->
+              result(%{"height" => 42})
+
+            %{"method" => "icx_getBlockByHeight"} ->
+              result(%{
+                "height" => "0x29",
+                "confirmed_transaction_list" => [
+                  %{"txHash" => tx_hash}
+                ]
+              })
+
+            %{"method" => "icx_getTransactionResult"} ->
+              result(%{
+                "txHash" => tx_hash,
+                "eventLogs" => [
+                  %{
+                    "scoreAddress" =>
+                      "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                    "indexed" => [
+                      "SomeEvent(int)",
+                      "0x2a"
+                    ],
+                    "data" => []
+                  }
+                ]
+              })
+          end
+
+        Plug.Conn.resp(conn, 200, result)
       end)
 
       assert :ok = Yggdrasil.subscribe(channel)
       assert_receive {:Y_CONNECTED, _}, 1_000
 
-      _router = events(router, [42, 43])
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
+        "index" => "0x0",
+        "events" => ["0x0"]
+      }
 
-      assert_receive {:Y_EVENT, _, %{"height" => "0x2a"}}, 1_000
-      assert_receive {:Y_EVENT, _, %{"height" => "0x2b"}}, 1_000
+      _router = Router.trigger_message(router, notification)
+
+      assert_receive {:Y_EVENT, _, %EventLog{}}, 1_000
 
       assert :ok = Yggdrasil.unsubscribe(channel)
       assert_receive {:Y_DISCONNECTED, _}, 1_000
     end
   end
 
-  @spec block(pos_integer()) :: binary()
-  defp block(height) when is_integer(height) and height > 0 do
+  @spec result(any()) :: binary()
+  defp result(payload) do
     %{
       "jsonrpc" => "2.0",
       "id" => :erlang.system_time(:microsecond),
-      "result" => %{
-        "block_hash" =>
-          "d579ce6162019928d874da9bd1dbf7cced2359a5614e8aa0bf7cf75f3770504b",
-        "confirmed_transaction_list" => [
-          %{
-            "data" => %{
-              "result" => %{
-                "coveredByFee" => "0x0",
-                "coveredByOverIssuedICX" => "0x2ee0",
-                "issue" => "0x0"
-              }
-            },
-            "dataType" => "base",
-            "timestamp" => "0x5d629b9b5d886",
-            "txHash" =>
-              "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
-            "version" => "0x3"
-          }
-        ],
-        "height" => height,
-        "merkle_tree_root_hash" =>
-          "0xce5aa42a762ee88a32fc2a792dfb5975858a71a8abf4ec51fb1218e3b827aa01",
-        "peer_id" => "hxb97c82a5577a0a436f51a41421ad2d3b28da3f25",
-        "prev_block_hash" =>
-          "0xfe8138afd24512cc0e9f4da8df350300a759a480f15c8a00b04b2d753ea62ac3",
-        "signature" => "",
-        "time_stamp" => 1_642_849_581_258_886,
-        "version" => "2.0"
-      }
+      "result" => payload
     }
     |> Jason.encode!()
-  end
-
-  @spec events(Router.t(), pos_integer()) :: Router.t()
-  defp events(router, heights) do
-    events =
-      Enum.map(heights, fn x ->
-        {:ok, height} = Icon.Schema.Types.Integer.dump(x)
-
-        hash =
-          :sha
-          |> :crypto.hash(:crypto.strong_rand_bytes(42))
-          |> Base.encode16(case: :lower)
-
-        %{
-          "hash" => "0x#{hash}",
-          "height" => height,
-          "index" => "0x0",
-          "events" => ["0x0"]
-        }
-      end)
-
-    Router.trigger_message(router, events)
-  end
-
-  @spec block_events(Router.t(), pos_integer()) :: Router.t()
-  defp block_events(router, heights) do
-    events =
-      Enum.map(heights, fn x ->
-        {:ok, height} = Icon.Schema.Types.Integer.dump(x)
-
-        hash =
-          :sha
-          |> :crypto.hash(:crypto.strong_rand_bytes(42))
-          |> Base.encode16(case: :lower)
-
-        %{
-          "hash" => "0x#{hash}",
-          "height" => height
-        }
-      end)
-
-    Router.trigger_message(router, events)
   end
 end
