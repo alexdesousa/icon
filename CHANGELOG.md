@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.3
+
+### Changes
+
+  * [Enhancement] Added ICON 2.0 adapter for Yggdrasil.
+
 ## v0.1.2
 
 ### Changes
