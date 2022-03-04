@@ -655,8 +655,9 @@ defmodule Icon.RPC.Request do
       {:ok, %Finch.Response{body: data}} ->
         decode_response(data)
 
-      {:error, _} ->
-        {:error, Error.new(reason: :system_error)}
+      {:error, reason} ->
+        message = "#{inspect(reason)}"
+        {:error, Error.new(reason: :system_error, message: message)}
     end
   end
 

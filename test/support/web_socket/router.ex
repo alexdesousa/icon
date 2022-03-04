@@ -26,27 +26,27 @@ defmodule Icon.WebSocket.Router do
       req_headers =
         req
         |> :cowboy_req.headers()
-        |> Enum.map(fn {key, value} -> {'#{key}', value} end)
+        |> Enum.to_list()
 
-      request = {
-        'http://localhost:#{bypass.port}/api/v3',
-        req_headers,
-        'application/json',
-        req_body
-      }
+      request =
+        Finch.build(
+          :post,
+          "http://localhost:#{bypass.port}/api/v3",
+          req_headers,
+          "#{req_body}"
+        )
 
-      {:ok, {{_, status, _}, resp_headers, resp_body}} =
-        :httpc.request(:post, request, [], [])
-
-      resp_headers =
-        resp_headers
-        |> Enum.map(fn {key, value} -> {"#{key}", "#{value}"} end)
-        |> Map.new()
+      {:ok,
+       %Finch.Response{
+         status: status,
+         body: resp_body,
+         headers: resp_headers
+       }} = Finch.request(request, Icon.Finch)
 
       req =
         :cowboy_req.reply(
           _status = status,
-          _headers = resp_headers,
+          _headers = Map.new(resp_headers),
           _body = resp_body,
           _req = req
         )

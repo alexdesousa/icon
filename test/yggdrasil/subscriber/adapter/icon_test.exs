@@ -28,7 +28,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       router: router,
       channel: channel
     } do
-      Bypass.expect(bypass, "POST", "/api/v3", fn conn ->
+      Bypass.stub(bypass, "POST", "/api/v3", fn conn ->
         result = result(%{"height" => 42})
         Plug.Conn.resp(conn, 200, result)
       end)
@@ -44,7 +44,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
 
       _router = Router.trigger_message(router, notification)
 
-      assert_receive {:Y_EVENT, _, %Tick{height: 42}}, 1_000
+      assert_receive {:Y_EVENT, _, %Tick{height: 42}}, 10_000
 
       assert :ok = Yggdrasil.unsubscribe(channel)
       assert_receive {:Y_DISCONNECTED, _}, 1_000
@@ -80,7 +80,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       tx_hash =
         "0xf8773bc17c4b84753a8dbb7bcf663c5a7b90d84770949d2966857fe1106ee5e9"
 
-      Bypass.expect(bypass, "POST", "/api/v3", fn conn ->
+      Bypass.stub(bypass, "POST", "/api/v3", fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
 
         result =
@@ -90,7 +90,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
 
             %{"method" => "icx_getBlockByHeight"} ->
               result(%{
-                "height" => "0x29",
+                "height" => 41,
                 "confirmed_transaction_list" => [
                   %{"txHash" => tx_hash}
                 ]
@@ -129,7 +129,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
 
       _router = Router.trigger_message(router, notification)
 
-      assert_receive {:Y_EVENT, _, %EventLog{}}, 1_000
+      assert_receive {:Y_EVENT, _, %EventLog{}}, 10_000
 
       assert :ok = Yggdrasil.unsubscribe(channel)
       assert_receive {:Y_DISCONNECTED, _}, 1_000

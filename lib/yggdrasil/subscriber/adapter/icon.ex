@@ -83,14 +83,20 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     initialize()
     connected(state)
 
-    {:ok, %{add_height(state) | state: :connected}}
+    {:ok, state}
   end
 
   @impl WebSockex
   def handle_info(call, state)
 
-  def handle_info(:init, %State{height: height, channel: channel} = state) do
-    {:reply, Message.encode(height, channel), state}
+  def handle_info(:init, %State{channel: channel} = state) do
+    case add_height(state) do
+      {:ok, %State{height: height} = state} ->
+        {:reply, Message.encode(height, channel), %{state | state: :connected}}
+
+      {:error, %Schema.Error{} = error} ->
+        crash(state, error)
+    end
   end
 
   def handle_info({_ref, {:error, %Schema.Error{} = error}}, state) do
@@ -194,7 +200,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     :ok
   end
 
-  @spec add_height(State.t()) :: State.t() | no_return()
+  @spec add_height(State.t()) :: {:ok, State.t()} | {:error, Schema.Error.t()}
   defp add_height(state)
 
   defp add_height(
@@ -204,7 +210,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
          } = state
        )
        when is_integer(height) do
-    %{state | height: height}
+    {:ok, %{state | height: height}}
   end
 
   defp add_height(%State{channel: %Channel{name: info}} = state) do
@@ -212,10 +218,10 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
     case Icon.get_block(identity) do
       {:ok, %Schema.Types.Block{height: height}} ->
-        %{state | height: height}
+        {:ok, %{state | height: height}}
 
-      {:error, %Schema.Error{} = error} ->
-        crash(state, error)
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -259,11 +265,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
          %State{channel: channel, url: url},
          %Schema.Error{message: message, reason: reason}
        ) do
-    Manager.disconnected(channel)
-
     Logger.error(fn ->
-      "#{__MODULE__} cannot get the current block height " <>
-        "for #{inspect(channel)} (#{url}) " <>
+      "Crashed #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
         "due to #{message} [reason: #{reason}]"
     end)
 

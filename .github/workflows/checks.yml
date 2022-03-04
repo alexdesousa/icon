@@ -41,11 +41,11 @@ jobs:
         run: mix compile --warnings-as-errors
       - name: "Check formatting"
         run: mix format --dry-run --check-formatted
-      - name: "Run tests"
-        run: mix test
-      - name: "Run Credo"
-        run: mix credo --strict
       - name: "Run tests with coverage"
         run: mix coveralls.github
+      - name: "Run Credo"
+        run: mix credo --strict
       - name: "Run Dialyzer"
         run: mix dialyzer
+        env:
+          MIX_ENV: dev

@@ -767,7 +767,6 @@ defmodule Icon.RPC.RequestTest do
                 code: -31_000,
                 data: nil,
                 domain: :request,
-                message: "System error",
                 reason: :system_error
               }} = Request.send(rpc)
     end
