@@ -241,8 +241,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
   @spec connected(State.t()) :: :ok
   defp connected(%State{channel: channel, url: url}) do
-    Logger.info(fn ->
-      "#{__MODULE__} subscribed to #{inspect(channel)} (#{url})"
+    Logger.debug(fn ->
+      "Started #{__MODULE__} for #{inspect(channel)} (#{url})"
     end)
 
     :ok
@@ -251,7 +251,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @spec disconnected(WebSockex.connection_status_map(), State.t()) :: :ok
   defp disconnected(%{reason: reason}, %State{channel: channel, url: url}) do
     Logger.warn(fn ->
-      "#{__MODULE__} unsubscribed from #{inspect(channel)} (#{url}) " <>
+      "Stopped #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
         "due to #{inspect(reason)}"
     end)
 
@@ -279,7 +279,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     Manager.disconnected(channel)
 
     Logger.error(fn ->
-      "#{__MODULE__} cannot get the current block heigh " <>
+      "#{__MODULE__} cannot get the current block height " <>
         "for #{inspect(channel)} (#{url}) " <>
         "due to #{message} [reason: #{reason}]"
     end)

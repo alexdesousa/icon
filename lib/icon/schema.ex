@@ -659,10 +659,10 @@ defmodule Icon.Schema do
       module.init()
       |> Enum.map(fn
         {key, {:list, type}} when is_atom(type) ->
-          {key, Enum.map(data[key], fn value -> into(value, type) end)}
+          {key, Enum.map(data[key] || [], fn value -> into(value, type) end)}
 
         {key, {{:list, type}, _}} when is_atom(type) ->
-          {key, Enum.map(data[key], fn value -> into(value, type) end)}
+          {key, Enum.map(data[key] || [], fn value -> into(value, type) end)}
 
         {key, type} when is_atom(type) ->
           {key, into(data[key], type)}
