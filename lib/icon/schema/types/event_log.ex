@@ -149,7 +149,10 @@ defmodule Icon.Schema.Types.EventLog do
     header
     |> get_types()
     |> Enum.zip(indexed)
-    |> Enum.map(fn {module, value} -> Type.load!(module, value) end)
+    |> Enum.map(fn
+      {_module, nil} -> nil
+      {module, value} -> Type.load!(module, value)
+    end)
   end
 
   @spec dump_indexed(t()) :: [any()] | no_return()
@@ -158,7 +161,10 @@ defmodule Icon.Schema.Types.EventLog do
       header
       |> get_types()
       |> Enum.zip(indexed)
-      |> Enum.map(fn {module, value} -> Type.dump!(module, value) end)
+      |> Enum.map(fn
+        {_module, nil} -> nil
+        {module, value} -> Type.dump!(module, value)
+      end)
 
     [header | indexed]
   end
@@ -169,7 +175,10 @@ defmodule Icon.Schema.Types.EventLog do
     |> get_types()
     |> Enum.drop(length(indexed))
     |> Enum.zip(data)
-    |> Enum.map(fn {module, value} -> Type.load!(module, value) end)
+    |> Enum.map(fn
+      {_module, nil} -> nil
+      {module, value} -> Type.load!(module, value)
+    end)
   end
 
   @spec dump_data(map()) :: [any()] | no_return()
@@ -178,7 +187,10 @@ defmodule Icon.Schema.Types.EventLog do
     |> get_types()
     |> Enum.drop(length(indexed))
     |> Enum.zip(data)
-    |> Enum.map(fn {module, value} -> Type.dump!(module, value) end)
+    |> Enum.map(fn
+      {_module, nil} -> nil
+      {module, value} -> Type.dump!(module, value)
+    end)
   end
 
   @spec get_types(binary()) :: [module()] | no_return()

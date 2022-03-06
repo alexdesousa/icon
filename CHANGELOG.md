@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.4
+
+### Changes
+
+  * [Bugfix] Event logs weren't pulled correctly when the schema type
+    encountered a `nil` value.
+
 ## v0.1.3
 
 ### Changes

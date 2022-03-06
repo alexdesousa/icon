@@ -99,6 +99,28 @@ defmodule Icon.Schema.Types.EventLogTest do
               }} = EventLog.load(event_log)
     end
 
+    test "when it's a valid event log, loads nil indexed parameters" do
+      event_log = %{
+        "scoreAddress" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        "indexed" => [
+          "Transfer(Address,Address,int)",
+          "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+          nil
+        ],
+        "data" => [
+          "0x2a"
+        ]
+      }
+
+      assert {:ok,
+              %EventLog{
+                indexed: [
+                  "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+                  nil
+                ]
+              }} = EventLog.load(event_log)
+    end
+
     test "when it's a valid event log, loads data parameters" do
       event_log = %{
         "scoreAddress" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
@@ -113,6 +135,22 @@ defmodule Icon.Schema.Types.EventLogTest do
       }
 
       assert {:ok, %EventLog{data: [42]}} = EventLog.load(event_log)
+    end
+
+    test "when it's a valid event log, loads nil data parameters" do
+      event_log = %{
+        "scoreAddress" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        "indexed" => [
+          "Transfer(Address,Address,int)",
+          "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+          "hx2e243ad926ac48d15156756fce28314357d49d83"
+        ],
+        "data" => [
+          nil
+        ]
+      }
+
+      assert {:ok, %EventLog{data: [nil]}} = EventLog.load(event_log)
     end
 
     test "when it's a valid event log, loads int type" do
@@ -236,6 +274,23 @@ defmodule Icon.Schema.Types.EventLogTest do
         ],
         "data" => [
           "0x2a"
+        ]
+      }
+
+      assert {:ok, event_log} = EventLog.load(expected)
+      assert {:ok, ^expected} = EventLog.dump(event_log)
+    end
+
+    test "dumps a valid event log with nil values" do
+      expected = %{
+        "scoreAddress" => "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        "indexed" => [
+          "Transfer(Address,Address,int)",
+          "hxfd7e4560ba363f5aabd32caac7317feeee70ea57",
+          nil
+        ],
+        "data" => [
+          nil
         ]
       }
 
