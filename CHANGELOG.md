@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.5
+
+### Changes
+
+  * [Typo] Fixed misleading exception message in ICON's Yggdrasil subscriber
+    when process crashes.
+
 ## v0.1.4
 
 ### Changes

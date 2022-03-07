@@ -1,6 +1,7 @@
 defmodule Icon.Schema.Types.SCORE do
   @moduledoc """
-  This module defines an ICON 2.0 SCORE address.
+  This module defines an ICON 2.0 Smart Contract on Reliable Environment (SCORE)
+  address.
   """
   use Icon.Schema.Type
 

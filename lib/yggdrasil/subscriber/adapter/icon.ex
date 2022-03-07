@@ -270,8 +270,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
         "due to #{message} [reason: #{reason}]"
     end)
 
-    raise RuntimeError,
-      message: "cannot get current block height due to #{message} [#{reason}]"
+    raise RuntimeError, message: "#{message} [#{reason}]"
   end
 
   @spec terminated(WebSockex.close_reason(), State.t()) :: :ok
