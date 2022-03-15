@@ -69,18 +69,6 @@ defmodule Icon.RPC.IdentityTest do
              } = Identity.new(network_id: :lisbon)
     end
 
-    test "sets BTP network id" do
-      assert %Identity{network_id: 66} = Identity.new(network_id: :btp)
-      assert %Identity{network_id: 66} = Identity.new(network_id: "0x42")
-      assert %Identity{network_id: 66} = Identity.new(network_id: 66)
-    end
-
-    test "sets default BTP node when none provided" do
-      assert %Identity{
-               node: "https://btp.net.solidwallet.io"
-             } = Identity.new(network_id: :btp)
-    end
-
     test "sets custom node even when network id is provided" do
       node = "https://custom.solidwallet.io"
 
@@ -175,12 +163,6 @@ defmodule Icon.RPC.IdentityTest do
       identity = Identity.new(network_id: :lisbon)
 
       assert inspect(identity) =~ ~s/network_id: "0x2 (Lisbon)"/
-    end
-
-    test "sets network id for BTP" do
-      identity = Identity.new(network_id: :btp)
-
-      assert inspect(identity) =~ ~s/network_id: "0x42 (BTP)"/
     end
 
     test "sets other network id" do
