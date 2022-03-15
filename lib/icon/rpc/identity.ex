@@ -98,21 +98,8 @@ defmodule Icon.RPC.Identity do
     debug: false
   ]>
   ```
-
-  ### BTP
-
-  This is the new BTP test network. Thus anything related to BTP should be
-  tested here.
-
-  ```elixir
-  iex> Icon.RPC.Identity.new(network_id: :btp)
-  #Identity<[
-    node: "https://btp.net.solidwallet.io",
-    network_id: "0x42 (BTP)",
-    debug: false
-  ]>
-  ```
   """
+  alias Icon.Config
 
   @doc """
   Connection struct.
@@ -137,7 +124,7 @@ defmodule Icon.RPC.Identity do
   @typedoc """
   Network name.
   """
-  @type network_name :: :mainnet | :sejong | :berlin | :lisbon | :btp
+  @type network_name :: :mainnet | :sejong | :berlin | :lisbon
 
   @typedoc """
   Initialization option.
@@ -227,10 +214,6 @@ defmodule Icon.RPC.Identity do
     add_network_id(identity, 2)
   end
 
-  defp add_network_id(%__MODULE__{} = identity, :btp) do
-    add_network_id(identity, 66)
-  end
-
   defp add_network_id(%__MODULE__{} = identity, "0x" <> _ = network_id) do
     network_id =
       network_id
@@ -250,23 +233,19 @@ defmodule Icon.RPC.Identity do
   defp add_node(identity, node)
 
   defp add_node(%__MODULE__{network_id: 1} = identity, nil) do
-    add_node(identity, "https://ctz.solidwallet.io")
+    add_node(identity, Config.mainnet_node!())
   end
 
   defp add_node(%__MODULE__{network_id: 83} = identity, nil) do
-    add_node(identity, "https://sejong.net.solidwallet.io")
+    add_node(identity, Config.sejong_node!())
   end
 
   defp add_node(%__MODULE__{network_id: 7} = identity, nil) do
-    add_node(identity, "https://berlin.net.solidwallet.io")
+    add_node(identity, Config.berlin_node!())
   end
 
   defp add_node(%__MODULE__{network_id: 2} = identity, nil) do
-    add_node(identity, "https://lisbon.net.solidwallet.io")
-  end
-
-  defp add_node(%__MODULE__{network_id: 66} = identity, nil) do
-    add_node(identity, "https://btp.net.solidwallet.io")
+    add_node(identity, Config.lisbon_node!())
   end
 
   defp add_node(%__MODULE__{} = identity, node) when is_binary(node) do
@@ -356,7 +335,6 @@ defimpl Inspect, for: Icon.RPC.Identity do
   defp network_name(%Identity{network_id: 83}), do: "0x53 (Sejong)"
   defp network_name(%Identity{network_id: 7}), do: "0x7 (Berlin)"
   defp network_name(%Identity{network_id: 2}), do: "0x2 (Lisbon)"
-  defp network_name(%Identity{network_id: 66}), do: "0x42 (BTP)"
 
   defp network_name(%Identity{network_id: network_id}) do
     network_id

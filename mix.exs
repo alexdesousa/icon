@@ -49,6 +49,7 @@ defmodule Icon.MixProject do
       {:curvy, "~> 0.3"},
       {:websockex, "~> 0.4"},
       {:yggdrasil, "~> 6.0"},
+      {:skogsra, "~> 2.3"},
       {:bypass, "~> 2.1", only: :test},
       {:plug_cowboy, "~> 2.0", pnly: :test},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
@@ -100,7 +101,8 @@ defmodule Icon.MixProject do
   defp groups_for_modules do
     [
       "ICON 2.0 SDK": [
-        Icon
+        Icon,
+        Icon.Config
       ],
       "JSON RPC v3": [
         Icon.RPC.Identity,
