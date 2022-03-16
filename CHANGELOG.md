@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.6
+
+### Changes
+
+  * [Enhancement] Added exponential backoff to the websocket reconnection
+    retries.
+  * [Enhancement] Added the possibility of configuring the node URLs from
+    environment variables or Elixir configuration to override the defaults.
+  * [Enhancement] Improved websocket test code coverage.
+  * [Enhancement] The websocket now reconnects to the last know height when
+    height is available and being updated.
+
 ## v0.1.5
 
 ### Changes
