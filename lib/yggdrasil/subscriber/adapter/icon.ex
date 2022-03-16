@@ -44,6 +44,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias __MODULE__, as: State
   alias Icon.RPC.Identity
   alias Icon.Schema
+  alias Icon.Schema.Types.Block.Tick
   alias Yggdrasil.Channel
   alias Yggdrasil.Config.Icon, as: Config
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
@@ -175,6 +176,11 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   def handle_info({ref, :connected}, %State{} = state)
       when is_reference(ref) do
     {:noreply, state, {:continue, :connected}}
+  end
+
+  def handle_info({ref, {:ok, %Tick{height: height}}}, %State{} = state)
+      when is_reference(ref) and is_integer(height) and height > 0 do
+    {:noreply, %{state | height: height}}
   end
 
   def handle_info({ref, {:error, %Schema.Error{} = error}}, %State{} = state)
@@ -323,6 +329,16 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
        )
        when is_integer(height) do
     {:ok, %{state | height: height}}
+  end
+
+  defp add_height(
+         %State{
+           height: height,
+           channel: %Channel{name: %{source: :block}}
+         } = state
+       )
+       when is_integer(height) and height > 0 do
+    {:ok, state}
   end
 
   defp add_height(%State{channel: %Channel{name: info}} = state) do
