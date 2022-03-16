@@ -35,7 +35,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   {:Y_DISCONNECTED, %Yggdrasil.Channel{name: %{source: :block}, (...)}}
   ```
   """
-  use WebSockex
+  use GenServer
+  use Bitwise
   use Yggdrasil.Subscriber.Adapter
 
   require Logger
@@ -44,22 +45,58 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias Icon.RPC.Identity
   alias Icon.Schema
   alias Yggdrasil.Channel
+  alias Yggdrasil.Config.Icon, as: Config
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
   alias Yggdrasil.Subscriber.Manager
 
   @doc false
   defstruct url: nil,
             channel: nil,
-            state: :initializing,
-            height: :latest
+            websocket: nil,
+            module: nil,
+            status: :disconnected,
+            height: :latest,
+            retries: 0,
+            backoff: 0
 
   @typedoc false
   @type t :: %State{
           url: url :: binary(),
           channel: channel :: Channel.t(),
-          state: state :: :initializing | :connected | :disconnected,
-          height: height :: :latest | pos_integer()
+          websocket: websocket :: nil | WebSockex.client(),
+          module: module :: module(),
+          status: status :: :connected | :disconnected,
+          height: height :: :latest | pos_integer(),
+          retries: retries :: non_neg_integer(),
+          backoff: backoff :: non_neg_integer()
         }
+
+  ############
+  # Public API
+
+  @doc """
+  Informs the `subscriber` process that the websocket is connected.
+  """
+  @spec send_connected(GenServer.server()) :: :ok
+  def send_connected(subscriber) do
+    GenServer.cast(subscriber, :connected)
+  end
+
+  @doc """
+  Informs the `subscriber` of a new `frame`.
+  """
+  @spec send_frame(GenServer.server(), WebSockex.frame()) :: :ok
+  def send_frame(subscriber, frame) do
+    GenServer.cast(subscriber, {:frame, frame})
+  end
+
+  @doc """
+  Informs the `subscriber` process that the websocket is disconnected.
+  """
+  @spec send_disconnected(GenServer.server(), term()) :: :ok
+  def send_disconnected(subscriber, reason) do
+    GenServer.cast(subscriber, {:disconnected, reason})
+  end
 
   ################################
   # Yggdrasil Subscriber callbacks
@@ -68,99 +105,179 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   def start_link(channel, options \\ [])
 
   def start_link(%Channel{} = channel, options) do
-    state = gen_state(channel)
-    options = Keyword.put_new(options, :handle_initial_conn_failure, true)
-
-    WebSockex.start_link(state.url, __MODULE__, state, options)
+    GenServer.start_link(__MODULE__, channel, options)
   end
+
+  @spec stop(GenServer.server()) :: :ok
+  @spec stop(GenServer.server(), term()) :: :ok
+  @spec stop(GenServer.server(), term(), :infinity | non_neg_integer()) :: :ok
+  defdelegate stop(subscriber, reason \\ :normal, timeout \\ :infinity),
+    to: GenServer
 
   #####################
-  # WebSockex callbacks
+  # GenServer callbacks
 
-  @impl WebSockex
-  def handle_connect(%WebSockex.Conn{}, %State{channel: channel} = state) do
-    Manager.connected(channel)
-    initialize()
-    connected(state)
+  @impl GenServer
+  def init(%Channel{} = channel) do
+    Process.flag(:trap_exit, true)
+    state = gen_state(channel)
+    log_started(state)
 
-    {:ok, state}
+    {:ok, state, {:continue, :init}}
   end
 
-  @impl WebSockex
-  def handle_info(call, state)
+  @impl GenServer
+  def handle_continue(continue, state)
 
-  def handle_info(:init, %State{channel: channel} = state) do
-    case add_height(state) do
-      {:ok, %State{height: height} = state} ->
-        {:reply, Message.encode(height, channel), %{state | state: :connected}}
+  def handle_continue(:init, %State{} = state) do
+    initialize(state)
+  end
 
-      {:error, %Schema.Error{} = error} ->
-        crash(state, error)
+  def handle_continue(:connected, %State{} = state) do
+    connected(state)
+  end
+
+  def handle_continue({:backoff, reason}, %State{} = state) do
+    backoff(reason, state)
+  end
+
+  @impl GenServer
+  def handle_cast(
+        :connected,
+        %State{
+          websocket: websocket,
+          height: height,
+          channel: channel,
+          module: module
+        } = state
+      ) do
+    message = Message.encode(height, channel)
+    module.initialize(websocket, message)
+    {:noreply, state}
+  end
+
+  def handle_cast({:frame, {:text, frame}}, %State{channel: channel} = state) do
+    Message.publish(channel, frame)
+    {:noreply, state}
+  end
+
+  def handle_cast({:disconnected, reason}, %State{} = state) do
+    {:noreply, state, {:continue, {:backoff, reason}}}
+  end
+
+  @impl GenServer
+  def handle_info(msg, state)
+
+  def handle_info(:timeout, %State{} = state) do
+    {:noreply, state, {:continue, :init}}
+  end
+
+  def handle_info({ref, :connected}, %State{} = state)
+      when is_reference(ref) do
+    {:noreply, state, {:continue, :connected}}
+  end
+
+  def handle_info({ref, {:error, %Schema.Error{} = error}}, %State{} = state)
+      when is_reference(ref) do
+    {:noreply, state, {:continue, {:backoff, error}}}
+  end
+
+  def handle_info(
+        {:DOWN, _, :process, websocket, reason},
+        %State{websocket: websocket} = state
+      ) do
+    {:noreply, state, {:continue, {:backoff, reason}}}
+  end
+
+  def handle_info(_, %State{} = state) do
+    {:noreply, state}
+  end
+
+  ##########################
+  # State management helpers
+
+  @spec initialize(t()) ::
+          {:noreply, t()}
+          | {:noreply, t(), {:continue, {:backoff, term()}}}
+  defp initialize(state)
+
+  defp initialize(%State{status: :disconnected, module: module} = state) do
+    with {:ok, %State{url: url} = state} <- add_height(state),
+         {:ok, websocket} <- module.start_link(url, []) do
+      Process.monitor(websocket)
+      state = %{state | websocket: websocket}
+      {:noreply, state}
+    else
+      {:error, reason} ->
+        {:noreply, state, {:continue, {:backoff, reason}}}
     end
   end
 
-  def handle_info({_ref, {:error, %Schema.Error{} = error}}, state) do
-    crash(state, error)
+  @spec connected(t()) :: {:noreply, t()}
+  defp connected(state)
+
+  defp connected(%State{channel: channel, status: :disconnected} = state) do
+    Manager.connected(channel)
+    log_connected(state)
+    {:noreply, %{state | status: :connected, retries: 0, backoff: 0}}
   end
 
-  def handle_info(_, state) do
-    {:ok, state}
-  end
+  @spec backoff(term(), t()) :: {:noreply, t()}
+  defp backoff(reason, state)
 
-  @impl WebSockex
-  def handle_frame(frame, state)
-
-  def handle_frame({:text, frame}, %State{channel: channel} = state) do
-    Message.publish(channel, frame)
-    {:ok, state}
-  end
-
-  def handle_frame(_, %State{} = state) do
-    {:ok, state}
-  end
-
-  @impl WebSockex
-  def handle_disconnect(status, state)
-
-  def handle_disconnect(status, %State{state: :initializing} = state) do
-    retry(status, state)
-    {:reconnect, state}
-  end
-
-  def handle_disconnect(status, %State{state: :disconnected} = state) do
-    retry(status, state)
-    {:reconnect, state}
-  end
-
-  def handle_disconnect(
-        status,
-        %State{channel: channel, state: :connected} = state
-      ) do
+  defp backoff(
+         reason,
+         %State{
+           channel: channel,
+           module: module,
+           websocket: websocket,
+           status: :connected
+         } = state
+       ) do
     Manager.disconnected(channel)
-    disconnected(status, state)
+    module.stop(websocket)
+    log_disconnected(reason, state)
 
-    {:reconnect, %{state | state: :disconnected}}
+    new_state = %{state | websocket: nil, status: :disconnected}
+
+    backoff(reason, new_state)
   end
 
-  @impl WebSockex
+  defp backoff(reason, %State{status: :disconnected, retries: current} = state) do
+    max_retries = Config.max_retries!()
+    slot_size = Config.slot_size!()
+
+    padding = 2
+
+    retries =
+      if current >= max_retries,
+        do: max_retries - padding,
+        else: current - padding
+
+    new_backoff = (2 <<< retries) * Enum.random(1..slot_size) * 1_000
+    new_state = %{state | retries: current + 1, backoff: new_backoff}
+
+    Process.send_after(self(), :timeout, new_backoff)
+
+    log_retry(reason, new_state)
+
+    {:noreply, new_state}
+  end
+
+  @impl GenServer
   def terminate(reason, state)
 
-  def terminate(reason, %State{state: :initializing} = state) do
-    terminated(reason, state)
-    :ok
-  end
-
-  def terminate(reason, %State{state: :disconnected} = state) do
-    terminated(reason, state)
+  def terminate(reason, %State{status: :disconnected} = state) do
+    log_terminated(reason, state)
     :ok
   end
 
   def terminate(
         reason,
-        %State{state: :connected, channel: %Channel{} = channel} = state
+        %State{status: :connected, channel: channel} = state
       ) do
     Manager.disconnected(channel)
-    terminated(reason, state)
+    log_terminated(reason, state)
     :ok
   end
 
@@ -173,7 +290,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   defp gen_state(%Channel{name: %{source: _}, adapter: :icon} = channel) do
     %State{
       url: endpoint(channel),
-      channel: channel
+      channel: channel,
+      module: Config.websocket_module!()
     }
   end
 
@@ -192,12 +310,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
       %URI{scheme: "https"} = uri ->
         URI.to_string(%{uri | scheme: "wss"})
     end
-  end
-
-  @spec initialize() :: :ok
-  defp initialize do
-    Process.send_after(self(), :init, 0)
-    :ok
   end
 
   @spec add_height(State.t()) :: {:ok, State.t()} | {:error, Schema.Error.t()}
@@ -228,8 +340,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   #################
   # Logging helpers
 
-  @spec connected(State.t()) :: :ok
-  defp connected(%State{channel: channel, url: url}) do
+  @spec log_started(State.t()) :: :ok
+  defp log_started(%State{channel: channel, url: url}) do
     Logger.debug(fn ->
       "Started #{__MODULE__} for #{inspect(channel)} (#{url})"
     end)
@@ -237,54 +349,52 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     :ok
   end
 
-  @spec disconnected(WebSockex.connection_status_map(), State.t()) :: :ok
-  defp disconnected(%{reason: reason}, %State{channel: channel, url: url}) do
+  @spec log_connected(State.t()) :: :ok
+  defp log_connected(%State{channel: channel, url: url}) do
+    Logger.debug(fn ->
+      "Connected #{__MODULE__} for #{inspect(channel)} (#{url})"
+    end)
+
+    :ok
+  end
+
+  @spec log_disconnected(term(), State.t()) :: :ok
+  defp log_disconnected(reason, %State{channel: channel, url: url}) do
     Logger.warn(fn ->
-      "Stopped #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
+      "Disconnected #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
         "due to #{inspect(reason)}"
     end)
 
     :ok
   end
 
-  @spec retry(WebSockex.connection_status_map(), State.t()) :: :ok
-  defp retry(
-         %{reason: reason, attempt_number: retry},
-         %State{channel: channel, url: url}
+  @spec log_retry(term(), State.t()) :: :ok
+  defp log_retry(_reason, %State{backoff: 0}), do: :ok
+
+  defp log_retry(
+         reason,
+         %State{channel: channel, url: url, retries: retries, backoff: backoff}
        ) do
     Logger.warn(fn ->
       "#{__MODULE__} still unsubscribed from #{inspect(channel)} (#{url}) " <>
-        "due to #{inspect(reason)} [retry: #{retry}]"
+        "due to #{inspect(reason)} [retry: #{retries}, backoff: #{backoff} ms]"
     end)
 
     :ok
   end
 
-  @spec crash(State.t(), Schema.Error.t()) :: no_return()
-  defp crash(
-         %State{channel: channel, url: url},
-         %Schema.Error{message: message, reason: reason}
-       ) do
-    Logger.error(fn ->
-      "Crashed #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
-        "due to #{message} [reason: #{reason}]"
-    end)
+  @spec log_terminated(WebSockex.close_reason(), State.t()) :: :ok
+  defp log_terminated(reason, state)
 
-    raise RuntimeError, message: "#{message} [#{reason}]"
-  end
-
-  @spec terminated(WebSockex.close_reason(), State.t()) :: :ok
-  defp terminated(reason, state)
-
-  defp terminated(:normal, %State{channel: channel, url: url}) do
+  defp log_terminated(:normal, %State{channel: channel, url: url}) do
     Logger.info(fn ->
-      "#{__MODULE__} stopped for #{inspect(channel)} (#{url})"
+      "Stopped #{__MODULE__} for #{inspect(channel)} (#{url})"
     end)
   end
 
-  defp terminated(reason, %State{channel: channel, url: url}) do
+  defp log_terminated(reason, %State{channel: channel, url: url}) do
     Logger.warn(fn ->
-      "#{__MODULE__} stopped for #{inspect(channel)} (#{url}) " <>
+      "Stopped #{__MODULE__} for #{inspect(channel)} (#{url}) " <>
         "due to #{inspect(reason)}"
     end)
   end
