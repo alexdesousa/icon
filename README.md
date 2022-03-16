@@ -226,7 +226,7 @@ iex> Yggdrasil.unsubscribe(channel)
 > iex> Yggdrasil.subscribe(channel)
 > :ok
 > ```
-> 
+>
 > For more info about the notifications, check the next section.
 
 ### Example: Subscribing to Events
