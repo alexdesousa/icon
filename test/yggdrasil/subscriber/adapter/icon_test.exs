@@ -3,137 +3,356 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
 
   alias Icon.RPC.Identity
   alias Icon.Schema.Types.Block.Tick
-  alias Icon.Schema.Types.EventLog
-  alias Icon.WebSocket.Router
+  alias Yggdrasil.Backend
+  alias Yggdrasil.Subscriber.Adapter.Icon, as: Subscriber
+  alias Yggdrasil.Subscriber.Manager
+  alias Yggdrasil.Subscriber.Publisher
 
   @moduletag capture_log: true
 
-  describe "block subscription" do
-    setup do
-      bypass = Bypass.open()
-      router = Router.start(channel: :block, bypass: bypass)
-      identity = Identity.new(node: router.host)
-      on_exit(fn -> Router.stop(router) end)
+  defmodule WebSocketMock do
+    use GenServer
 
-      channel = [
-        name: %{source: :block, identity: identity},
-        adapter: :icon
-      ]
+    defstruct test_pid: nil,
+              url: nil,
+              subscriber: nil
 
-      {:ok, router: router, bypass: bypass, channel: channel}
-    end
+    ##########
+    # Contract
 
-    test "subscribes/unsubscribes to/from the block channel", %{
-      bypass: bypass,
-      router: router,
-      channel: channel
-    } do
-      Bypass.stub(bypass, "POST", "/api/v3", fn conn ->
-        result = result(%{"height" => 42})
-        Plug.Conn.resp(conn, 200, result)
-      end)
-
-      assert :ok = Yggdrasil.subscribe(channel)
-      assert_receive {:Y_CONNECTED, _}, 1_000
-
-      notification = %{
-        "height" => "0x2a",
-        "hash" =>
-          "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d"
+    def start_link(url, _options) do
+      state = %__MODULE__{
+        url: url,
+        subscriber: self()
       }
 
-      _router = Router.trigger_message(router, notification)
+      GenServer.start_link(__MODULE__, state, [])
+    end
 
-      assert_receive {:Y_EVENT, _, %Tick{height: 42}}, 10_000
+    def stop(pid) do
+      if Process.alive?(pid),
+        do: GenServer.stop(pid),
+        else: :ok
+    end
 
-      assert :ok = Yggdrasil.unsubscribe(channel)
-      assert_receive {:Y_DISCONNECTED, _}, 1_000
+    def initialize(pid, message) do
+      GenServer.cast(pid, {:init, message})
+    end
+
+    ##############
+    # Test helpers
+
+    def register(pid) do
+      GenServer.call(pid, {:register, self()})
+    end
+
+    def trigger_connected(pid) do
+      GenServer.call(pid, :connected)
+    end
+
+    def trigger_disconnected(pid, reason) do
+      GenServer.call(pid, {:disconnected, reason})
+    end
+
+    def trigger_frame(pid, message) do
+      GenServer.call(pid, {:frame, message})
+    end
+
+    ###########
+    # Callbacks
+
+    @impl GenServer
+    def init(%__MODULE__{} = state) do
+      {:ok, state}
+    end
+
+    @impl GenServer
+    def handle_call({:register, pid}, _from, %__MODULE__{} = state) do
+      {:reply, :ok, %{state | test_pid: pid}}
+    end
+
+    def handle_call(:connected, _from, %__MODULE__{} = state) do
+      Subscriber.send_connected(state.subscriber)
+      {:reply, :ok, state}
+    end
+
+    def handle_call({:disconnected, reason}, _from, %__MODULE__{} = state) do
+      Subscriber.send_disconnected(state.subscriber, reason)
+      {:reply, :ok, state}
+    end
+
+    def handle_call({:frame, frame}, _from, %__MODULE__{} = state) do
+      Subscriber.send_frame(state.subscriber, frame)
+      {:reply, :ok, state}
+    end
+
+    @impl GenServer
+    def handle_cast({:init, _} = message, %__MODULE__{} = state) do
+      send(state.test_pid, message)
+      {:noreply, state}
     end
   end
 
-  describe "event subscription" do
-    setup do
-      bypass = Bypass.open()
-      router = Router.start(channel: :event, bypass: bypass)
-      identity = Identity.new(node: router.host)
-      on_exit(fn -> Router.stop(router) end)
+  setup do
+    Yggdrasil.Config.Icon.put_websocket_module(WebSocketMock)
 
-      channel = [
-        name: %{
-          source: :event,
-          identity: identity,
-          data: %{
-            event: "SomeEvent(int)"
-          }
-        },
-        adapter: :icon
-      ]
+    bypass = Bypass.open()
+    identity = Identity.new(node: "http://localhost:#{bypass.port}")
 
-      {:ok, router: router, bypass: bypass, channel: channel}
-    end
+    assert {:ok, channel} =
+             Yggdrasil.gen_channel(
+               name: %{source: :block, identity: identity},
+               adapter: :icon
+             )
 
-    test "subscribes/unsubscribes to/from the event channel", %{
-      bypass: bypass,
-      router: router,
-      channel: channel
-    } do
-      tx_hash =
-        "0xf8773bc17c4b84753a8dbb7bcf663c5a7b90d84770949d2966857fe1106ee5e9"
+    # Subscribes to the channel
+    Backend.subscribe(channel)
 
-      Bypass.stub(bypass, "POST", "/api/v3", fn conn ->
-        {:ok, body, conn} = Plug.Conn.read_body(conn)
+    via_tuple = ExReg.local({Manager, channel})
+    {:ok, _manager} = Manager.start_link(channel, self(), name: via_tuple)
 
-        result =
-          case Jason.decode!(body) do
-            %{"method" => "icx_getLastBlock"} ->
-              result(%{"height" => 42})
+    via_tuple = ExReg.local({Publisher, channel})
+    {:ok, _publisher} = Publisher.start_link(channel, name: via_tuple)
 
-            %{"method" => "icx_getBlockByHeight"} ->
-              result(%{
-                "height" => 41,
-                "confirmed_transaction_list" => [
-                  %{"txHash" => tx_hash}
-                ]
-              })
+    {:ok, bypass: bypass, channel: channel}
+  end
 
-            %{"method" => "icx_getTransactionResult"} ->
-              result(%{
-                "txHash" => tx_hash,
-                "eventLogs" => [
-                  %{
-                    "scoreAddress" =>
-                      "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-                    "indexed" => [
-                      "SomeEvent(int)",
-                      "0x2a"
-                    ],
-                    "data" => []
-                  }
-                ]
-              })
-          end
+  test "initializes the connection when connects to server", %{
+    bypass: bypass,
+    channel: channel
+  } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
 
-        Plug.Conn.resp(conn, 200, result)
-      end)
+    assert {:ok, pid} = Subscriber.start_link(channel)
 
-      assert :ok = Yggdrasil.subscribe(channel)
-      assert_receive {:Y_CONNECTED, _}, 1_000
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
 
-      notification = %{
-        "height" => "0x2a",
-        "hash" =>
-          "0x75e553dcd57853e6c96428c4fede49209a3055fc905db757baa470c1e94f736d",
-        "index" => "0x0",
-        "events" => ["0x0"]
-      }
+    assert_receive {:init, {:text, message}}
+    assert {:ok, %{"height" => "0x2a"}} = Jason.decode(message)
+  end
 
-      _router = Router.trigger_message(router, notification)
+  test "goes to backoff when there's an error on initialization", %{
+    bypass: bypass,
+    channel: channel
+  } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result =
+        error(%{
+          "code" => -32_000,
+          "message" => "Server error"
+        })
 
-      assert_receive {:Y_EVENT, _, %EventLog{}}, 10_000
+      Plug.Conn.resp(conn, 400, result)
+    end)
 
-      assert :ok = Yggdrasil.unsubscribe(channel)
-      assert_receive {:Y_DISCONNECTED, _}, 1_000
-    end
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    assert %Subscriber{
+             retries: 1,
+             backoff: 0,
+             status: :disconnected,
+             websocket: nil
+           } = get_state(pid)
+  end
+
+  test "when websocket accepts the initialization, sets the state as connected",
+       %{
+         bypass: bypass,
+         channel: channel
+       } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    assert %Subscriber{
+             retries: 0,
+             backoff: 0,
+             status: :connected,
+             websocket: ^websocket
+           } = get_state(pid)
+  end
+
+  test "when websocket disconnected, sets the state as disconnected",
+       %{
+         bypass: bypass,
+         channel: channel
+       } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    :ok = WebSocketMock.trigger_disconnected(websocket, :shutdown)
+    assert_receive {:Y_DISCONNECTED, ^channel}
+
+    assert %Subscriber{
+             retries: 1,
+             backoff: 0,
+             status: :disconnected,
+             websocket: nil
+           } = get_state(pid)
+  end
+
+  test "when websocket gets invalid frame, sets the state as disconnected",
+       %{
+         bypass: bypass,
+         channel: channel
+       } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s(invalid)})
+
+    assert_receive {:Y_DISCONNECTED, ^channel}
+
+    assert %Subscriber{
+             retries: 1,
+             backoff: 0,
+             status: :disconnected,
+             websocket: nil
+           } = get_state(pid)
+  end
+
+  test "when websocket disconnected, does not send disconnect message on termination",
+       %{
+         bypass: bypass,
+         channel: channel
+       } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = Subscriber.stop(pid)
+
+    refute_receive {:Y_DISCONNECTED, ^channel}
+  end
+
+  test "when websocket connected, sends disconnect message on termination",
+       %{
+         bypass: bypass,
+         channel: channel
+       } do
+    Process.flag(:trap_exit, true)
+
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    :ok = Subscriber.stop(pid, :shutdown)
+
+    assert_receive {:Y_DISCONNECTED, ^channel}
+  end
+
+  test "when websocket crashes, enters in backoff", %{
+    bypass: bypass,
+    channel: channel
+  } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    Process.exit(websocket, :shutdown)
+
+    assert_receive {:Y_DISCONNECTED, ^channel}
+
+    assert %Subscriber{
+             retries: 1,
+             backoff: 0,
+             status: :disconnected,
+             websocket: nil
+           } = get_state(pid)
+  end
+
+  test "when websocket sends notification, publishes it", %{
+    bypass: bypass,
+    channel: channel
+  } do
+    Bypass.expect_once(bypass, "POST", "/api/v3", fn conn ->
+      result = result(%{"height" => 42})
+      Plug.Conn.resp(conn, 200, result)
+    end)
+
+    assert {:ok, pid} = Subscriber.start_link(channel)
+
+    websocket = get_websocket(pid)
+    :ok = WebSocketMock.register(websocket)
+    :ok = WebSocketMock.trigger_connected(websocket)
+    assert_receive {:init, {:text, _message}}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    assert_receive {:Y_CONNECTED, ^channel}
+
+    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"height":"0x2b"})})
+
+    assert_receive {:Y_EVENT, ^channel, %Tick{height: 43}}, 10_000
   end
 
   @spec result(any()) :: binary()
@@ -144,5 +363,25 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       "result" => payload
     }
     |> Jason.encode!()
+  end
+
+  @spec error(any()) :: binary()
+  defp error(payload) do
+    %{
+      "jsonrpc" => "2.0",
+      "id" => :erlang.system_time(:microsecond),
+      "error" => payload
+    }
+    |> Jason.encode!()
+  end
+
+  @spec get_websocket(pid()) :: nil | pid()
+  defp get_websocket(pid) do
+    get_state(pid).websocket
+  end
+
+  @spec get_state(pid()) :: Subscriber.t()
+  defp get_state(pid) do
+    :sys.get_state(pid)
   end
 end
