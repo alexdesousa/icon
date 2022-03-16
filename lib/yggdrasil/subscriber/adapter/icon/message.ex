@@ -61,12 +61,13 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
 
   @spec do_publish(Channel.t(), binary() | map()) ::
           :ok
+          | :connected
           | {:error, Schema.Error.t()}
   defp do_publish(%Channel{} = channel, notification)
        when is_binary(notification) do
     case Jason.decode(notification) do
       {:ok, %{"code" => 0}} ->
-        :ok
+        :connected
 
       {:ok, %{"code" => code, "message" => message}} ->
         {:error, Schema.Error.new(code: code, message: message)}
