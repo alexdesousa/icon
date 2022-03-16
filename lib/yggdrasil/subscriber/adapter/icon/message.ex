@@ -13,6 +13,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
   alias Icon.RPC.Identity
   alias Icon.Schema
   alias Icon.Schema.Type
+  alias Icon.Schema.Types.Block.Tick
+  alias Icon.Schema.Types.EventLog
   alias Yggdrasil.Channel
   alias Yggdrasil.Subscriber.Publisher
 
@@ -83,8 +85,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
 
   defp do_publish(%Channel{} = channel, notification) do
     with {:ok, messages} <- decode(channel, notification) do
-      Enum.each(messages, &Publisher.notify(channel, &1))
-      :ok
+      Enum.reduce(messages, :ok, fn
+        %Tick{} = tick, _ ->
+          Publisher.notify(channel, tick)
+          {:ok, tick}
+
+        %EventLog{} = event_log, acc ->
+          Publisher.notify(channel, event_log)
+          acc
+      end)
     end
   end
 
