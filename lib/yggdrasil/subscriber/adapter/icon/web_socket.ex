@@ -1,4 +1,7 @@
 defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
+  @moduledoc """
+  This module defines a general ICON 2.0 WebSocket.
+  """
   use WebSockex
   alias __MODULE__, as: State
   alias Yggdrasil.Subscriber.Adapter.Icon

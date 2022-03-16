@@ -1,7 +1,7 @@
 defmodule Icon.MixProject do
   use Mix.Project
 
-  @version "0.1.5"
+  @version "0.1.6"
   @name "ICON 2.0 SDK"
   @description "Basic API for interacting with ICON 2.0 blockchain"
   @app :icon
@@ -111,9 +111,11 @@ defmodule Icon.MixProject do
       ],
       "ICON 2.0 WebSocket": [
         Yggdrasil.Adapter.Icon,
+        Yggdrasil.Config.Icon,
         Yggdrasil.Publisher.Adapter.Icon,
         Yggdrasil.Subscriber.Adapter.Icon,
-        Yggdrasil.Subscriber.Adapter.Icon.Message
+        Yggdrasil.Subscriber.Adapter.Icon.Message,
+        Yggdrasil.Subscriber.Adapter.Icon.WebSocket
       ],
       "Schema Behaviours": [
         Icon.Schema,
