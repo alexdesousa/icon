@@ -30,7 +30,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
       channel: channel
     } do
       %Task{ref: ref} = Message.publish(channel, ~s({"code":0}))
-      assert_receive {^ref, :ok}
+      assert_receive {^ref, :connected}
     end
 
     test "fails on error websocket setup", %{
