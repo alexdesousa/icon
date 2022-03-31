@@ -7,6 +7,7 @@
   * [Enhancement] Changed websocket reconnection message from `:timeout` to
     `:re_init` for better understanding of what's happening.
   * [Enhancement] Positive integer type.
+  * [Bugfix] Now integers can be negative.
 
 ## v0.1.6
 

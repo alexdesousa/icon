@@ -4,19 +4,20 @@ defmodule Icon.Schema.Types.IntegerTest do
   describe "load/1" do
     test "when an integer is provided, returns said integer" do
       assert {:ok, 42} = Icon.Schema.Types.Integer.load(42)
+      assert {:ok, -42} = Icon.Schema.Types.Integer.load(-42)
     end
 
     test "when a valid hex string is provided, returns the equivalent integer" do
       assert {:ok, 42} = Icon.Schema.Types.Integer.load("0x2A")
       assert {:ok, 42} = Icon.Schema.Types.Integer.load("0x2a")
+
+      assert {:ok, -42} = Icon.Schema.Types.Integer.load("-0x2A")
+      assert {:ok, -42} = Icon.Schema.Types.Integer.load("-0x2a")
     end
 
     test "when a valid integer string is provided, returns the equivalent integer" do
       assert {:ok, 42} = Icon.Schema.Types.Integer.load("42")
-    end
-
-    test "when an integer is negative, errors" do
-      assert :error = Icon.Schema.Types.Integer.load(-42)
+      assert {:ok, -42} = Icon.Schema.Types.Integer.load("-42")
     end
 
     test "when an invalid hex string is provided, errors" do
@@ -38,10 +39,7 @@ defmodule Icon.Schema.Types.IntegerTest do
   describe "dump/1" do
     test "when an integer is provided, returns the equivalent hex string" do
       assert {:ok, "0x2a"} = Icon.Schema.Types.Integer.dump(42)
-    end
-
-    test "when an integer is negative, errors" do
-      assert :error = Icon.Schema.Types.Integer.dump(-42)
+      assert {:ok, "-0x2a"} = Icon.Schema.Types.Integer.dump(-42)
     end
 
     test "when an unsupported type is provided, errors" do

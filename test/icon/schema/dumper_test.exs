@@ -405,7 +405,7 @@ defmodule Icon.Schema.DumperTest do
     end
 
     test "adds error when integer is invalid" do
-      params = %{"integer" => -42}
+      params = %{"integer" => "invalid"}
 
       assert %Schema{
                errors: %{integer: "is invalid"},
@@ -431,7 +431,7 @@ defmodule Icon.Schema.DumperTest do
     end
 
     test "adds error when loop is invalid" do
-      params = %{"loop" => -42}
+      params = %{"loop" => "invalid"}
 
       assert %Schema{
                errors: %{loop: "is invalid"},

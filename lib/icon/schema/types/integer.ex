@@ -7,14 +7,20 @@ defmodule Icon.Schema.Types.Integer do
   @typedoc """
   An integer.
   """
-  @type t :: non_neg_integer()
+  @type t :: integer()
 
   @spec load(any()) :: {:ok, t()} | :error
   @impl Icon.Schema.Type
   def load(value)
 
-  def load(int) when is_integer(int) and int >= 0 do
+  def load(int) when is_integer(int) do
     {:ok, int}
+  end
+
+  def load("-0x" <> hex) do
+    with {:ok, int} <- load("0x" <> hex) do
+      {:ok, -int}
+    end
   end
 
   def load("0x" <> hex) do
@@ -26,7 +32,7 @@ defmodule Icon.Schema.Types.Integer do
 
   def load(str) when is_binary(str) do
     case Integer.parse(str) do
-      {int, ""} when int >= 0 -> {:ok, int}
+      {int, ""} -> {:ok, int}
       _ -> :error
     end
   end
@@ -37,6 +43,12 @@ defmodule Icon.Schema.Types.Integer do
 
   @spec dump(any()) :: {:ok, binary()} | :error
   @impl Icon.Schema.Type
+  def dump(int) when is_integer(int) and int < 0 do
+    with {:ok, "0x" <> hex} <- dump(-int) do
+      {:ok, "-0x" <> hex}
+    end
+  end
+
   def dump(int) when is_integer(int) and int >= 0 do
     value =
       int
