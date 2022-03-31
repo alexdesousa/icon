@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.7
+
+### Changes
+
+  * [Enhancement] Changed websocket reconnection message from `:timeout` to
+    `:re_init` for better understanding of what's happening.
+
 ## v0.1.6
 
 ### Changes

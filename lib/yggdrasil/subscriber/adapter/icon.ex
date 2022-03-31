@@ -169,7 +169,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @impl GenServer
   def handle_info(msg, state)
 
-  def handle_info(:timeout, %State{} = state) do
+  def handle_info(:re_init, %State{} = state) do
     {:noreply, state, {:continue, :init}}
   end
 
@@ -263,7 +263,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     new_backoff = (2 <<< retries) * Enum.random(1..slot_size) * 1_000
     new_state = %{state | retries: current + 1, backoff: new_backoff}
 
-    Process.send_after(self(), :timeout, new_backoff)
+    Process.send_after(self(), :re_init, new_backoff)
 
     log_retry(reason, new_state)
 
