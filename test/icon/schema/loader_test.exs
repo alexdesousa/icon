@@ -782,6 +782,54 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads pos_integer type" do
+      pos_integer = "0x2a"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 42},
+               is_valid?: true
+             } =
+               :pos_integer
+               |> Schema.generate()
+               |> Schema.new(pos_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 42},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.PosInteger
+               |> Schema.generate()
+               |> Schema.new(pos_integer)
+               |> Schema.load()
+    end
+
+    test "loads pos_integer type in schema" do
+      params = %{"pos_integer" => "0x2a"}
+
+      assert %Schema{
+               data: %{pos_integer: 42},
+               is_valid?: true
+             } =
+               %{pos_integer: :pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when pos_integer is invalid" do
+      params = %{"pos_integer" => "-0x2a"}
+
+      assert %Schema{
+               errors: %{pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{pos_integer: :pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads score_address type" do
       score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
 

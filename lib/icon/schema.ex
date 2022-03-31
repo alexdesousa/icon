@@ -36,6 +36,7 @@ defmodule Icon.Schema do
   - `:hash` (same as `Icon.Schema.Types.Hash`).
   - `:integer` (same as `Icon.Schema.Types.Integer`).
   - `:loop` (same as `Icon.Schema.Types.Loop`).
+  - `:pos_integer` (same as `Icon.Schema.Types.PosInteger`).
   - `:score_address` (same as `Icon.Schema.Types.SCORE`).
   - `:signature` (same as `Icon.Schema.Types.Signature`).
   - `:string` (same as `Icon.Schema.Types.String`).
@@ -108,7 +109,7 @@ defmodule Icon.Schema do
     use Icon.Schema
 
     defschema(%{
-      height: :integer,
+      height: :pos_integer,
       hash: :hash
       transactions: list(Transaction)
     })
@@ -182,6 +183,7 @@ defmodule Icon.Schema do
           | :hash
           | :integer
           | :loop
+          | :pos_integer
           | :score_address
           | :signature
           | :string
@@ -205,6 +207,7 @@ defmodule Icon.Schema do
           | Icon.Schema.Types.Hash
           | Icon.Schema.Types.Integer
           | Icon.Schema.Types.Loop
+          | Icon.Schema.Types.PosInteger
           | Icon.Schema.Types.SCORE
           | Icon.Schema.Types.Signature
           | Icon.Schema.Types.String
@@ -444,6 +447,7 @@ defmodule Icon.Schema do
              :hash,
              :integer,
              :loop,
+             :pos_integer,
              :score_address,
              :signature,
              :string,
@@ -464,6 +468,7 @@ defmodule Icon.Schema do
              Icon.Schema.Types.Hash,
              Icon.Schema.Types.Integer,
              Icon.Schema.Types.Loop,
+             Icon.Schema.Types.PosInteger,
              Icon.Schema.Types.SCORE,
              Icon.Schema.Types.Signature,
              Icon.Schema.Types.String,
@@ -599,6 +604,7 @@ defmodule Icon.Schema do
   defp expand_type(_key, :hash), do: Icon.Schema.Types.Hash
   defp expand_type(_key, :integer), do: Icon.Schema.Types.Integer
   defp expand_type(_key, :loop), do: Icon.Schema.Types.Loop
+  defp expand_type(_key, :pos_integer), do: Icon.Schema.Types.PosInteger
   defp expand_type(_key, :score_address), do: Icon.Schema.Types.SCORE
   defp expand_type(_key, :signature), do: Icon.Schema.Types.Signature
   defp expand_type(_key, :string), do: Icon.Schema.Types.String

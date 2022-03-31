@@ -27,7 +27,7 @@ defmodule Icon.Schema.Types.Block do
     prev_block_hash: :hash,
     peer_id: :eoa_address,
     merkle_tree_root_hash: :hash,
-    height: :integer,
+    height: :pos_integer,
     block_hash: :hash,
     confirmed_transaction_list: list(Transaction)
   })
