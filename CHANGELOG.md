@@ -8,6 +8,8 @@
     `:re_init` for better understanding of what's happening.
   * [Enhancement] Positive integer type.
   * [Bugfix] Now integers can be negative.
+  * [Bugfix] Fixed a race condition bug where multiple backoff messages were
+    issued.
 
 ## v0.1.6
 

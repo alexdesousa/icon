@@ -130,6 +130,10 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @impl GenServer
   def handle_continue(continue, state)
 
+  def handle_continue(:init, %State{status: :connected} = state) do
+    {:ok, state}
+  end
+
   def handle_continue(:init, %State{} = state) do
     initialize(state)
   end
@@ -179,7 +183,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   end
 
   def handle_info({ref, {:ok, %Tick{height: height}}}, %State{} = state)
-      when is_reference(ref) and is_integer(height) and height > 0 do
+      when is_reference(ref) do
     {:noreply, %{state | height: height}}
   end
 
