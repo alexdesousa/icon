@@ -1,7 +1,7 @@
 defmodule Icon.MixProject do
   use Mix.Project
 
-  @version "0.1.6"
+  @version "0.1.7"
   @name "ICON 2.0 SDK"
   @description "Basic API for interacting with ICON 2.0 blockchain"
   @app :icon
@@ -76,7 +76,8 @@ defmodule Icon.MixProject do
       licenses: ["MIT"],
       links: %{
         "Changelog" => "#{@root}/blob/master/CHANGELOG.md",
-        "Github" => @root
+        "Github" => @root,
+        "Sponsor" => "https://github.com/sponsors/alexdesousa"
       }
     ]
   end
