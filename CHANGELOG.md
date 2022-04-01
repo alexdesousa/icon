@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.8
+
+### Changes
+
+  * [Bugfix] Bad return value when reinitializing the icon subscriber.
+
 ## v0.1.7
 
 ### Changes

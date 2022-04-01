@@ -131,7 +131,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   def handle_continue(continue, state)
 
   def handle_continue(:init, %State{status: :connected} = state) do
-    {:ok, state}
+    {:noreply, state}
   end
 
   def handle_continue(:init, %State{} = state) do
