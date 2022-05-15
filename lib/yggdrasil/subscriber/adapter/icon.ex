@@ -45,10 +45,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias Icon.RPC.Identity
   alias Icon.Schema
   alias Icon.Schema.Types.Block.Tick
+  alias Icon.Schema.Types.EventLog
   alias Yggdrasil.Channel
   alias Yggdrasil.Config.Icon, as: Config
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
   alias Yggdrasil.Subscriber.Manager
+  alias Yggdrasil.Subscriber.Publisher
 
   @doc false
   defstruct url: nil,
@@ -57,6 +59,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
             module: nil,
             status: :disconnected,
             height: :latest,
+            current_index: 1,
+            last_index: 0,
+            buffer: %{},
             retries: 0,
             backoff: 0
 
@@ -68,6 +73,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
           module: module :: module(),
           status: status :: :connected | :disconnected,
           height: height :: :latest | pos_integer(),
+          current_index: pos_integer(),
+          last_index: non_neg_integer(),
+          buffer: map(),
           retries: retries :: non_neg_integer(),
           backoff: backoff :: non_neg_integer()
         }
@@ -147,23 +155,19 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   end
 
   @impl GenServer
-  def handle_cast(
-        :connected,
-        %State{
-          websocket: websocket,
-          height: height,
-          channel: channel,
-          module: module
-        } = state
-      ) do
-    message = Message.encode(height, channel)
-    module.initialize(websocket, message)
+  def handle_cast(:connected, %State{} = state) do
+    message = Message.encode(state.height, state.channel)
+    state.module.initialize(state.websocket, message)
     {:noreply, state}
   end
 
-  def handle_cast({:frame, {:text, frame}}, %State{channel: channel} = state) do
-    Message.publish(channel, frame)
-    {:noreply, state}
+  def handle_cast(
+        {:frame, {:text, frame}},
+        %State{channel: channel, current_index: index} = state
+      ) do
+    Task.async(fn -> {index, Message.decode(channel, frame)} end)
+
+    {:noreply, %{state | current_index: index + 1}}
   end
 
   def handle_cast({:disconnected, reason}, %State{} = state) do
@@ -177,19 +181,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     {:noreply, state, {:continue, :init}}
   end
 
-  def handle_info({ref, :connected}, %State{} = state)
+  def handle_info({ref, {index, result}}, %State{} = state)
       when is_reference(ref) do
-    {:noreply, state, {:continue, :connected}}
-  end
-
-  def handle_info({ref, {:ok, %Tick{height: height}}}, %State{} = state)
-      when is_reference(ref) do
-    {:noreply, %{state | height: height}}
-  end
-
-  def handle_info({ref, {:error, %Schema.Error{} = error}}, %State{} = state)
-      when is_reference(ref) do
-    {:noreply, state, {:continue, {:backoff, error}}}
+    handle_event(index, result, state)
   end
 
   def handle_info(
@@ -354,6 +348,87 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
       {:error, _} = error ->
         error
+    end
+  end
+
+  ##################
+  # Decoding helpers
+
+  @spec handle_event(pos_integer(), result, t()) ::
+          {:noreply, t()}
+          | {:noreply, t(), {:continue, :connected}}
+          | {:noreply, t(), {:continue, {:backoff, Schema.Error.t()}}}
+        when result: :ok | {:ok, [message]} | {:error, Schema.Error.t()},
+             message: Tick.t() | EventLog.t()
+  defp handle_event(index, result, state)
+
+  defp handle_event(index, :ok, %State{} = state) do
+    new_state = %{state | last_index: index, buffer: %{}}
+    {:noreply, new_state, {:continue, :connected}}
+  end
+
+  defp handle_event(index, {:ok, list}, %State{last_index: last_index} = state)
+       when index == last_index + 1 do
+    # Sends all consecutive events from this index on.
+    new_state = %{state | buffer: Map.put(state.buffer, index, list)}
+    {:noreply, publish_events(index, new_state)}
+  end
+
+  defp handle_event(index, _, %State{last_index: last_index} = state)
+       when index < last_index + 1 do
+    # Previous events should be ignored
+    {:noreply, state}
+  end
+
+  defp handle_event(index, {:ok, list}, %State{last_index: last_index} = state)
+       when index > last_index + 1 do
+    # Puts events in the buffer when it's not their time.
+    new_state = %{state | buffer: Map.put(state.buffer, index, list)}
+    {:noreply, new_state}
+  end
+
+  defp handle_event(index, {:error, %Schema.Error{} = error}, %State{} = state) do
+    buffer =
+      state.buffer
+      |> Stream.reject(fn {k, _v} -> k >= index end)
+      |> Map.new()
+
+    new_state = %{state | buffer: buffer}
+
+    smallest_index =
+      buffer
+      |> Map.keys()
+      |> List.first()
+
+    sent_state = publish_events(smallest_index, new_state)
+
+    flushed_state = %{sent_state | buffer: %{}, last_index: index}
+
+    {:noreply, flushed_state, {:continue, {:backoff, error}}}
+  end
+
+  # Publishes consecutive events from a given index.
+  @spec publish_events(nil | non_neg_integer(), t()) :: t()
+  defp publish_events(index, state)
+
+  defp publish_events(nil, %State{} = state), do: state
+
+  defp publish_events(index, %State{buffer: buffer, channel: channel} = state) do
+    case Map.pop(buffer, index) do
+      {[%Tick{height: height} | _] = events, new_buffer} ->
+        Enum.each(events, &Publisher.notify(channel, &1))
+
+        new_state = %{
+          state
+          | height: height,
+            last_index: index,
+            buffer: new_buffer
+        }
+
+        publish_events(index + 1, new_state)
+
+      {nil, _} ->
+        state
     end
   end
 

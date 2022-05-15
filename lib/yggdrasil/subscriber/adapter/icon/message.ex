@@ -16,32 +16,35 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
   alias Icon.Schema.Types.Block.Tick
   alias Icon.Schema.Types.EventLog
   alias Yggdrasil.Channel
-  alias Yggdrasil.Subscriber.Publisher
 
-  @doc """
-  Publishes notifications in a channel.
+  @typedoc """
+  Message.
   """
-  @spec publish(Channel.t(), map()) :: Task.t()
-  def publish(channel, notification)
-
-  def publish(channel, notification) do
-    Task.async(fn -> do_publish(channel, notification) end)
-  end
+  @type t :: Tick.t() | EventLog.t()
 
   @doc """
   Decodes an incoming message from the ICON 2.0 websocket.
   """
-  @spec decode(Channel.t(), map()) ::
-          {:ok, [Schema.Types.EventLog.t()]}
+  @spec decode(Channel.t(), binary()) ::
+          :ok
+          | {:ok, [t()]}
           | {:error, Schema.Error.t()}
-  def decode(channel, notification)
+  def decode(%Channel{} = channel, notification)
+      when is_binary(notification) do
+    case Jason.decode(notification) do
+      {:ok, %{"code" => 0}} ->
+        :ok
 
-  def decode(%Channel{name: %{source: :block}} = channel, notification) do
-    decode_block(channel, notification)
-  end
+      {:ok, %{"code" => code, "message" => message}} ->
+        {:error, Schema.Error.new(code: code, message: message)}
 
-  def decode(%Channel{name: %{source: :event}} = channel, notification) do
-    decode_event(channel, notification)
+      {:ok, notification} when is_map(notification) ->
+        do_decode(channel, notification)
+
+      {:error, _} ->
+        reason = "cannot decode channel message"
+        {:error, Schema.Error.new(code: -32_000, message: reason)}
+    end
   end
 
   @doc """
@@ -58,50 +61,24 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
     {:text, data}
   end
 
-  ####################
-  # Publishing helpers
-
-  @spec do_publish(Channel.t(), binary() | map()) ::
-          :ok
-          | :connected
-          | {:error, Schema.Error.t()}
-  defp do_publish(%Channel{} = channel, notification)
-       when is_binary(notification) do
-    case Jason.decode(notification) do
-      {:ok, %{"code" => 0}} ->
-        :connected
-
-      {:ok, %{"code" => code, "message" => message}} ->
-        {:error, Schema.Error.new(code: code, message: message)}
-
-      {:ok, notification} when is_map(notification) ->
-        do_publish(channel, notification)
-
-      {:error, _} ->
-        reason = "cannot decode channel message"
-        {:error, Schema.Error.new(code: -32_000, message: reason)}
-    end
-  end
-
-  defp do_publish(%Channel{} = channel, notification) do
-    with {:ok, messages} <- decode(channel, notification) do
-      Enum.reduce(messages, :ok, fn
-        %Tick{} = tick, _ ->
-          Publisher.notify(channel, tick)
-          {:ok, tick}
-
-        %EventLog{} = event_log, acc ->
-          Publisher.notify(channel, event_log)
-          acc
-      end)
-    end
-  end
-
   ##################
   # Decoding helpers
 
+  @spec do_decode(Channel.t(), map()) ::
+          {:ok, [t()]}
+          | {:error, Schema.Error.t()}
+  defp do_decode(channel, notification)
+
+  defp do_decode(%Channel{name: %{source: :block}} = channel, notification) do
+    decode_block(channel, notification)
+  end
+
+  defp do_decode(%Channel{name: %{source: :event}} = channel, notification) do
+    decode_event(channel, notification)
+  end
+
   @spec decode_block(Channel.t(), map()) ::
-          {:ok, [Schema.Types.EventLog.t() | Schema.Types.Block.Tick.t()]}
+          {:ok, [t()]}
           | {:error, Schema.Error.t()}
   defp decode_block(channel, notification)
 
@@ -143,7 +120,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
     |> Schema.load()
     |> Schema.apply(into: Schema.Types.Block.Tick)
     |> case do
-      {:ok, %Schema.Types.Block.Tick{} = tick} ->
+      {:ok, %Tick{} = tick} ->
         {:ok, [tick]}
 
       {:error, _} = error ->
@@ -157,7 +134,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
           nil | Schema.Types.Block.t(),
           [Schema.Types.EventLog.t()]
         ) ::
-          {:ok, [Schema.Types.EventLog.t()]}
+          {:ok, [t()]}
           | {:error, Schema.Error.t()}
   defp decode_events(notifications, identity, block \\ nil, event_logs \\ [])
 
@@ -192,7 +169,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
   end
 
   @spec decode_event(Channel.t(), map()) ::
-          {:ok, [Schema.Types.EventLog.t()]}
+          {:ok, [t()]}
           | {:error, Schema.Error.t()}
   defp decode_event(channel, notification)
 
@@ -203,9 +180,10 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
          {:ok, events_indexes} <- decode_events_indexes(notification),
          {:ok, height} <- decode_block_height(notification),
          {:ok, block} <- Icon.get_block(identity, height - 1),
+         block_tick = %Tick{hash: block.block_hash, height: block.height},
          {:ok, tx} <- get_transaction(block, tx_index),
          {:ok, event_logs} <- get_event_logs(identity, tx) do
-      {:ok, filter_logs(event_logs, events_indexes)}
+      {:ok, [block_tick | filter_logs(event_logs, events_indexes)]}
     else
       :error ->
         reason = "cannot decode information in notification"
