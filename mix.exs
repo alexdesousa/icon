@@ -44,14 +44,14 @@ defmodule Icon.MixProject do
 
   defp deps do
     [
-      {:finch, "~> 0.10"},
+      {:finch, "~> 0.12"},
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
       {:websockex, "~> 0.4"},
       {:yggdrasil, "~> 6.0"},
-      {:skogsra, "~> 2.3"},
+      {:skogsra, "~> 2.4"},
       {:bypass, "~> 2.1", only: :test},
-      {:plug_cowboy, "~> 2.0", pnly: :test},
+      {:plug_cowboy, "~> 2.5", only: :test},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
