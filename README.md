@@ -258,6 +258,7 @@ mailbox, we'll get something like the following:
 ```elixir
 iex> flush()
 {:Y_CONNECTED, %Yggdrasil.Channel{adapter: :icon, ...}}
+{:Y_EVENT, %Yggdrasil.Channel{adapter: :icon, ...}, %Icon.Schema.Types.Block.Tick{height: 42, hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"}}
 {:Y_EVENT, %Yggdrasil.Channel{adapter: :icon, ...}, %Icon.Schema.Types.EventLog{header: "Transfer(Address,Address,int)", indexed: ["hxfd7e4560ba363f5aabd32caac7317feeee70ea57", "hxbe7e4560ba363f5aabd32caac7317feeee70ea57"], ...}}
 ...
 ```
@@ -275,7 +276,6 @@ The following is a list of functionalities this SDK aims to support in the
 future:
 
 - [x] [Goloop API](https://www.icondev.io/icon-node/goloop/json-rpc/jsonrpc_v3)
-- [ ] Automatic SCORE API generation from `Icon.get_score_api/2` function.
 - [ ] [BTP Extension](https://www.icondev.io/icon-node/goloop/json-rpc/btp_extension)
 - [x] [Yggdrasil](https://github.com/gmtprime/yggdrasil) support for BTP websockets.
 - [ ] [IISS Extension](https://www.icondev.io/icon-node/goloop/json-rpc/iiss_extension)
@@ -288,7 +288,7 @@ installed by adding `icon` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:icon, "~> 0.1"}
+    {:icon, "~> 0.2"}
   ]
 end
 ```

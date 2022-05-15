@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0
+
+### Changes
+
+  * [Bugfix] Fixed bug where Yggdrasil events where arriving out of order.
+  * [Enhancement] Now subscribing to events returns the tick of the block where
+    the event occurred.
+
 ## v0.1.8
 
 ### Changes

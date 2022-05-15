@@ -1,7 +1,7 @@
 defmodule Icon.MixProject do
   use Mix.Project
 
-  @version "0.1.8"
+  @version "0.2.0"
   @name "ICON 2.0 SDK"
   @description "Basic API for interacting with ICON 2.0 blockchain"
   @app :icon
