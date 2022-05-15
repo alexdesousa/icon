@@ -329,12 +329,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     {:ok, %{state | height: height}}
   end
 
-  defp add_height(
-         %State{
-           height: height,
-           channel: %Channel{name: %{source: :block}}
-         } = state
-       )
+  defp add_height(%State{height: height} = state)
        when is_integer(height) and height > 0 do
     {:ok, state}
   end

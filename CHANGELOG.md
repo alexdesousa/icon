@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.1
+
+### Changes
+
+  * [Bugfix] Yggdrasil channels with source as event were ignoring the current
+    height when reconnecting.
+
 ## v0.2.0
 
 ### Changes
