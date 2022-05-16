@@ -2,6 +2,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC.Identity
+  alias Icon.Schema.Error
   alias Icon.Schema.Types.Block.Tick
   alias Yggdrasil.Backend
   alias Yggdrasil.Subscriber.Adapter.Icon, as: Subscriber
@@ -16,17 +17,15 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     defstruct test_pid: nil,
               url: nil,
               subscriber: nil,
-              index: nil,
               decoder: nil
 
     ##########
     # Contract
 
-    def start_link(index, url, options) do
+    def start_link(url, options) do
       state = %__MODULE__{
         url: url,
         subscriber: self(),
-        index: index,
         decoder: options[:decoder]
       }
 
@@ -88,10 +87,24 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     def handle_call(
           {:frame, frame},
           _from,
-          %__MODULE__{index: index, decoder: decoder} = state
+          %__MODULE__{decoder: decoder} = state
         ) do
-      Task.async(fn -> decoder.(index, frame) end)
-      {:reply, :ok, %{state | index: index + 1}}
+      case Jason.decode(frame) do
+        {:ok, notification} ->
+          Subscriber.send_height(state.subscriber, "0x2a")
+
+          spawn(fn ->
+            result = decoder.(notification)
+            Subscriber.send_frame(state.subscriber, result)
+          end)
+
+        _ ->
+          reason = "cannot decode channel message"
+          error = Error.new(code: -32_000, message: reason)
+          Subscriber.send_frame(state.subscriber, {:error, error})
+      end
+
+      {:reply, :ok, state}
     end
 
     @impl GenServer

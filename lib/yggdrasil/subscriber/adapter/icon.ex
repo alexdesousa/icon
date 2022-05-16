@@ -44,8 +44,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias __MODULE__, as: State
   alias Icon.RPC.Identity
   alias Icon.Schema
-  alias Icon.Schema.Types.Block.Tick
-  alias Icon.Schema.Types.EventLog
   alias Yggdrasil.Channel
   alias Yggdrasil.Config.Icon, as: Config
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
@@ -59,9 +57,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
             module: nil,
             status: :disconnected,
             height: :latest,
-            current_index: 1,
-            last_index: 0,
-            buffer: %{},
             retries: 0,
             backoff: 0
 
@@ -73,9 +68,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
           module: module :: module(),
           status: status :: :connected | :disconnected,
           height: height :: :latest | pos_integer(),
-          current_index: pos_integer(),
-          last_index: non_neg_integer(),
-          buffer: map(),
           retries: retries :: non_neg_integer(),
           backoff: backoff :: non_neg_integer()
         }
@@ -97,6 +89,14 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @spec send_frame(GenServer.server(), term()) :: :ok
   def send_frame(subscriber, frame) do
     GenServer.cast(subscriber, {:frame, frame})
+  end
+
+  @doc """
+  Informs the `subscriber` of a new `height`.
+  """
+  @spec send_height(GenServer.server(), pos_integer()) :: :ok
+  def send_height(subscriber, height) do
+    GenServer.cast(subscriber, {:height, height})
   end
 
   @doc """
@@ -161,8 +161,24 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     {:noreply, state}
   end
 
-  def handle_cast({:frame, {index, result}}, %State{} = state) do
-    handle_event(index, result, state)
+  def handle_cast({:frame, :ok}, %State{} = state) do
+    {:noreply, state, {:continue, :connected}}
+  end
+
+  def handle_cast({:frame, {:error, error}}, %State{} = state) do
+    {:noreply, state, {:continue, {:backoff, error}}}
+  end
+
+  def handle_cast({:frame, {:ok, events}}, %State{channel: channel} = state) do
+    Enum.each(events, &Publisher.notify(channel, &1))
+    {:noreply, state}
+  end
+
+  def handle_cast({:height, encoded_height}, %State{} = state) do
+    case Schema.Types.Integer.load(encoded_height) do
+      {:ok, height} -> {:noreply, %{state | height: height}}
+      :error -> {:noreply, state}
+    end
   end
 
   def handle_cast({:disconnected, reason}, %State{} = state) do
@@ -198,11 +214,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   defp initialize(
          %State{
            status: :disconnected,
-           module: module
+           module: module,
+           channel: channel
          } = state
        ) do
     with {:ok, %State{url: url} = state} <- add_height(state),
-         options = [decoder: message_decoder(state)],
+         options = [decoder: &Message.decode(channel, &1)],
          {:ok, websocket} <- module.start_link(url, options) do
       Process.monitor(websocket)
       state = %{state | websocket: websocket}
@@ -339,98 +356,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
       {:error, _} = error ->
         error
-    end
-  end
-
-  ##################
-  # Decoding helpers
-
-  @spec message_decoder(t()) :: (pos_integer(), binary() -> :ok)
-  defp message_decoder(%State{channel: channel}) do
-    pid = self()
-
-    fn index, frame ->
-      result = Message.decode(channel, frame)
-
-      send_frame(pid, {index, result})
-    end
-  end
-
-  @spec handle_event(pos_integer(), result, t()) ::
-          {:noreply, t()}
-          | {:noreply, t(), {:continue, :connected}}
-          | {:noreply, t(), {:continue, {:backoff, Schema.Error.t()}}}
-        when result: :ok | {:ok, [message]} | {:error, Schema.Error.t()},
-             message: Tick.t() | EventLog.t()
-  defp handle_event(index, result, state)
-
-  defp handle_event(index, :ok, %State{} = state) do
-    new_state = %{state | last_index: index, buffer: %{}}
-    {:noreply, new_state, {:continue, :connected}}
-  end
-
-  defp handle_event(index, {:ok, list}, %State{last_index: last_index} = state)
-       when index == last_index + 1 do
-    # Sends all consecutive events from this index on.
-    new_state = %{state | buffer: Map.put(state.buffer, index, list)}
-    {:noreply, publish_events(index, new_state)}
-  end
-
-  defp handle_event(index, _, %State{last_index: last_index} = state)
-       when index < last_index + 1 do
-    # Previous events should be ignored
-    {:noreply, state}
-  end
-
-  defp handle_event(index, {:ok, list}, %State{last_index: last_index} = state)
-       when index > last_index + 1 do
-    # Puts events in the buffer when it's not their time.
-    new_state = %{state | buffer: Map.put(state.buffer, index, list)}
-    {:noreply, new_state}
-  end
-
-  defp handle_event(index, {:error, %Schema.Error{} = error}, %State{} = state) do
-    buffer =
-      state.buffer
-      |> Stream.reject(fn {k, _v} -> k >= index end)
-      |> Map.new()
-
-    new_state = %{state | buffer: buffer}
-
-    smallest_index =
-      buffer
-      |> Map.keys()
-      |> List.first()
-
-    sent_state = publish_events(smallest_index, new_state)
-
-    flushed_state = %{sent_state | buffer: %{}, last_index: index}
-
-    {:noreply, flushed_state, {:continue, {:backoff, error}}}
-  end
-
-  # Publishes consecutive events from a given index.
-  @spec publish_events(nil | non_neg_integer(), t()) :: t()
-  defp publish_events(index, state)
-
-  defp publish_events(nil, %State{} = state), do: state
-
-  defp publish_events(index, %State{buffer: buffer, channel: channel} = state) do
-    case Map.pop(buffer, index) do
-      {[%Tick{height: height} | _] = events, new_buffer} ->
-        Enum.each(events, &Publisher.notify(channel, &1))
-
-        new_state = %{
-          state
-          | height: height,
-            last_index: index,
-            buffer: new_buffer
-        }
-
-        publish_events(index + 1, new_state)
-
-      {nil, _} ->
-        state
     end
   end
 

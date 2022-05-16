@@ -4,6 +4,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
   """
   use WebSockex
   alias __MODULE__, as: State
+  alias Icon.Schema.Error
   alias Yggdrasil.Subscriber.Adapter.Icon
 
   @doc false
@@ -87,9 +88,28 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
   @impl WebSockex
   def handle_frame(
         {:text, frame},
-        %State{decoder: decoder} = state
+        %State{subscriber: pid, decoder: decoder} = state
       ) do
-    spawn(fn -> decoder.(frame) end)
+    case Jason.decode(frame) do
+      {:ok, %{"height" => encoded_height} = notification} ->
+        Icon.send_height(pid, encoded_height)
+
+        spawn(fn ->
+          result = decoder.(notification)
+          Icon.send_frame(pid, result)
+        end)
+
+      {:ok, notification} when is_map(notification) ->
+        spawn(fn ->
+          result = decoder.(notification)
+          Icon.send_frame(pid, result)
+        end)
+
+      _ ->
+        reason = "cannot decode channel message"
+        error = Error.new(code: -32_000, message: reason)
+        Icon.send_frame(pid, {:error, error})
+    end
 
     {:ok, state}
   end
