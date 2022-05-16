@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.3
+
+### Changes
+
+  * [Bugfix] Sometimes the subscriber could hang and not publish any messages
+    because it was ensuring order. This lead to slow synchronizations. Now the
+    messages are not guaranteed to arrive in order, but the event logs now
+    include the height, so it's easier for the subscriber to pick the order
+    from that.
+
 ## v0.2.2
 
 ### Changes
