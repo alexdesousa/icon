@@ -94,7 +94,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   @doc """
   Informs the `subscriber` of a new `frame`.
   """
-  @spec send_frame(GenServer.server(), WebSockex.frame()) :: :ok
+  @spec send_frame(GenServer.server(), term()) :: :ok
   def send_frame(subscriber, frame) do
     GenServer.cast(subscriber, {:frame, frame})
   end
@@ -161,13 +161,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
     {:noreply, state}
   end
 
-  def handle_cast(
-        {:frame, {:text, frame}},
-        %State{channel: channel, current_index: index} = state
-      ) do
-    Task.async(fn -> {index, Message.decode(channel, frame)} end)
-
-    {:noreply, %{state | current_index: index + 1}}
+  def handle_cast({:frame, {index, result}}, %State{} = state) do
+    handle_event(index, result, state)
   end
 
   def handle_cast({:disconnected, reason}, %State{} = state) do
@@ -179,11 +174,6 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
   def handle_info(:re_init, %State{} = state) do
     {:noreply, state, {:continue, :init}}
-  end
-
-  def handle_info({ref, {index, result}}, %State{} = state)
-      when is_reference(ref) do
-    handle_event(index, result, state)
   end
 
   def handle_info(
@@ -205,9 +195,16 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
           | {:noreply, t(), {:continue, {:backoff, term()}}}
   defp initialize(state)
 
-  defp initialize(%State{status: :disconnected, module: module} = state) do
+  defp initialize(
+         %State{
+           status: :disconnected,
+           module: module,
+           current_index: index
+         } = state
+       ) do
     with {:ok, %State{url: url} = state} <- add_height(state),
-         {:ok, websocket} <- module.start_link(url, []) do
+         options = [decoder: message_decoder(state)],
+         {:ok, websocket} <- module.start_link(index, url, options) do
       Process.monitor(websocket)
       state = %{state | websocket: websocket}
       {:noreply, state}
@@ -348,6 +345,17 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
   ##################
   # Decoding helpers
+
+  @spec message_decoder(t()) :: (pos_integer(), binary() -> :ok)
+  defp message_decoder(%State{channel: channel}) do
+    pid = self()
+
+    fn index, frame ->
+      result = Message.decode(channel, frame)
+
+      send_frame(pid, {index, result})
+    end
+  end
 
   @spec handle_event(pos_integer(), result, t()) ::
           {:noreply, t()}

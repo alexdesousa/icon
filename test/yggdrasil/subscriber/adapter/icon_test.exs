@@ -15,15 +15,19 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
 
     defstruct test_pid: nil,
               url: nil,
-              subscriber: nil
+              subscriber: nil,
+              index: nil,
+              decoder: nil
 
     ##########
     # Contract
 
-    def start_link(url, _options) do
+    def start_link(index, url, options) do
       state = %__MODULE__{
         url: url,
-        subscriber: self()
+        subscriber: self(),
+        index: index,
+        decoder: options[:decoder]
       }
 
       GenServer.start_link(__MODULE__, state, [])
@@ -81,9 +85,13 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
       {:reply, :ok, state}
     end
 
-    def handle_call({:frame, frame}, _from, %__MODULE__{} = state) do
-      Subscriber.send_frame(state.subscriber, frame)
-      {:reply, :ok, state}
+    def handle_call(
+          {:frame, frame},
+          _from,
+          %__MODULE__{index: index, decoder: decoder} = state
+        ) do
+      Task.async(fn -> decoder.(index, frame) end)
+      {:reply, :ok, %{state | index: index + 1}}
     end
 
     @impl GenServer
@@ -177,7 +185,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
     assert %Subscriber{
@@ -205,7 +213,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
     :ok = WebSocketMock.trigger_disconnected(websocket, :shutdown)
@@ -236,10 +244,10 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s(invalid)})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s(invalid))
 
     assert_receive {:Y_DISCONNECTED, ^channel}
 
@@ -292,7 +300,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
     :ok = Subscriber.stop(pid, :shutdown)
@@ -316,7 +324,7 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
     Process.exit(websocket, :shutdown)
@@ -347,10 +355,10 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
     :ok = WebSocketMock.trigger_connected(websocket)
     assert_receive {:init, {:text, _message}}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"code":0})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"code":0}))
     assert_receive {:Y_CONNECTED, ^channel}
 
-    :ok = WebSocketMock.trigger_frame(websocket, {:text, ~s({"height":"0x2b"})})
+    :ok = WebSocketMock.trigger_frame(websocket, ~s({"height":"0x2b"}))
 
     assert_receive {:Y_EVENT, ^channel, %Tick{height: 43}}, 10_000
   end

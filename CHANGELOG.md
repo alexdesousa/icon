@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.2
+
+### Changes
+
+  * [Bugfix] When events were coming too fast, the subscriber was drowned in
+    messages and could never publish the messages.
+
 ## v0.2.1
 
 ### Changes
