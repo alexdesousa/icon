@@ -6,6 +6,9 @@
 
   * [Bugfix] Sometimes blocks contain non-standard transaction failure reason
     and made schema decoding fail.
+  * [Bugfix] When messages are coming too fast, the messages overflowing the
+    subscriber are height messages. Now the actual messages are immediately
+    sent to subscribers.
 
 ## v0.2.3
 
