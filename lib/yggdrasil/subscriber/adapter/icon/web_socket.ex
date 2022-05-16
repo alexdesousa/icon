@@ -9,15 +9,13 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
   @doc false
   defstruct url: nil,
             subscriber: nil,
-            index: nil,
             decoder: nil
 
   @typedoc false
   @type t :: %State{
           url: url :: binary(),
           subscriber: pid(),
-          index: non_neg_integer(),
-          decoder: (pos_integer(), binary() -> :ok)
+          decoder: (binary() -> :ok)
         }
 
   ############
@@ -33,19 +31,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
   @spec start_link(binary(), keyword()) ::
           {:ok, pid()}
           | {:error, term()}
-  @spec start_link(pos_integer(), binary(), keyword()) ::
-          {:ok, pid()}
-          | {:error, term()}
-  def start_link(index \\ 1, url, options) do
+  def start_link(url, options) do
     caller = self()
 
     {decoder, options} =
-      Keyword.pop(options, :decoder, fn _index, frame ->
+      Keyword.pop(options, :decoder, fn frame ->
         Icon.send_frame(caller, frame)
       end)
 
     state = %__MODULE__{
-      index: index,
       url: url,
       subscriber: caller,
       decoder: decoder
@@ -93,11 +87,11 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
   @impl WebSockex
   def handle_frame(
         {:text, frame},
-        %State{index: index, decoder: decoder} = state
+        %State{decoder: decoder} = state
       ) do
-    spawn(fn -> decoder.(index, frame) end)
+    spawn(fn -> decoder.(frame) end)
 
-    {:ok, %{state | index: index + 1}}
+    {:ok, state}
   end
 
   @impl WebSockex

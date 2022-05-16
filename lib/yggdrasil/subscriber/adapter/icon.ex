@@ -198,13 +198,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   defp initialize(
          %State{
            status: :disconnected,
-           module: module,
-           current_index: index
+           module: module
          } = state
        ) do
     with {:ok, %State{url: url} = state} <- add_height(state),
          options = [decoder: message_decoder(state)],
-         {:ok, websocket} <- module.start_link(index, url, options) do
+         {:ok, websocket} <- module.start_link(url, options) do
       Process.monitor(websocket)
       state = %{state | websocket: websocket}
       {:noreply, state}
