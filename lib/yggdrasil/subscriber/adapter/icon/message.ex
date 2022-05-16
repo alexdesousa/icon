@@ -25,25 +25,20 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
   @doc """
   Decodes an incoming message from the ICON 2.0 websocket.
   """
-  @spec decode(Channel.t(), binary()) ::
+  @spec decode(Channel.t(), map()) ::
           :ok
           | {:ok, [t()]}
           | {:error, Schema.Error.t()}
-  def decode(%Channel{} = channel, notification)
-      when is_binary(notification) do
-    case Jason.decode(notification) do
-      {:ok, %{"code" => 0}} ->
+  def decode(%Channel{} = channel, notification) do
+    case notification do
+      %{"code" => 0} ->
         :ok
 
-      {:ok, %{"code" => code, "message" => message}} ->
+      %{"code" => code, "message" => message} ->
         {:error, Schema.Error.new(code: code, message: message)}
 
-      {:ok, notification} when is_map(notification) ->
+      notification when is_map(notification) ->
         do_decode(channel, notification)
-
-      {:error, _} ->
-        reason = "cannot decode channel message"
-        {:error, Schema.Error.new(code: -32_000, message: reason)}
     end
   end
 
@@ -162,7 +157,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
     with {:ok, tx_index} <- decode_transaction_index(notification),
          {:ok, events_indexes} <- decode_events_indexes(notification),
          {:ok, transaction} <- get_transaction(block, tx_index),
-         {:ok, new_events} <- get_event_logs(identity, transaction) do
+         {:ok, new_events} <- get_event_logs(identity, block, transaction) do
       new_events = filter_logs(new_events, events_indexes)
       decode_events(notifications, identity, block, new_events ++ events)
     end
@@ -182,7 +177,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
          {:ok, block} <- Icon.get_block(identity, height - 1),
          block_tick = %Tick{hash: block.block_hash, height: block.height},
          {:ok, tx} <- get_transaction(block, tx_index),
-         {:ok, event_logs} <- get_event_logs(identity, tx) do
+         {:ok, event_logs} <- get_event_logs(identity, block, tx) do
       {:ok, [block_tick | filter_logs(event_logs, events_indexes)]}
     else
       :error ->
@@ -251,15 +246,24 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.Message do
     end
   end
 
-  @spec get_event_logs(Identity.t(), Schema.Types.Transaction.t()) ::
+  @spec get_event_logs(
+          Identity.t(),
+          Schema.Types.Block.t(),
+          Schema.Types.Transaction.t()
+        ) ::
           {:ok, [Schema.Types.EventLog.t()]}
           | {:error, Schema.Error.t()}
-  defp get_event_logs(identity, transaction)
+  defp get_event_logs(identity, block, transaction)
 
-  defp get_event_logs(identity, %Schema.Types.Transaction{} = transaction) do
+  defp get_event_logs(
+         identity,
+         %Schema.Types.Block{height: height},
+         %Schema.Types.Transaction{} = transaction
+       ) do
     with {:ok, %Schema.Types.Transaction.Result{} = result} <-
            Icon.get_transaction_result(identity, transaction.txHash) do
-      {:ok, result.eventLogs}
+      logs = Enum.map(result.eventLogs, fn log -> %{log | height: height} end)
+      {:ok, logs}
     end
   end
 

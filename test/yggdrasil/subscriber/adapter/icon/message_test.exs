@@ -27,16 +27,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     end
 
     test "decodes a successful connection message", %{channel: channel} do
-      notification = Jason.encode!(%{"code" => 0})
+      notification = %{"code" => 0}
       assert :ok = Message.decode(channel, notification)
     end
 
     test "decodes a failed connection message", %{channel: channel} do
-      notification =
-        Jason.encode!(%{
-          "code" => -32_000,
-          "message" => "Some error"
-        })
+      notification = %{
+        "code" => -32_000,
+        "message" => "Some error"
+      }
 
       assert {:error,
               %Error{
@@ -133,22 +132,21 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
       end)
 
       # Actual test
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "indexes" => [
-            [
-              "0x1"
-            ]
-          ],
-          "events" => [
-            [
-              ["0x1"]
-            ]
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "indexes" => [
+          [
+            "0x1"
           ]
-        })
+        ],
+        "events" => [
+          [
+            ["0x1"]
+          ]
+        ]
+      }
 
       assert {
                :ok,
@@ -175,12 +173,11 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when tick cannot be decoded", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "invalid",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
-        })
+      notification = %{
+        "height" => "invalid",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+      }
 
       assert {
                :error,
@@ -210,14 +207,13 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         Plug.Conn.resp(conn, 200, result)
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "indexes" => [["invalid"]],
-          "events" => [[["0x1"]]]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "indexes" => [["invalid"]],
+        "events" => [[["0x1"]]]
+      }
 
       assert {
                :error,
@@ -237,14 +233,13 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         Plug.Conn.resp(conn, 500, "")
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "indexes" => [["0x1"]],
-          "events" => [[["0x1"]]]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "indexes" => [["0x1"]],
+        "events" => [[["0x1"]]]
+      }
 
       assert {
                :error,
@@ -274,14 +269,13 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         Plug.Conn.resp(conn, 200, result)
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "indexes" => [["0x1"]],
-          "events" => [[["0x1"]]]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "indexes" => [["0x1"]],
+        "events" => [[["0x1"]]]
+      }
 
       assert {
                :error,
@@ -379,16 +373,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
       end)
 
       # Actual test
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :ok,
@@ -415,16 +408,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when it cannot decode index", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "invalid",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "invalid",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -439,15 +431,14 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when there's no transaction index", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -462,16 +453,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when it cannot decode events", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "invalid"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "invalid"
+        ]
+      }
 
       assert {
                :error,
@@ -486,13 +476,12 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when there are no events", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1"
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1"
+      }
 
       assert {
                :error,
@@ -507,16 +496,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when it cannot decode height", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "height" => "invalid",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "invalid",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -531,15 +519,14 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
     test "errors when there's no height", %{
       channel: channel
     } do
-      notification =
-        Jason.encode!(%{
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -559,16 +546,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         Plug.Conn.resp(conn, 500, "")
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -598,16 +584,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         Plug.Conn.resp(conn, 200, result)
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
@@ -657,16 +642,15 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.MessageTest do
         end
       end)
 
-      notification =
-        Jason.encode!(%{
-          "height" => "0x2a",
-          "hash" =>
-            "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-          "index" => "0x1",
-          "events" => [
-            "0x1"
-          ]
-        })
+      notification = %{
+        "height" => "0x2a",
+        "hash" =>
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+        "index" => "0x1",
+        "events" => [
+          "0x1"
+        ]
+      }
 
       assert {
                :error,
