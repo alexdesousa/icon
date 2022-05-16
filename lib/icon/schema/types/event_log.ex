@@ -57,7 +57,8 @@ defmodule Icon.Schema.Types.EventLog do
             name: nil,
             score_address: nil,
             indexed: [],
-            data: []
+            data: [],
+            height: nil
 
   @typedoc """
   An event log.
