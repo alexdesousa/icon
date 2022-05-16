@@ -44,6 +44,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   alias __MODULE__, as: State
   alias Icon.RPC.Identity
   alias Icon.Schema
+  alias Yggdrasil.Backend
   alias Yggdrasil.Channel
   alias Yggdrasil.Config.Icon, as: Config
   alias Yggdrasil.Subscriber.Adapter.Icon.Message
@@ -214,12 +215,11 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   defp initialize(
          %State{
            status: :disconnected,
-           module: module,
-           channel: channel
+           module: module
          } = state
        ) do
     with {:ok, %State{url: url} = state} <- add_height(state),
-         options = [decoder: &Message.decode(channel, &1)],
+         options = [decoder: message_decoder(state)],
          {:ok, websocket} <- module.start_link(url, options) do
       Process.monitor(websocket)
       state = %{state | websocket: websocket}
@@ -356,6 +356,32 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
 
       {:error, _} = error ->
         error
+    end
+  end
+
+  ##################
+  # Decoding helpers
+
+  @spec message_decoder(t()) :: (map() -> :ok)
+  defp message_decoder(%State{channel: channel}) do
+    pid = self()
+
+    fn
+      %{"height" => encoded_height} = notification ->
+        send_height(pid, encoded_height)
+
+        case Message.decode(channel, notification) do
+          {:ok, events} when is_list(events) ->
+            Enum.each(events, &Backend.publish(channel, &1))
+            :ok
+
+          {:error, _} = error ->
+            send_frame(pid, error)
+        end
+
+      notification when is_map(notification) ->
+        result = Message.decode(channel, notification)
+        send_frame(pid, result)
     end
   end
 

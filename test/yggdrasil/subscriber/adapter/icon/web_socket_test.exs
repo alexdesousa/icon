@@ -29,8 +29,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocketTest do
     :ok = WebSocket.initialize(websocket, {:text, ~s({"height":"0x2a"})})
     _router = Router.trigger_message(router, %{"height" => "0x2a"})
     assert_receive {:"$gen_cast", :connected}
-    assert_receive {:"$gen_cast", {:frame, :ok}}
-    assert_receive {:"$gen_cast", {:height, "0x2a"}}
+    assert_receive {:"$gen_cast", {:frame, %{"code" => 0}}}
     assert_receive {:"$gen_cast", {:frame, %{"height" => "0x2a"}}}
   end
 
@@ -39,7 +38,7 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocketTest do
     :ok = WebSocket.initialize(websocket, {:text, ~s({"height":"0x2a"})})
     _router = Router.trigger_message(router, "invalid")
     assert_receive {:"$gen_cast", :connected}
-    assert_receive {:"$gen_cast", {:frame, :ok}}
+    assert_receive {:"$gen_cast", {:frame, %{"code" => 0}}}
     assert_receive {:"$gen_cast", {:frame, {:error, _}}}
   end
 end

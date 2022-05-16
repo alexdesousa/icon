@@ -90,13 +90,8 @@ defmodule Yggdrasil.Subscriber.Adapter.IconTest do
           %__MODULE__{decoder: decoder} = state
         ) do
       case Jason.decode(frame) do
-        {:ok, notification} ->
-          Subscriber.send_height(state.subscriber, "0x2a")
-
-          spawn(fn ->
-            result = decoder.(notification)
-            Subscriber.send_frame(state.subscriber, result)
-          end)
+        {:ok, notification} when is_map(notification) ->
+          spawn(fn -> decoder.(notification) end)
 
         _ ->
           reason = "cannot decode channel message"

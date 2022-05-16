@@ -91,19 +91,8 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon.WebSocket do
         %State{subscriber: pid, decoder: decoder} = state
       ) do
     case Jason.decode(frame) do
-      {:ok, %{"height" => encoded_height} = notification} ->
-        Icon.send_height(pid, encoded_height)
-
-        spawn(fn ->
-          result = decoder.(notification)
-          Icon.send_frame(pid, result)
-        end)
-
       {:ok, notification} when is_map(notification) ->
-        spawn(fn ->
-          result = decoder.(notification)
-          Icon.send_frame(pid, result)
-        end)
+        spawn(fn -> decoder.(notification) end)
 
       _ ->
         reason = "cannot decode channel message"
