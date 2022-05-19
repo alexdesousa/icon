@@ -95,6 +95,16 @@ defmodule Icon.Schema.ErrorTest do
              } = Error.new(message: "Some other error")
     end
 
+    test "handles not standard messages" do
+      assert %Error{
+               code: 32,
+               reason: :score_unknown_failure,
+               domain: :contract,
+               message: "Reverted(0)",
+               data: nil
+             } = Error.new(%{code: "0x20", reason: "Reverted(0)"})
+    end
+
     test "unflattens errors in schema" do
       expected =
         "boolean is required, integer is invalid, schema.address is required"

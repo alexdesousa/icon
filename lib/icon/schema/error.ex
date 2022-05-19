@@ -124,6 +124,16 @@ defmodule Icon.Schema.Error do
     }
   end
 
+  def new(%{code: "0x" <> _ = code} = error) do
+    %__MODULE__{
+      code: Type.load!(Schema.Types.Integer, code),
+      reason: :score_unknown_failure,
+      domain: :contract,
+      message: error[:reason],
+      data: nil
+    }
+  end
+
   def new(error) do
     reason = error[:reason]
     code = error[:code] || if reason, do: code(reason), else: -32_000

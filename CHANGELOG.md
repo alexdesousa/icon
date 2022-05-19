@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.4
+
+### Changes
+
+  * [Bugfix] Sometimes blocks contain non-standard transaction failure reason
+    and made schema decoding fail.
+
 ## v0.2.3
 
 ### Changes
