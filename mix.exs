@@ -1,7 +1,7 @@
 defmodule Icon.MixProject do
   use Mix.Project
 
-  @version "0.2.4"
+  @version "0.2.5"
   @name "ICON 2.0 SDK"
   @description "Basic API for interacting with ICON 2.0 blockchain"
   @app :icon
@@ -47,6 +47,8 @@ defmodule Icon.MixProject do
       {:finch, "~> 0.12"},
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
+      {:mint, "~> 1.4"},
+      {:mint_web_socket, "~> 1.0"},
       {:websockex, "~> 0.4"},
       {:yggdrasil, "~> 6.0"},
       {:skogsra, "~> 2.4"},
