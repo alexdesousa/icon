@@ -47,6 +47,7 @@ defmodule Icon.MixProject do
       {:finch, "~> 0.12"},
       {:jason, "~> 1.3"},
       {:curvy, "~> 0.3"},
+      {:gen_stage, "~> 1.0"},
       {:mint, "~> 1.4"},
       {:mint_web_socket, "~> 1.0"},
       {:websockex, "~> 0.4"},
