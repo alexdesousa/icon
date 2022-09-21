@@ -9,7 +9,6 @@ defmodule Icon.Stream do
     Type,
     Types,
     Types.Block,
-    Types.Block.Tick,
     Types.SCORE
   }
 
@@ -37,7 +36,7 @@ defmodule Icon.Stream do
           events: events :: events(),
           height: height :: non_neg_integer(),
           type: height_type :: :latest | :past,
-          buffer: buffer :: :queue.queue(Tick.t()),
+          buffer: buffer :: :queue.queue(map()),
           max_buffer_size: buffer_size :: pos_integer()
         }
 
@@ -167,20 +166,19 @@ defmodule Icon.Stream do
   end
 
   @doc """
-  Puts new ticks into the buffer.
+  Puts new events into the buffer.
   """
-  @spec put(t(), [Tick.t()]) :: t()
-  def put(stream, ticks)
+  @spec put(t(), [map()]) :: t()
+  def put(stream, events)
 
-  def put(%__MODULE__{buffer: buffer} = stream, ticks)
-      when is_list(ticks) do
-    %__MODULE__{stream | buffer: Enum.reduce(ticks, buffer, &:queue.in/2)}
+  def put(%__MODULE__{buffer: buffer} = stream, events) when is_list(events) do
+    %__MODULE__{stream | buffer: Enum.reduce(events, buffer, &:queue.in/2)}
   end
 
   @doc """
-  Pops an `amount` of `Tick.t()` from the stream buffer.
+  Pops an `amount` of events from the stream buffer.
   """
-  @spec pop(t(), non_neg_integer()) :: {[Tick.t()], t()}
+  @spec pop(t(), non_neg_integer()) :: {[map()], t()}
   def pop(stream, amount)
 
   def pop(%__MODULE__{buffer: buffer, height: height} = stream, amount)
@@ -195,8 +193,8 @@ defmodule Icon.Stream do
         :empty ->
           height
 
-        {:value, %Tick{height: height}} ->
-          height
+        {:value, %{"height" => height}} ->
+          Type.load!(Types.Integer, height)
       end
 
     new_stream = %__MODULE__{
@@ -233,8 +231,8 @@ defmodule Icon.Stream do
     if value < 0.0, do: 0.0, else: value
   end
 
-  ##################
-  # Helper functions
+  ##########################
+  # Initialization functions
 
   @spec new(source(), nil | events(), options()) ::
           {:ok, t()} | {:error, Error.t()}
@@ -273,6 +271,9 @@ defmodule Icon.Stream do
   defp get_height(%Identity{} = _identity, height) when height >= 0 do
     {:ok, height}
   end
+
+  ####################
+  # Encoding functions
 
   @spec encode_event(event()) :: map()
   defp encode_event(%{event: header} = data) when is_binary(header) do

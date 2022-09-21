@@ -2,7 +2,6 @@ defmodule Icon.StreamTest do
   use ExUnit.Case, async: true
 
   alias Icon.RPC.Identity
-  alias Icon.Schema.Types.Block.Tick
 
   describe "new_block_stream/2" do
     test "should create a new stream without any parameters" do
@@ -559,48 +558,48 @@ defmodule Icon.StreamTest do
   end
 
   describe "put/2" do
-    test "should store the ticks in the buffer" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+    test "should store the events in the buffer" do
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
                Icon.Stream.new_block_stream([], from_height: 0)
 
-      stream = Icon.Stream.put(stream, ticks)
-      assert {^ticks, _stream} = Icon.Stream.pop(stream, 3)
+      stream = Icon.Stream.put(stream, events)
+      assert {^events, _stream} = Icon.Stream.pop(stream, 3)
     end
   end
 
   describe "pop/2" do
-    test "should pop the amount of ticks requested if they exist" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+    test "should pop the amount of events requested if they exist" do
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
                Icon.Stream.new_block_stream([], from_height: 0)
 
-      stream = Icon.Stream.put(stream, ticks)
-      assert {^ticks, _stream} = Icon.Stream.pop(stream, 3)
+      stream = Icon.Stream.put(stream, events)
+      assert {^events, _stream} = Icon.Stream.pop(stream, 3)
     end
 
-    test "should pop all ticks when the amount is greater than the buffer size" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+    test "should pop all events when the amount is greater than the buffer size" do
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
                Icon.Stream.new_block_stream([], from_height: 0)
 
-      stream = Icon.Stream.put(stream, ticks)
-      assert {^ticks, _stream} = Icon.Stream.pop(stream, 100)
+      stream = Icon.Stream.put(stream, events)
+      assert {^events, _stream} = Icon.Stream.pop(stream, 100)
     end
 
     test "should return an empty list when the buffer is empty" do
@@ -611,16 +610,16 @@ defmodule Icon.StreamTest do
     end
 
     test "should change the height if the buffer is not empty" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
                Icon.Stream.new_block_stream([], from_height: 0)
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
       assert {[_, _], %Icon.Stream{height: 1}} = Icon.Stream.pop(stream, 2)
     end
 
@@ -634,10 +633,10 @@ defmodule Icon.StreamTest do
 
   describe "is_full?" do
     test "should return true when the buffer is full" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
@@ -646,16 +645,16 @@ defmodule Icon.StreamTest do
                  max_buffer_size: 3
                )
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
 
       assert Icon.Stream.is_full?(stream)
     end
 
     test "should return false when the buffer is not full" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
@@ -664,7 +663,7 @@ defmodule Icon.StreamTest do
                  max_buffer_size: 4
                )
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
 
       refute Icon.Stream.is_full?(stream)
     end
@@ -672,10 +671,10 @@ defmodule Icon.StreamTest do
 
   describe "check_capacity/1" do
     test "should return the percentage of space left in the buffer" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
@@ -684,16 +683,16 @@ defmodule Icon.StreamTest do
                  max_buffer_size: 4
                )
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
 
       assert_in_delta Icon.Stream.check_space_left(stream), 0.25, 0.001
     end
 
     test "should return 0 if the buffer is full" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
@@ -702,16 +701,16 @@ defmodule Icon.StreamTest do
                  max_buffer_size: 3
                )
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
 
       assert_in_delta Icon.Stream.check_space_left(stream), 0.0, 0.001
     end
 
     test "should return 0 when the buffer is overflowed" do
-      ticks = [
-        %Tick{height: 0},
-        %Tick{height: 1},
-        %Tick{height: 2}
+      events = [
+        %{"height" => "0x0"},
+        %{"height" => "0x1"},
+        %{"height" => "0x2"}
       ]
 
       assert {:ok, %Icon.Stream{} = stream} =
@@ -720,7 +719,7 @@ defmodule Icon.StreamTest do
                  max_buffer_size: 2
                )
 
-      stream = Icon.Stream.put(stream, ticks)
+      stream = Icon.Stream.put(stream, events)
 
       assert_in_delta Icon.Stream.check_space_left(stream), 0.0, 0.001
     end

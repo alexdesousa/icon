@@ -8,8 +8,6 @@ defmodule Icon.Stream.WebSocket do
   require Logger
 
   alias __MODULE__, as: State
-  alias Icon.Schema
-  alias Icon.Schema.Types.Block.Tick
 
   @typedoc false
   @type status ::
@@ -66,8 +64,8 @@ defmodule Icon.Stream.WebSocket do
   Gets an `amount` of ticks from a `websocket`. The `amount` of ticks defaults
   to `1`.
   """
-  @spec get(GenServer.server()) :: [Tick.t()]
-  @spec get(GenServer.server(), pos_integer()) :: [Tick.t()]
+  @spec get(GenServer.server()) :: [map()]
+  @spec get(GenServer.server(), pos_integer()) :: [map()]
   def get(websocket, amount \\ 1)
 
   def get(websocket, amount) do
@@ -429,49 +427,31 @@ defmodule Icon.Stream.WebSocket do
     end
   end
 
-  @spec decode_frames([Mint.WebSocket.frame()]) :: [Tick.t() | map()]
+  @spec decode_frames([Mint.WebSocket.frame()]) :: [map()]
   defp decode_frames(frames, acc \\ [])
 
   defp decode_frames([], acc) do
     Enum.reverse(acc)
   end
 
-  defp decode_frames([{:text, "{\"code\":" <> _ = data} | rest], acc) do
+  defp decode_frames([{:text, data} | rest], acc) do
     decoded = Jason.decode!(data)
 
     decode_frames(rest, [decoded | acc])
-  end
-
-  defp decode_frames([{:text, data} | rest], acc) do
-    event = Jason.decode!(data)
-
-    Tick
-    |> Schema.generate()
-    |> Schema.new(event)
-    |> Schema.load()
-    |> Schema.apply(into: Tick)
-    |> case do
-      {:ok, %Tick{} = tick} ->
-        decode_frames(rest, [tick | acc])
-
-      {:error, reason} ->
-        log_error(reason)
-        decode_frames(rest, acc)
-    end
   end
 
   defp decode_frames([_ | rest], acc) do
     decode_frames(rest, acc)
   end
 
-  @spec handle_messages(t(), [Tick.t()]) :: t()
-  defp handle_messages(state, ticks)
+  @spec handle_messages(t(), [map()]) :: t()
+  defp handle_messages(state, events)
 
   defp handle_messages(
          %State{status: :consuming, stream: %Icon.Stream{} = stream} = state,
-         ticks
+         events
        ) do
-    new_stream = Icon.Stream.put(stream, ticks)
+    new_stream = Icon.Stream.put(stream, events)
     new_state = %State{state | stream: new_stream}
 
     if Icon.Stream.is_full?(new_stream) do
@@ -508,7 +488,7 @@ defmodule Icon.Stream.WebSocket do
   #########################
   # Demand helper functions
 
-  @spec demand(t(), pos_integer()) :: {t(), [Tick.t()]}
+  @spec demand(t(), pos_integer()) :: {t(), [map()]}
   defp demand(state, amount)
 
   defp demand(%State{stream: %Icon.Stream{} = stream} = state, amount) do
