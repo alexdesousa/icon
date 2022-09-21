@@ -13,7 +13,8 @@ defmodule Icon.Stream.WebSocket do
 
   @typedoc false
   @type status ::
-          :connecting
+          :starting
+          | :connecting
           | :upgrading
           | :initializing
           | :setting_up
@@ -22,11 +23,19 @@ defmodule Icon.Stream.WebSocket do
           | :terminating
 
   @doc false
-  defstruct [:status, :stream, :conn, :ref, :websocket]
+  defstruct status: :starting,
+            debug: nil,
+            caller: nil,
+            stream: nil,
+            ref: nil,
+            conn: nil,
+            websocket: nil
 
   @typedoc false
   @type t :: %State{
           status: status :: status(),
+          debug: debug :: boolean(),
+          caller: caller :: pid(),
           stream: Icon.Stream.t(),
           conn: http_connection :: nil | Mint.Connection.t(),
           ref: http_connection_reference :: nil | Mint.Types.request_ref(),
@@ -42,7 +51,15 @@ defmodule Icon.Stream.WebSocket do
   def start_link(stream, options \\ [])
 
   def start_link(%Icon.Stream{} = stream, options) do
-    GenServer.start_link(__MODULE__, stream, options)
+    {debug, options} = Keyword.pop(options, :debug, false)
+
+    state = %State{
+      caller: self(),
+      stream: stream,
+      debug: debug
+    }
+
+    GenServer.start_link(__MODULE__, state, options)
   end
 
   @doc """
@@ -71,9 +88,7 @@ defmodule Icon.Stream.WebSocket do
   # Callback functions
 
   @impl GenServer
-  def init(%Icon.Stream{} = stream) do
-    state = %State{stream: stream}
-
+  def init(%State{} = state) do
     {:ok, schedule_connection(state)}
   end
 
@@ -116,9 +131,8 @@ defmodule Icon.Stream.WebSocket do
     {:noreply, new_state}
   end
 
-  def handle_info({tag, _}, %State{status: status} = state)
-      when tag in [:tcp_closed, :ssl_closed] and
-             status in [:waiting, :terminating] do
+  def handle_info({tag, _}, %State{status: :waiting} = state)
+      when tag in [:tcp_closed, :ssl_closed] do
     {:noreply, wait(state)}
   end
 
@@ -129,10 +143,28 @@ defmodule Icon.Stream.WebSocket do
 
   @impl GenServer
   def terminate(reason, %State{} = state) do
-    disconnect(state)
-    log_terminated(reason)
+    terminating(reason, state)
 
     :ok
+  end
+
+  ############################
+  # Debugging helper functions
+
+  @spec change_status(t(), status()) :: t()
+  defp change_status(state, status)
+
+  defp change_status(%State{status: status} = state, status) do
+    state
+  end
+
+  defp change_status(%State{debug: true, caller: caller} = state, status) do
+    send(caller, {:"$icon_websocket", status})
+    %State{state | status: status}
+  end
+
+  defp change_status(%State{} = state, status) do
+    %State{state | status: status}
   end
 
   #############################
@@ -145,7 +177,7 @@ defmodule Icon.Stream.WebSocket do
     # TODO: backoff
     Process.send_after(self(), :connect, 0)
 
-    %State{state | status: :connecting}
+    change_status(state, :connecting)
   end
 
   @spec maybe_schedule_connection(t()) :: t()
@@ -192,11 +224,11 @@ defmodule Icon.Stream.WebSocket do
 
       %State{
         state
-        | status: :upgrading,
-          conn: conn,
+        | conn: conn,
           ref: ref,
           websocket: nil
       }
+      |> change_status(:upgrading)
     else
       {:error, _} ->
         disconnect(state)
@@ -227,17 +259,38 @@ defmodule Icon.Stream.WebSocket do
 
     %State{
       state
-      | status: :connecting,
-        conn: nil,
+      | conn: nil,
         ref: nil,
         websocket: nil
     }
+    |> change_status(:connecting)
   end
 
   defp disconnect(%State{conn: conn} = state) do
     Mint.HTTP.close(conn)
 
     disconnect(%State{state | conn: nil})
+  end
+
+  @spec terminating(any(), t()) :: t()
+  defp terminating(reason, state)
+
+  defp terminating(reason, %State{conn: nil} = state) do
+    log_terminated(reason)
+
+    %State{
+      state
+      | conn: nil,
+        ref: nil,
+        websocket: nil
+    }
+    |> change_status(:terminating)
+  end
+
+  defp terminating(reason, %State{conn: conn} = state) do
+    Mint.HTTP.close(conn)
+
+    terminating(reason, %State{state | conn: nil})
   end
 
   ##########################
@@ -267,10 +320,10 @@ defmodule Icon.Stream.WebSocket do
 
       %State{
         state
-        | status: :initializing,
-          conn: conn,
+        | conn: conn,
           websocket: websocket
       }
+      |> change_status(:initializing)
     else
       {:error, conn, _, _} ->
         disconnect(%State{state | conn: conn})
@@ -301,10 +354,10 @@ defmodule Icon.Stream.WebSocket do
          {:ok, conn} <- Mint.WebSocket.stream_request_body(conn, ref, data) do
       %State{
         state
-        | status: :setting_up,
-          conn: conn,
+        | conn: conn,
           websocket: websocket
       }
+      |> change_status(:setting_up)
     else
       {:error, %Mint.WebSocket{} = _websocket, _} ->
         disconnect(state)
@@ -327,11 +380,17 @@ defmodule Icon.Stream.WebSocket do
     case decode(state, message) do
       {:ok, new_state, [%{"code" => 0} | messages]} ->
         log_listening()
-        handle_messages(%State{new_state | status: :consuming}, messages)
 
-      {:ok, new_state, [%{"code" => _, "message" => _} = error | _messages]} ->
+        new_state
+        |> change_status(:consuming)
+        |> handle_messages(messages)
+
+      {:ok, new_state, [%{"code" => _} = error | _messages]} ->
         log_error(error)
-        disconnect(new_state)
+
+        new_state
+        |> disconnect()
+        |> schedule_connection()
 
       {:ok, new_state, messages} ->
         handle_messages(new_state, messages)
@@ -433,11 +492,11 @@ defmodule Icon.Stream.WebSocket do
 
     %State{
       state
-      | status: :waiting,
-        conn: nil,
+      | conn: nil,
         ref: nil,
         websocket: nil
     }
+    |> change_status(:waiting)
   end
 
   defp wait(%State{conn: conn} = state) do
@@ -485,8 +544,8 @@ defmodule Icon.Stream.WebSocket do
   @spec log_error(map()) :: :ok
   defp log_error(error)
 
-  defp log_error(%{"code" => code, "message" => message}) do
-    error = Icon.Schema.Error.new(code: code, message: message)
+  defp log_error(%{"code" => code} = reason) do
+    error = Icon.Schema.Error.new(code: code, message: reason["message"])
     Logger.warn("Error message received: #{inspect(error)}")
   end
 
