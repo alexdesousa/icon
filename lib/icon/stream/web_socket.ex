@@ -8,19 +8,8 @@ defmodule Icon.Stream.WebSocket do
   require Logger
 
   alias __MODULE__, as: State
-  alias Icon.RPC.Identity
   alias Icon.Schema
   alias Icon.Schema.Types.Block.Tick
-
-  @sources [:block, :event]
-  @max_buffer_size 1_000
-
-  @typedoc """
-  Source of the events.
-  """
-  @type source ::
-          :block
-          | :event
 
   @typedoc false
   @type status ::
@@ -33,47 +22,27 @@ defmodule Icon.Stream.WebSocket do
           | :terminating
 
   @doc false
-  defstruct status: :connecting,
-            buffer: [],
-            max_buffer_size: @max_buffer_size,
-            height: 0,
-            identity: nil,
-            source: nil,
-            conn: nil,
-            ref: nil,
-            websocket: nil
+  defstruct [:status, :stream, :conn, :ref, :websocket]
 
   @typedoc false
   @type t :: %State{
-          identity: identity :: Identity.t(),
-          source: source :: source(),
           status: status :: status(),
-          buffer: buffer :: :queue.queue(Tick.t()),
-          max_buffer_size: max_buffer_size :: pos_integer(),
-          height: block_height :: non_neg_integer(),
+          stream: Icon.Stream.t(),
           conn: http_connection :: nil | Mint.Connection.t(),
           ref: http_connection_reference :: nil | Mint.Types.request_ref(),
           websocket: websocket_connection :: nil | Mint.WebSocket.t()
         }
 
   @doc """
-  Starts an Icon event producer given an `identity` and the `source` of the
-  events. Optionally, it can receive some `GenServer` `options`.
+  Starts an Icon event producer given an Icon `stream`. Optionally, it can
+  receive some `GenServer` `options`.
   """
-  @spec start_link(Identity.t(), source()) :: GenServer.on_start()
-  @spec start_link(Identity.t(), source(), GenServer.options()) ::
-          GenServer.on_start()
-  def start_link(identity, source, options \\ [])
+  @spec start_link(Icon.Stream.t()) :: GenServer.on_start()
+  @spec start_link(Icon.Stream.t(), GenServer.options()) :: GenServer.on_start()
+  def start_link(stream, options \\ [])
 
-  def start_link(%Identity{} = identity, source, options)
-      when source in @sources do
-    state = %State{
-      identity: identity,
-      source: source,
-      buffer: :queue.new()
-    }
-
-    GenServer.start_link(__MODULE__, state, options)
+  def start_link(%Icon.Stream{} = stream, options) do
+    GenServer.start_link(__MODULE__, stream, options)
   end
 
   @doc """
@@ -102,7 +71,9 @@ defmodule Icon.Stream.WebSocket do
   # Callback functions
 
   @impl GenServer
-  def init(%State{} = state) do
+  def init(%Icon.Stream{} = stream) do
+    state = %State{stream: stream}
+
     {:ok, schedule_connection(state)}
   end
 
@@ -184,11 +155,10 @@ defmodule Icon.Stream.WebSocket do
          %State{
            status: :waiting,
            conn: nil,
-           buffer: buffer,
-           max_buffer_size: max_buffer_size
+           stream: %Icon.Stream{} = stream
          } = state
        ) do
-    if :queue.len(buffer) <= max_buffer_size / 2 do
+    if Icon.Stream.check_space_left(stream) >= 0.5 do
       schedule_connection(state)
     else
       state
@@ -207,12 +177,11 @@ defmodule Icon.Stream.WebSocket do
 
   defp connect(
          %State{
-           identity: %Identity{} = identity,
-           source: source,
-           status: :connecting
+           status: :connecting,
+           stream: %Icon.Stream{} = stream
          } = state
        ) do
-    uri = endpoint_uri(identity, source)
+    uri = Icon.Stream.to_uri(stream)
     options = [protocols: [:http1]]
 
     with {:ok, conn} <-
@@ -235,12 +204,6 @@ defmodule Icon.Stream.WebSocket do
       {:error, conn, _} ->
         disconnect(%State{state | conn: conn})
     end
-  end
-
-  @spec endpoint_uri(Identity.t(), source()) :: URI.t()
-  defp endpoint_uri(%Identity{node: node}, source) do
-    url = "#{node}/api/v3/icon_dex/#{source}"
-    URI.parse(url)
   end
 
   @spec scheme(URI.t()) :: :http | :https
@@ -325,14 +288,16 @@ defmodule Icon.Stream.WebSocket do
 
   defp initialize(
          %State{
+           stream: %Icon.Stream{} = stream,
            conn: conn,
            ref: ref,
            websocket: websocket,
            status: :initializing
          } = state
        ) do
-    with {:ok, message} <- initial_message(state),
-         {:ok, websocket, data} <- Mint.WebSocket.encode(websocket, message),
+    message = {:text, Icon.Stream.encode(stream)}
+
+    with {:ok, websocket, data} <- Mint.WebSocket.encode(websocket, message),
          {:ok, conn} <- Mint.WebSocket.stream_request_body(conn, ref, data) do
       %State{
         state
@@ -350,19 +315,6 @@ defmodule Icon.Stream.WebSocket do
       :error ->
         disconnect(state)
     end
-  end
-
-  @spec initial_message(t()) ::
-          {:ok, Mint.WebSocket.frame()}
-          | :error
-  defp initial_message(state)
-
-  defp initial_message(%State{height: height}) do
-    request = %{
-      height: Schema.Type.dump!(Schema.Types.Integer, height)
-    }
-
-    {:ok, {:text, Jason.encode!(request)}}
   end
 
   ############################
@@ -454,26 +406,20 @@ defmodule Icon.Stream.WebSocket do
   end
 
   @spec handle_messages(t(), [Tick.t()]) :: t()
-  defp handle_messages(state, frames)
+  defp handle_messages(state, ticks)
 
   defp handle_messages(
-         %State{buffer: buffer, max_buffer_size: max_buffer_size} = state,
-         []
+         %State{status: :consuming, stream: %Icon.Stream{} = stream} = state,
+         ticks
        ) do
-    if :queue.len(buffer) >= max_buffer_size do
-      wait(state)
+    new_stream = Icon.Stream.put(stream, ticks)
+    new_state = %State{state | stream: new_stream}
+
+    if Icon.Stream.is_full?(new_stream) do
+      wait(new_state)
     else
-      state
+      new_state
     end
-  end
-
-  defp handle_messages(
-         %State{status: :consuming, buffer: buffer} = state,
-         [%Tick{} = message | rest]
-       ) do
-    new_buffer = :queue.in(message, buffer)
-    new_state = %State{state | buffer: new_buffer}
-    handle_messages(new_state, rest)
   end
 
   ##########################
@@ -506,28 +452,11 @@ defmodule Icon.Stream.WebSocket do
   @spec demand(t(), pos_integer()) :: {t(), [Tick.t()]}
   defp demand(state, amount)
 
-  defp demand(%State{buffer: buffer, height: height} = state, amount) do
-    buffer_size = :queue.len(buffer)
-    amount = if buffer_size >= amount, do: amount, else: buffer_size
+  defp demand(%State{stream: %Icon.Stream{} = stream} = state, amount) do
+    {demand, new_stream} = Icon.Stream.pop(stream, amount)
+    new_state = %State{state | stream: new_stream}
 
-    {demand, new_buffer} = :queue.split(amount, buffer)
-
-    new_height =
-      case :queue.peek_r(demand) do
-        :empty ->
-          height
-
-        {:value, %Tick{height: height}} ->
-          height
-      end
-
-    new_state = %State{
-      state
-      | buffer: new_buffer,
-        height: new_height
-    }
-
-    {maybe_schedule_connection(new_state), :queue.to_list(demand)}
+    {maybe_schedule_connection(new_state), demand}
   end
 
   ##########################
