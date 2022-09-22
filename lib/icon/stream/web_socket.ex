@@ -67,7 +67,7 @@ defmodule Icon.Stream.WebSocket do
   @spec start_link(Icon.Stream.t(), GenServer.options()) :: GenServer.on_start()
   def start_link(stream, options \\ [])
 
-  def start_link(%Icon.Stream{} = stream, options) do
+  def start_link(stream, options) do
     {debug, options} = Keyword.pop(options, :debug, false)
 
     state =
@@ -224,7 +224,7 @@ defmodule Icon.Stream.WebSocket do
          %State{
            status: :waiting,
            conn: nil,
-           stream: %Icon.Stream{} = stream
+           stream: stream
          } = state
        ) do
     if Icon.Stream.check_space_left(stream) >= 0.5 do
@@ -247,7 +247,7 @@ defmodule Icon.Stream.WebSocket do
   defp connect(
          %State{
            status: :connecting,
-           stream: %Icon.Stream{} = stream
+           stream: stream
          } = state
        ) do
     uri = Icon.Stream.to_uri(stream)
@@ -380,7 +380,7 @@ defmodule Icon.Stream.WebSocket do
 
   defp initialize(
          %State{
-           stream: %Icon.Stream{} = stream,
+           stream: stream,
            conn: conn,
            ref: ref,
            websocket: websocket,
@@ -489,17 +489,12 @@ defmodule Icon.Stream.WebSocket do
   defp handle_messages(state, events)
 
   defp handle_messages(
-         %State{status: :consuming, stream: %Icon.Stream{} = stream} = state,
+         %State{status: :consuming, stream: stream} = state,
          events
        ) do
-    new_stream = Icon.Stream.put(stream, events)
-    new_state = %State{state | stream: new_stream}
+    Icon.Stream.put(stream, events)
 
-    if Icon.Stream.is_full?(new_stream) do
-      wait(new_state)
-    else
-      new_state
-    end
+    if Icon.Stream.is_full?(stream), do: wait(state), else: state
   end
 
   ##########################
@@ -532,11 +527,10 @@ defmodule Icon.Stream.WebSocket do
   @spec demand(t(), pos_integer()) :: {t(), [map()]}
   defp demand(state, amount)
 
-  defp demand(%State{stream: %Icon.Stream{} = stream} = state, amount) do
-    {demand, new_stream} = Icon.Stream.pop(stream, amount)
-    new_state = %State{state | stream: new_stream}
+  defp demand(%State{stream: stream} = state, amount) do
+    demand = Icon.Stream.pop(stream, amount)
 
-    {maybe_schedule_connection(new_state), demand}
+    {maybe_schedule_connection(state), demand}
   end
 
   ##########################

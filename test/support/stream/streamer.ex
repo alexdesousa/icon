@@ -12,15 +12,19 @@ defmodule Icon.Stream.Streamer do
 
   @typedoc false
   @type t :: %__MODULE__{
-    ref: server_reference :: reference(),
-    identity: identity :: Identity.t()
-  }
+          ref: server_reference :: reference(),
+          identity: identity :: Identity.t()
+        }
 
   plug(:match)
   plug(:dispatch)
 
   match _ do
-    send_resp(conn, 200, "This is a mock server for streaming websocket messages")
+    send_resp(
+      conn,
+      200,
+      "This is a mock server for streaming websocket messages"
+    )
   end
 
   @doc """
@@ -48,17 +52,18 @@ defmodule Icon.Stream.Streamer do
     options = [
       dispatch: [
         {:_,
-          [
-            {"/api/v3/icon_dex/block", Icon.Stream.Streamer.Server, [%{state | type: :block}]},
-            {"/api/v3/icon_dex/event", Icon.Stream.Streamer.Server, [%{state | type: :event}]}
-          ]
-        }
+         [
+           {"/api/v3/icon_dex/block", Icon.Stream.Streamer.Server,
+            [%{state | type: :block}]},
+           {"/api/v3/icon_dex/event", Icon.Stream.Streamer.Server,
+            [%{state | type: :event}]}
+         ]}
       ],
       port: port,
       ref: ref
     ]
 
-    case Cowboy.http(__MODULE__, [],  options) do
+    case Cowboy.http(__MODULE__, [], options) do
       {:ok, _} ->
         %__MODULE__{ref: ref, identity: identity}
 

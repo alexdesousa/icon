@@ -5,52 +5,57 @@ defmodule Icon.StreamTest do
 
   describe "new_block_stream/2" do
     test "should create a new stream without any parameters" do
-      assert {:ok, %Icon.Stream{}} = Icon.Stream.new_block_stream()
+      assert {:ok, stream} = Icon.Stream.new_block_stream()
+      assert Process.alive?(stream)
     end
 
     test "should create an identity when none is provided" do
-      assert {:ok, %Icon.Stream{identity: %Identity{}}} =
-               Icon.Stream.new_block_stream([], from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+
+      assert %Icon.Stream{identity: %Identity{}} = Icon.Stream.get(stream)
     end
 
     test "should use the identity provided" do
       identity = Identity.new()
 
-      assert {:ok, %Icon.Stream{identity: ^identity}} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  identity: identity,
                  from_height: 0
                )
+
+      assert %Icon.Stream{identity: ^identity} = Icon.Stream.get(stream)
     end
 
     test "should set the source as block" do
-      assert {:ok, %Icon.Stream{source: :block}} =
-               Icon.Stream.new_block_stream([], from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert %Icon.Stream{source: :block} = Icon.Stream.get(stream)
     end
 
     test "should set the height to the one provided" do
-      assert {:ok, %Icon.Stream{height: 42, type: :past}} =
-               Icon.Stream.new_block_stream([], from_height: 42)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 42)
+      assert %Icon.Stream{height: 42, type: :past} = Icon.Stream.get(stream)
     end
 
     test "should create an empty buffer" do
-      assert {:ok, %Icon.Stream{buffer: buffer}} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert %Icon.Stream{buffer: buffer} = Icon.Stream.get(stream)
       assert :queue.is_empty(buffer)
     end
 
     test "should set the default max buffer size when none provided" do
-      assert {:ok, %Icon.Stream{max_buffer_size: 1_000}} =
-               Icon.Stream.new_block_stream([], from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert %Icon.Stream{max_buffer_size: 1_000} = Icon.Stream.get(stream)
     end
 
     test "should set the max buffer size when provided" do
-      assert {:ok, %Icon.Stream{max_buffer_size: 1}} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 1
                )
+
+      assert %Icon.Stream{max_buffer_size: 1} = Icon.Stream.get(stream)
     end
 
     test "should encode the list of events" do
@@ -71,21 +76,23 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{event: "Transfer(Address,Address,int)"},
-                  %{
-                    addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-                    event: "Transfer(Address,Address,int)",
-                    indexed: [
-                      nil,
-                      "hxbe258ceb872e08851f1f59694dac2558708ece11"
-                    ],
-                    data: ["0x2a"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{event: "Transfer(Address,Address,int)"},
+                 %{
+                   addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                   event: "Transfer(Address,Address,int)",
+                   indexed: [
+                     nil,
+                     "hxbe258ceb872e08851f1f59694dac2558708ece11"
+                   ],
+                   data: ["0x2a"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should fail when the event doesn't have a header" do
@@ -102,15 +109,17 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(int)",
-                    indexed: ["0x2a"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(int)",
+                   indexed: ["0x2a"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode str type" do
@@ -121,15 +130,17 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(str)",
-                    indexed: ["hello"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(str)",
+                   indexed: ["hello"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode bytes type" do
@@ -140,15 +151,17 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(bytes)",
-                    indexed: ["0x68656c6c6f"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(bytes)",
+                   indexed: ["0x68656c6c6f"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode bool type" do
@@ -159,15 +172,17 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(bool)",
-                    indexed: ["0x1"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(bool)",
+                   indexed: ["0x1"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode address type" do
@@ -178,15 +193,17 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(Address)",
-                    indexed: ["hxbe258ceb872e08851f1f59694dac2558708ece11"]
-                  }
-                ]
-              }} = Icon.Stream.new_block_stream(events, from_height: 0)
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(events, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(Address)",
+                   indexed: ["hxbe258ceb872e08851f1f59694dac2558708ece11"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should set the latest height when none is provided" do
@@ -213,8 +230,10 @@ defmodule Icon.StreamTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Icon.Stream{height: 42, type: :latest}} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([], identity: identity)
+
+      assert %Icon.Stream{height: 42, type: :latest} = Icon.Stream.get(stream)
     end
 
     test "should error when height is not provided and the node returns an error" do
@@ -238,52 +257,56 @@ defmodule Icon.StreamTest do
 
   describe "new_event_stream/2" do
     test "should create a new stream without any parameters" do
-      assert {:ok, %Icon.Stream{}} = Icon.Stream.new_event_stream()
+      assert {:ok, stream} = Icon.Stream.new_event_stream()
+      assert Process.alive?(stream)
     end
 
     test "should create an identity when none is provided" do
-      assert {:ok, %Icon.Stream{identity: %Identity{}}} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert %Icon.Stream{identity: %Identity{}} = Icon.Stream.get(stream)
     end
 
     test "should use the identity provided" do
       identity = Identity.new()
 
-      assert {:ok, %Icon.Stream{identity: ^identity}} =
+      assert {:ok, stream} =
                Icon.Stream.new_event_stream(nil,
                  identity: identity,
                  from_height: 0
                )
+
+      assert %Icon.Stream{identity: ^identity} = Icon.Stream.get(stream)
     end
 
     test "should set the source as event" do
-      assert {:ok, %Icon.Stream{source: :event}} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert %Icon.Stream{source: :event} = Icon.Stream.get(stream)
     end
 
     test "should set the height to the one provided" do
-      assert {:ok, %Icon.Stream{height: 42, type: :past}} =
-               Icon.Stream.new_event_stream(nil, from_height: 42)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 42)
+      assert %Icon.Stream{height: 42, type: :past} = Icon.Stream.get(stream)
     end
 
     test "should create an empty buffer" do
-      assert {:ok, %Icon.Stream{buffer: buffer}} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
-
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert %Icon.Stream{buffer: buffer} = Icon.Stream.get(stream)
       assert :queue.is_empty(buffer)
     end
 
     test "should set the default max buffer size when none provided" do
-      assert {:ok, %Icon.Stream{max_buffer_size: 1_000}} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert %Icon.Stream{max_buffer_size: 1_000} = Icon.Stream.get(stream)
     end
 
     test "should set the max buffer size when provided" do
-      assert {:ok, %Icon.Stream{max_buffer_size: 1}} =
+      assert {:ok, stream} =
                Icon.Stream.new_event_stream(nil,
                  from_height: 0,
                  max_buffer_size: 1
                )
+
+      assert %Icon.Stream{max_buffer_size: 1} = Icon.Stream.get(stream)
     end
 
     test "should encode a single event" do
@@ -299,20 +322,21 @@ defmodule Icon.StreamTest do
         ]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-                    event: "Transfer(Address,Address,int)",
-                    indexed: [
-                      nil,
-                      "hxbe258ceb872e08851f1f59694dac2558708ece11"
-                    ],
-                    data: ["0x2a"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+                   event: "Transfer(Address,Address,int)",
+                   indexed: [
+                     nil,
+                     "hxbe258ceb872e08851f1f59694dac2558708ece11"
+                   ],
+                   data: ["0x2a"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should fail when the event doesn't have a header" do
@@ -327,15 +351,16 @@ defmodule Icon.StreamTest do
         indexed: [42]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(int)",
-                    indexed: ["0x2a"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(int)",
+                   indexed: ["0x2a"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode str type" do
@@ -344,15 +369,16 @@ defmodule Icon.StreamTest do
         indexed: ["hello"]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(str)",
-                    indexed: ["hello"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(str)",
+                   indexed: ["hello"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode bytes type" do
@@ -361,15 +387,16 @@ defmodule Icon.StreamTest do
         indexed: ["hello"]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(bytes)",
-                    indexed: ["0x68656c6c6f"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(bytes)",
+                   indexed: ["0x68656c6c6f"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode bool type" do
@@ -378,15 +405,16 @@ defmodule Icon.StreamTest do
         indexed: [true]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(bool)",
-                    indexed: ["0x1"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(bool)",
+                   indexed: ["0x1"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should encode address type" do
@@ -395,15 +423,16 @@ defmodule Icon.StreamTest do
         indexed: ["hxbe258ceb872e08851f1f59694dac2558708ece11"]
       }
 
-      assert {:ok,
-              %Icon.Stream{
-                events: [
-                  %{
-                    event: "Event(Address)",
-                    indexed: ["hxbe258ceb872e08851f1f59694dac2558708ece11"]
-                  }
-                ]
-              }} = Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
+
+      assert %Icon.Stream{
+               events: [
+                 %{
+                   event: "Event(Address)",
+                   indexed: ["hxbe258ceb872e08851f1f59694dac2558708ece11"]
+                 }
+               ]
+             } = Icon.Stream.get(stream)
     end
 
     test "should set the latest height when none is provided" do
@@ -430,8 +459,10 @@ defmodule Icon.StreamTest do
         Plug.Conn.resp(conn, 200, response)
       end)
 
-      assert {:ok, %Icon.Stream{height: 42, type: :latest}} =
+      assert {:ok, stream} =
                Icon.Stream.new_event_stream(nil, identity: identity)
+
+      assert %Icon.Stream{height: 42, type: :latest} = Icon.Stream.get(stream)
     end
 
     test "should error when height is not provided and the node returns an error" do
@@ -455,8 +486,7 @@ defmodule Icon.StreamTest do
 
   describe "to_uri/1" do
     test "should generate a uri for block events" do
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
 
       assert %URI{
                scheme: "https",
@@ -468,8 +498,7 @@ defmodule Icon.StreamTest do
     end
 
     test "should generate a uri for events" do
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
 
       assert %URI{
                scheme: "https",
@@ -497,7 +526,7 @@ defmodule Icon.StreamTest do
         }
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream(events, from_height: 0)
 
       expected =
@@ -529,8 +558,7 @@ defmodule Icon.StreamTest do
         ]
       }
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_event_stream(event, from_height: 0)
+      assert {:ok, stream} = Icon.Stream.new_event_stream(event, from_height: 0)
 
       expected =
         Jason.encode!(%{
@@ -545,14 +573,10 @@ defmodule Icon.StreamTest do
     end
 
     test "should encode the message when there are no events" do
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
       assert ~s({"height":"0x0"}) == Icon.Stream.encode(stream)
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_event_stream(nil, from_height: 0)
-
+      assert {:ok, stream} = Icon.Stream.new_event_stream(nil, from_height: 0)
       assert ~s({"height":"0x0"}) == Icon.Stream.encode(stream)
     end
   end
@@ -565,11 +589,9 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      stream = Icon.Stream.put(stream, events)
-      assert {^events, _stream} = Icon.Stream.pop(stream, 3)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+      assert ^events = Icon.Stream.pop(stream, 3)
     end
   end
 
@@ -581,11 +603,9 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      stream = Icon.Stream.put(stream, events)
-      assert {^events, _stream} = Icon.Stream.pop(stream, 3)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+      assert ^events = Icon.Stream.pop(stream, 3)
     end
 
     test "should pop all events when the amount is greater than the buffer size" do
@@ -595,18 +615,14 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      stream = Icon.Stream.put(stream, events)
-      assert {^events, _stream} = Icon.Stream.pop(stream, 100)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+      assert ^events = Icon.Stream.pop(stream, 100)
     end
 
     test "should return an empty list when the buffer is empty" do
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      assert {[], _stream} = Icon.Stream.pop(stream, 1)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert [] = Icon.Stream.pop(stream, 1)
     end
 
     test "should change the height if the buffer is not empty" do
@@ -616,18 +632,14 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      stream = Icon.Stream.put(stream, events)
-      assert {[_, _], %Icon.Stream{height: 1}} = Icon.Stream.pop(stream, 2)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+      assert [_, _] = Icon.Stream.pop(stream, 2)
     end
 
     test "should keep the current height if the buffer is empty" do
-      assert {:ok, %Icon.Stream{} = stream} =
-               Icon.Stream.new_block_stream([], from_height: 0)
-
-      assert {[], %Icon.Stream{height: 0}} = Icon.Stream.pop(stream, 1)
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert [] = Icon.Stream.pop(stream, 1)
     end
   end
 
@@ -639,14 +651,13 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 3
                )
 
-      stream = Icon.Stream.put(stream, events)
-
+      assert :ok = Icon.Stream.put(stream, events)
       assert Icon.Stream.is_full?(stream)
     end
 
@@ -657,14 +668,13 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 4
                )
 
-      stream = Icon.Stream.put(stream, events)
-
+      assert :ok = Icon.Stream.put(stream, events)
       refute Icon.Stream.is_full?(stream)
     end
   end
@@ -677,14 +687,13 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 4
                )
 
-      stream = Icon.Stream.put(stream, events)
-
+      assert :ok = Icon.Stream.put(stream, events)
       assert_in_delta Icon.Stream.check_space_left(stream), 0.25, 0.001
     end
 
@@ -695,14 +704,13 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 3
                )
 
-      stream = Icon.Stream.put(stream, events)
-
+      assert :ok = Icon.Stream.put(stream, events)
       assert_in_delta Icon.Stream.check_space_left(stream), 0.0, 0.001
     end
 
@@ -713,14 +721,13 @@ defmodule Icon.StreamTest do
         %{"height" => "0x2"}
       ]
 
-      assert {:ok, %Icon.Stream{} = stream} =
+      assert {:ok, stream} =
                Icon.Stream.new_block_stream([],
                  from_height: 0,
                  max_buffer_size: 2
                )
 
-      stream = Icon.Stream.put(stream, events)
-
+      assert :ok = Icon.Stream.put(stream, events)
       assert_in_delta Icon.Stream.check_space_left(stream), 0.0, 0.001
     end
   end

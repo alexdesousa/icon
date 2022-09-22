@@ -17,6 +17,15 @@ defmodule Icon.Stream do
   @doc """
   An Icon websocket stream representation.
   """
+  @enforce_keys [
+    :identity,
+    :source,
+    :events,
+    :height,
+    :type,
+    :buffer,
+    :max_buffer_size
+  ]
   defstruct [
     :identity,
     :source,
@@ -28,9 +37,14 @@ defmodule Icon.Stream do
   ]
 
   @typedoc """
-  An Icon websocket stream.
+  An Icon instanciated websocket stream.
   """
-  @type t :: %__MODULE__{
+  @type t :: pid()
+
+  @typedoc """
+  An Icon websocket stream representation.
+  """
+  @type stream :: %__MODULE__{
           identity: identity :: Identity.t(),
           source: source :: source(),
           events: events :: events(),
@@ -123,13 +137,27 @@ defmodule Icon.Stream do
     new(:event, [event], options)
   end
 
+  @doc false
+  @spec get(t()) :: stream()
+  # Used for testing only.
+  def get(stream)
+
+  def get(stream) when is_pid(stream) do
+    Agent.get(stream, & &1)
+  end
+
   @doc """
   Converts a stream into an `URI.t()`.
   """
   @spec to_uri(t()) :: URI.t()
   def to_uri(stream)
 
-  def to_uri(%__MODULE__{source: source, identity: %Identity{node: node}}) do
+  def to_uri(stream) when is_pid(stream) do
+    Agent.get(stream, &do_to_uri/1)
+  end
+
+  @spec do_to_uri(stream()) :: URI.t()
+  defp do_to_uri(%__MODULE__{source: source, identity: %Identity{node: node}}) do
     url = "#{node}/api/v3/icon_dex/#{source}"
     URI.parse(url)
   end
@@ -140,49 +168,66 @@ defmodule Icon.Stream do
   @spec encode(t()) :: binary()
   def encode(stream)
 
-  def encode(%__MODULE__{
-        source: :event,
-        height: height,
-        events: [event]
-      }) do
+  def encode(stream) when is_pid(stream) do
+    Agent.get(stream, &do_encode/1)
+  end
+
+  @spec do_encode(stream()) :: binary()
+  defp do_encode(%__MODULE__{
+         source: :event,
+         height: height,
+         events: [event]
+       }) do
     event
     |> Map.put(:height, encode_height(height))
     |> Jason.encode!()
   end
 
-  def encode(%__MODULE__{
-        source: :block,
-        height: height,
-        events: [_ | _] = events
-      }) do
+  defp do_encode(%__MODULE__{
+         source: :block,
+         height: height,
+         events: [_ | _] = events
+       }) do
     Jason.encode!(%{
       height: encode_height(height),
       eventFilters: events
     })
   end
 
-  def encode(%__MODULE__{height: height}) do
+  defp do_encode(%__MODULE__{height: height}) do
     Jason.encode!(%{height: encode_height(height)})
   end
 
   @doc """
   Puts new events into the buffer.
   """
-  @spec put(t(), [map()]) :: t()
+  @spec put(t(), [map()]) :: :ok
   def put(stream, events)
 
-  def put(%__MODULE__{buffer: buffer} = stream, events) when is_list(events) do
+  def put(stream, events) when is_pid(stream) and is_list(events) do
+    Agent.update(stream, &do_put(&1, events))
+  end
+
+  @spec do_put(stream(), [map()]) :: stream()
+  defp do_put(%__MODULE__{buffer: buffer} = stream, events)
+       when is_list(events) do
     %__MODULE__{stream | buffer: Enum.reduce(events, buffer, &:queue.in/2)}
   end
 
   @doc """
   Pops an `amount` of events from the stream buffer.
   """
-  @spec pop(t(), non_neg_integer()) :: {[map()], t()}
+  @spec pop(t(), non_neg_integer()) :: [map()]
   def pop(stream, amount)
 
-  def pop(%__MODULE__{buffer: buffer, height: height} = stream, amount)
+  def pop(stream, amount)
       when amount >= 0 do
+    Agent.get_and_update(stream, &do_pop(&1, amount))
+  end
+
+  @spec do_pop(stream(), non_neg_integer()) :: {[map()], stream()}
+  defp do_pop(%__MODULE__{buffer: buffer, height: height} = stream, amount)
+       when amount >= 0 do
     buffer_size = :queue.len(buffer)
     amount = if buffer_size >= amount, do: amount, else: buffer_size
 
@@ -212,7 +257,14 @@ defmodule Icon.Stream do
   @spec is_full?(t()) :: boolean()
   def is_full?(stream)
 
-  def is_full?(%__MODULE__{buffer: buffer, max_buffer_size: max_buffer_size}) do
+  def is_full?(stream) when is_pid(stream) do
+    Agent.get(stream, &do_is_full?/1)
+  end
+
+  @spec do_is_full?(stream()) :: boolean()
+  def do_is_full?(stream)
+
+  def do_is_full?(%__MODULE__{buffer: buffer, max_buffer_size: max_buffer_size}) do
     :queue.len(buffer) >= max_buffer_size
   end
 
@@ -222,10 +274,15 @@ defmodule Icon.Stream do
   @spec check_space_left(t()) :: float()
   def check_space_left(stream)
 
-  def check_space_left(%__MODULE__{
-        buffer: buffer,
-        max_buffer_size: max_buffer_size
-      }) do
+  def check_space_left(stream) when is_pid(stream) do
+    Agent.get(stream, &do_check_space_left/1)
+  end
+
+  @spec do_check_space_left(stream()) :: float()
+  defp do_check_space_left(%__MODULE__{
+         buffer: buffer,
+         max_buffer_size: max_buffer_size
+       }) do
     value = 1.0 - :queue.len(buffer) / max_buffer_size
 
     if value < 0.0, do: 0.0, else: value
@@ -253,7 +310,7 @@ defmodule Icon.Stream do
         max_buffer_size: max_buffer_size
       }
 
-      {:ok, stream}
+      Agent.start_link(fn -> stream end)
     end
   end
 
