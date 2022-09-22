@@ -484,6 +484,21 @@ defmodule Icon.StreamTest do
     end
   end
 
+  describe "to_hash/1" do
+    test "should generate an integer" do
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+
+      assert stream
+             |> Icon.Stream.to_hash()
+             |> is_integer()
+    end
+
+    test "should generate a unique repeatable hash for a stream" do
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert Icon.Stream.to_hash(stream) == Icon.Stream.to_hash(stream)
+    end
+  end
+
   describe "to_uri/1" do
     test "should generate a uri for block events" do
       assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)

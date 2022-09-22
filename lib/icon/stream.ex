@@ -147,6 +147,20 @@ defmodule Icon.Stream do
   end
 
   @doc """
+  Gets the unique hash for the stream.
+  """
+  @spec to_hash(t()) :: pos_integer()
+  def to_hash(stream) do
+    %__MODULE__{source: source, events: events} = get(stream)
+
+    :erlang.phash2(%{
+      source: source,
+      events: events,
+      stream: stream
+    })
+  end
+
+  @doc """
   Converts a stream into an `URI.t()`.
   """
   @spec to_uri(t()) :: URI.t()
