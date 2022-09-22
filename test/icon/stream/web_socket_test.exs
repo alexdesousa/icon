@@ -30,19 +30,22 @@ defmodule Icon.Stream.WebsocketTest do
     test "should set setting_up status the websocket", %{
       stream: stream
     } do
-      assert {:ok, pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", _websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}
       assert_receive {:"$icon_websocket", :initializing}
       assert_receive {:"$icon_websocket", :setting_up}
-      assert %WebSocket{status: :setting_up} = :sys.get_state(pid)
+
+      assert %GenStage{
+               state: %WebSocket{status: :setting_up}
+             } = :sys.get_state(producer)
     end
 
     test "should change to consuming state after setting up the connection", %{
       stream: stream
     } do
-      assert {:ok, pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}
@@ -53,14 +56,17 @@ defmodule Icon.Stream.WebsocketTest do
       assert_receive {:"$websocket", :sent, {:text, _}}
 
       assert_receive {:"$icon_websocket", :consuming}
-      assert %WebSocket{status: :consuming} = :sys.get_state(pid)
+
+      assert %GenStage{
+               state: %WebSocket{status: :consuming}
+             } = :sys.get_state(producer)
     end
 
     test "should change to connecting state after failing to setup the connection",
          %{
            stream: stream
          } do
-      assert {:ok, _pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, _producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}
@@ -79,7 +85,7 @@ defmodule Icon.Stream.WebsocketTest do
     test "should change to waiting state when buffer is full", %{
       stream: stream
     } do
-      assert {:ok, _pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, _producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}
@@ -105,7 +111,7 @@ defmodule Icon.Stream.WebsocketTest do
          %{
            stream: stream
          } do
-      assert {:ok, pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}
@@ -124,7 +130,11 @@ defmodule Icon.Stream.WebsocketTest do
 
       assert_receive {:"$websocket", :sent, {:text, _}}
       assert_receive {:"$icon_websocket", :waiting}
-      assert [_] = WebSocket.get(pid, 1)
+
+      assert [_] =
+               [{producer, max_demand: 1}]
+               |> GenStage.stream()
+               |> Enum.take(1)
 
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
@@ -142,18 +152,18 @@ defmodule Icon.Stream.WebsocketTest do
          %{
            stream: stream
          } do
-      assert {:ok, pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", _websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
 
-      assert :ok = WebSocket.stop(pid)
+      assert :ok = WebSocket.stop(producer)
       assert_receive {:"$icon_websocket", :terminating}
     end
 
     test "should reconnect when connection dies", %{
       stream: stream
     } do
-      assert {:ok, _pid} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, _producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket_pid}, 1_000
       assert_receive {:"$icon_websocket", :connecting}
       assert_receive {:"$icon_websocket", :upgrading}

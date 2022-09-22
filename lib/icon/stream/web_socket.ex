@@ -3,7 +3,7 @@ defmodule Icon.Stream.WebSocket do
   This module defines an event producer that connects via websockets to an
   Icon node.
   """
-  use GenServer
+  use GenStage
 
   require Logger
   import Bitwise
@@ -34,6 +34,7 @@ defmodule Icon.Stream.WebSocket do
     :backoff_retries
   ]
   defstruct stream: nil,
+            pending_demand: 0,
             status: :starting,
             conn: nil,
             ref: nil,
@@ -45,7 +46,9 @@ defmodule Icon.Stream.WebSocket do
 
   @typedoc false
   @type t :: %State{
+          # Event stream fiels
           stream: Icon.Stream.t(),
+          pending_demand: pending_demand :: non_neg_integer(),
           # Connection status fields
           status: status :: status(),
           conn: http_connection :: nil | Mint.Connection.t(),
@@ -77,19 +80,7 @@ defmodule Icon.Stream.WebSocket do
         debug: debug
       )
 
-    GenServer.start_link(__MODULE__, state, options)
-  end
-
-  @doc """
-  Gets an `amount` of ticks from a `websocket`. The `amount` of ticks defaults
-  to `1`.
-  """
-  @spec get(GenServer.server()) :: [map()]
-  @spec get(GenServer.server(), pos_integer()) :: [map()]
-  def get(websocket, amount \\ 1)
-
-  def get(websocket, amount) do
-    GenServer.call(websocket, {:demand, amount})
+    GenStage.start_link(__MODULE__, state, options)
   end
 
   @doc """
@@ -105,22 +96,22 @@ defmodule Icon.Stream.WebSocket do
   ####################
   # Callback functions
 
-  @impl GenServer
+  @impl GenStage
   def init(%State{} = state) do
-    {:ok, schedule_connection(state)}
+    {:producer, schedule_connection(state)}
   end
 
-  @impl GenServer
-  def handle_call({:demand, amount}, _from, %State{} = state)
+  @impl GenStage
+  def handle_demand(amount, %State{} = state)
       when amount > 0 do
     {new_state, demanded} = demand(state, amount)
 
-    {:reply, demanded, new_state}
+    {:noreply, demanded, new_state}
   end
 
-  @impl GenServer
+  @impl GenStage
   def handle_info(:connect, %State{status: :connecting} = state) do
-    {:noreply, connect(state)}
+    {:noreply, [], connect(state)}
   end
 
   def handle_info({tag, _, _} = message, %State{status: :upgrading} = state)
@@ -130,12 +121,17 @@ defmodule Icon.Stream.WebSocket do
       |> upgrade(message)
       |> initialize()
 
-    {:noreply, new_state}
+    {:noreply, [], new_state}
   end
 
   def handle_info({tag, _, _} = message, %State{} = state)
       when tag in [:tcp, :ssl] do
-    {:noreply, listen(state, message)}
+    {new_state, demanded} =
+      state
+      |> listen(message)
+      |> demand()
+
+    {:noreply, demanded, new_state}
   end
 
   def handle_info({tag, _}, %State{status: status} = state)
@@ -146,20 +142,20 @@ defmodule Icon.Stream.WebSocket do
       |> disconnect()
       |> schedule_connection()
 
-    {:noreply, new_state}
+    {:noreply, [], new_state}
   end
 
   def handle_info({tag, _}, %State{status: :waiting} = state)
       when tag in [:tcp_closed, :ssl_closed] do
-    {:noreply, wait(state)}
+    {:noreply, [], wait(state)}
   end
 
   def handle_info(_, %State{status: status} = state)
       when status in [:waiting, :terminating] do
-    {:noreply, state}
+    {:noreply, [], state}
   end
 
-  @impl GenServer
+  @impl GenStage
   def terminate(reason, %State{} = state) do
     terminating(reason, state)
 
@@ -524,13 +520,24 @@ defmodule Icon.Stream.WebSocket do
   #########################
   # Demand helper functions
 
-  @spec demand(t(), pos_integer()) :: {t(), [map()]}
-  defp demand(state, amount)
+  @spec demand(t()) :: {t(), [map()]}
+  @spec demand(t(), nil | pos_integer()) :: {t(), [map()]}
+  defp demand(state, amount \\ nil)
+
+  defp demand(%State{pending_demand: pending_demand} = state, nil) do
+    %State{state | pending_demand: 0}
+    |> demand(pending_demand)
+  end
 
   defp demand(%State{stream: stream} = state, amount) do
     demand = Icon.Stream.pop(stream, amount)
+    fulfilled_demand = length(demand)
 
-    {maybe_schedule_connection(state), demand}
+    new_state =
+      %State{state | pending_demand: amount - fulfilled_demand}
+      |> maybe_schedule_connection()
+
+    {new_state, demand}
   end
 
   ##########################
