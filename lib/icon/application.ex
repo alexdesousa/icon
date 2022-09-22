@@ -16,6 +16,7 @@ defmodule Icon.Application do
 
     children = [
       {Finch, name: Icon.Finch},
+      {Phoenix.PubSub, name: Icon.Stream.PubSub},
       {Yggdrasil.Adapter.Icon, []}
     ]
 

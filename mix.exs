@@ -50,6 +50,7 @@ defmodule Icon.MixProject do
       {:gen_stage, "~> 1.0"},
       {:mint, "~> 1.4"},
       {:mint_web_socket, "~> 1.0"},
+      {:phoenix_pubsub, "~> 2.1"},
       {:websockex, "~> 0.4"},
       {:yggdrasil, "~> 6.0"},
       {:skogsra, "~> 2.4"},
