@@ -6,8 +6,12 @@ defmodule Icon.Stream.WebSocket do
   use GenServer
 
   require Logger
+  import Bitwise
 
   alias __MODULE__, as: State
+
+  @max_backoff_increments 3
+  @backoff_slot_size 10
 
   @typedoc false
   @type status ::
@@ -21,23 +25,38 @@ defmodule Icon.Stream.WebSocket do
           | :terminating
 
   @doc false
-  defstruct status: :starting,
-            debug: nil,
-            caller: nil,
-            stream: nil,
-            ref: nil,
+  @enforce_keys [
+    :stream,
+    :status,
+    :debug,
+    :caller,
+    :backoff,
+    :backoff_retries
+  ]
+  defstruct stream: nil,
+            status: :starting,
             conn: nil,
-            websocket: nil
+            ref: nil,
+            websocket: nil,
+            debug: false,
+            caller: nil,
+            backoff: 0,
+            backoff_retries: 0
 
   @typedoc false
   @type t :: %State{
-          status: status :: status(),
-          debug: debug :: boolean(),
-          caller: caller :: pid(),
           stream: Icon.Stream.t(),
+          # Connection status fields
+          status: status :: status(),
           conn: http_connection :: nil | Mint.Connection.t(),
           ref: http_connection_reference :: nil | Mint.Types.request_ref(),
-          websocket: websocket_connection :: nil | Mint.WebSocket.t()
+          websocket: websocket_connection :: nil | Mint.WebSocket.t(),
+          # Debug fields
+          debug: debug :: boolean(),
+          caller: caller :: pid(),
+          # Backoff fields
+          backoff: backoff_timeout :: non_neg_integer(),
+          backoff_retries: backoff_retries :: non_neg_integer()
         }
 
   @doc """
@@ -51,11 +70,12 @@ defmodule Icon.Stream.WebSocket do
   def start_link(%Icon.Stream{} = stream, options) do
     {debug, options} = Keyword.pop(options, :debug, false)
 
-    state = %State{
-      caller: self(),
-      stream: stream,
-      debug: debug
-    }
+    state =
+      struct(State,
+        caller: self(),
+        stream: stream,
+        debug: debug
+      )
 
     GenServer.start_link(__MODULE__, state, options)
   end
@@ -171,11 +191,30 @@ defmodule Icon.Stream.WebSocket do
   @spec schedule_connection(t()) :: t()
   defp schedule_connection(state)
 
-  defp schedule_connection(%State{conn: nil} = state) do
-    # TODO: backoff
-    Process.send_after(self(), :connect, 0)
+  defp schedule_connection(%State{conn: nil, backoff_retries: retries} = state)
+       when retries > @max_backoff_increments do
+    do_schedule_connection(state)
+  end
 
-    change_status(state, :connecting)
+  defp schedule_connection(%State{conn: nil, backoff_retries: retries} = state) do
+    new_backoff_timeout =
+      (2 <<< (retries - 2)) * Enum.random(1..@backoff_slot_size) * 1_000
+
+    %State{state | backoff: new_backoff_timeout}
+    |> do_schedule_connection()
+  end
+
+  @spec do_schedule_connection(t()) :: t()
+  defp do_schedule_connection(
+         %State{
+           backoff: backoff_timeout,
+           backoff_retries: retries
+         } = state
+       ) do
+    Process.send_after(self(), :connect, backoff_timeout)
+
+    %State{state | backoff_retries: retries + 1}
+    |> change_status(:connecting)
   end
 
   @spec maybe_schedule_connection(t()) :: t()
@@ -224,7 +263,9 @@ defmodule Icon.Stream.WebSocket do
         state
         | conn: conn,
           ref: ref,
-          websocket: nil
+          websocket: nil,
+          backoff: 0,
+          backoff_retries: 0
       }
       |> change_status(:upgrading)
     else
