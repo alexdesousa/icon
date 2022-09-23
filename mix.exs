@@ -99,9 +99,40 @@ defmodule Icon.MixProject do
       source_url: @root,
       source_ref: "v#{@version}",
       groups_for_modules: groups_for_modules(),
-      nest_modules_by_prefix: nest_modules_by_prefix()
+      nest_modules_by_prefix: nest_modules_by_prefix(),
+      before_closing_body_tag: &before_closing_body_tag/1
     ]
   end
+
+  defp before_closing_body_tag(:html) do
+    """
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.19/dist/katex.min.css" integrity="sha384-beuqjL2bw+6DBM2eOpr5+Xlw+jiH44vMdVQwKxV28xxpoInPHTVmSvvvoPq9RdSh" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.19/dist/katex.min.js" integrity="sha384-aaNb715UK1HuP4rjZxyzph+dVss/5Nx3mLImBe9b0EW4vMUkc1Guw4VRyQKBC0eG" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.19/dist/contrib/auto-render.min.js" integrity="sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@8.13.3/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        mermaid.initialize({ startOnLoad: false });
+        let id = 0;
+        for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+          const preEl = codeEl.parentElement;
+          const graphDefinition = codeEl.textContent;
+          const graphEl = document.createElement("div");
+          const graphId = "mermaid-graph-" + id++;
+          mermaid.render(graphId, graphDefinition, function (svgSource, bindListeners) {
+            graphEl.innerHTML = svgSource;
+            bindListeners && bindListeners(graphEl);
+            preEl.insertAdjacentElement("afterend", graphEl);
+            preEl.remove();
+          });
+        }
+      });
+    </script>
+    """
+  end
+
+  defp before_closing_body_tag(_), do: ""
 
   defp groups_for_modules do
     [
@@ -115,6 +146,11 @@ defmodule Icon.MixProject do
         Icon.RPC.Request.Goloop
       ],
       "ICON 2.0 WebSocket": [
+        Icon.Stream,
+        Icon.Stream.Consumer.Publisher,
+        Icon.Stream.WebSocket
+      ],
+      "Yggdrasil Websocket adapter": [
         Yggdrasil.Adapter.Icon,
         Yggdrasil.Config.Icon,
         Yggdrasil.Publisher.Adapter.Icon,
@@ -155,6 +191,7 @@ defmodule Icon.MixProject do
   defp nest_modules_by_prefix do
     [
       Icon.Schema,
+      Icon.Stream,
       Icon.RPC
     ]
   end

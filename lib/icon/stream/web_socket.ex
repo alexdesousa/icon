@@ -2,6 +2,67 @@ defmodule Icon.Stream.WebSocket do
   @moduledoc """
   This module defines an event producer that connects via websockets to an
   Icon node.
+
+  ### Automatic Reconnections
+
+  When the websocket gets disconnected from the ICON node, it will attempt to
+  reconnect. If this immediate reconnection is not successful, then it will
+  wait some time and try again. This waiting time is calculated using
+  exponential backoff, to avoid overload the ICON node on reconnection:
+
+  $$backoff(i) = 2^{i-2} * random(1, slot), i \\in [0, 3], slot = 10$$
+
+  where `i` is incremented every time the process tries to reconnect until it
+  reaches the maximum value.
+
+  ### Buffering
+
+  When the current buffer is full (see `Icon.Stream`), the process will stop
+  the connection and wait for the buffer to have at least 50% space left.
+
+  ### States
+
+  The following finite state machine shows how the websocket process handles
+  different connection states:
+
+  ```mermaid
+  graph TD
+      %% Initialization
+      start(Start) -- HTTP 1.1 connection --> connecting{Is it connected?}
+      connecting -- Yes --> upgrade(Upgrade websocket)
+      connecting -- No --> backoff(Wait for X seconds)
+      backoff --> start
+
+      %% Upgrade
+      upgrade --> upgrading{Is it upgraded?}
+      upgrading -- Yes --> initialize(Setup connection)
+      upgrading -- No --> disconnect(Disconnect)
+      disconnect --> backoff
+
+      %% Initialization
+      initialize --> initializing{Is it ready?}
+      initializing -- Yes --> consume(Consume messages)
+      initializing -- No --> disconnect
+
+      %% Consuming
+      consume --> consuming(Receive event)
+      consuming --> sending{Are there any process waiting for events?}
+      sending -- Yes --> send(Send event)
+      sending -- No --> buffer{Is buffer full?}
+      send --> reconnect
+
+      %% Buffer not full
+      buffer -- No --> buffering(Buffer event)
+      buffering --> reconnect{Is disconnected?}
+      reconnect -- Yes --> buffer_state{Is buffer at 50% capacity or less?}
+      reconnect -- No --> consume
+      buffer_state -- Yes --> start
+      buffer_state --> sending
+
+      %% Buffer full
+      buffer -- Yes --> wait(Disconnect)
+      wait --> sending
+  ```
   """
   use GenStage
 
@@ -89,7 +150,7 @@ defmodule Icon.Stream.WebSocket do
   """
   @spec stop(GenServer.server()) :: :ok
   @spec stop(GenServer.server(), any()) :: :ok
-  @spec stop(GenServer.server(), any(), GenServer.timeout()) :: :ok
+  @spec stop(GenServer.server(), any(), timeout()) :: :ok
   defdelegate stop(websocket, reason \\ :normal, timeout \\ :infinity),
     to: GenServer
 
@@ -187,14 +248,16 @@ defmodule Icon.Stream.WebSocket do
   @spec schedule_connection(t()) :: t()
   defp schedule_connection(state)
 
-  defp schedule_connection(%State{conn: nil, backoff_retries: retries} = state)
-       when retries > @max_backoff_increments do
-    do_schedule_connection(state)
-  end
-
   defp schedule_connection(%State{conn: nil, backoff_retries: retries} = state) do
+    increments =
+      if retries > @max_backoff_increments do
+        @max_backoff_increments
+      else
+        retries
+      end
+
     new_backoff_timeout =
-      (2 <<< (retries - 2)) * Enum.random(1..@backoff_slot_size) * 1_000
+      (2 <<< (increments - 2)) * Enum.random(1..@backoff_slot_size) * 1_000
 
     %State{state | backoff: new_backoff_timeout}
     |> do_schedule_connection()
