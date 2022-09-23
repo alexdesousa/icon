@@ -132,7 +132,10 @@ defmodule Icon.Stream.WebSocket do
   def start_link(stream, options \\ [])
 
   def start_link(stream, options) do
-    {debug, options} = Keyword.pop(options, :debug, false)
+    {debug, options} =
+      options
+      |> Keyword.put(:name, name(stream))
+      |> Keyword.pop(:debug, false)
 
     state =
       struct(State,
@@ -142,6 +145,12 @@ defmodule Icon.Stream.WebSocket do
       )
 
     GenStage.start_link(__MODULE__, state, options)
+  end
+
+  @doc false
+  @spec name(Icon.Stream.t()) :: {:via, module(), term()}
+  def name(stream) do
+    {:via, ExReg, {__MODULE__, stream}}
   end
 
   @doc """

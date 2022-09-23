@@ -23,7 +23,7 @@ defmodule Icon.Stream.Consumer.PublisherTest do
                  Publisher.generate_channel(stream)
                )
 
-      assert {:ok, producer} = WebSocket.start_link(stream, debug: true)
+      assert {:ok, _producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket}, 1_000
       assert_receive {:"$icon_websocket", :setting_up}
 
@@ -31,16 +31,14 @@ defmodule Icon.Stream.Consumer.PublisherTest do
       assert_receive {:"$websocket", :sent, {:text, _}}
       assert_receive {:"$icon_websocket", :consuming}
 
-      {:ok, stream: stream, producer: producer, websocket: websocket}
+      {:ok, stream: stream, websocket: websocket}
     end
 
     test "should publish the messages it receives into the Phoenix channel", %{
       stream: stream,
-      producer: producer,
       websocket: websocket
     } do
-      assert {:ok, consumer} = Publisher.start_link(stream)
-      GenStage.sync_subscribe(consumer, to: producer, max_demand: 1)
+      assert {:ok, _consumer} = Publisher.start_link(stream)
 
       event = %{
         "height" => "0x0",

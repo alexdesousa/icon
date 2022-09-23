@@ -14,9 +14,7 @@ defmodule Icon.Stream.Consumer.Publisher do
   def start_link(stream, options \\ [])
 
   def start_link(stream, options) do
-    channel = generate_channel(stream)
-
-    GenStage.start_link(__MODULE__, channel, options)
+    GenStage.start_link(__MODULE__, stream, options)
   end
 
   @doc false
@@ -29,8 +27,11 @@ defmodule Icon.Stream.Consumer.Publisher do
   # Callback functions
 
   @impl GenStage
-  def init(channel) do
-    {:consumer, channel}
+  def init(stream) do
+    channel = generate_channel(stream)
+    producer = Icon.Stream.WebSocket.name(stream)
+
+    {:consumer, channel, subscribe_to: [{producer, max_demand: 1}]}
   end
 
   @impl GenStage
