@@ -25,11 +25,11 @@ defmodule Icon.Stream.Consumer.PublisherTest do
 
       assert {:ok, _producer} = WebSocket.start_link(stream, debug: true)
       assert_receive {:"$websocket", websocket}, 1_000
-      assert_receive {:"$icon_websocket", :setting_up}
+      assert_receive {:"$icon_websocket", :setting_up}, 500
 
       assert :ok = Streamer.send_message(websocket, %{"code" => 0})
-      assert_receive {:"$websocket", :sent, {:text, _}}
-      assert_receive {:"$icon_websocket", :consuming}
+      assert_receive {:"$websocket", :sent, {:text, _}}, 500
+      assert_receive {:"$icon_websocket", :consuming}, 500
 
       {:ok, stream: stream, websocket: websocket}
     end
@@ -47,9 +47,9 @@ defmodule Icon.Stream.Consumer.PublisherTest do
       }
 
       assert :ok = Streamer.send_message(websocket, event)
-      assert_receive {:"$websocket", :sent, {:text, _}}
+      assert_receive {:"$websocket", :sent, {:text, _}}, 500
 
-      assert_receive {:"$ICON", ^event}
+      assert_receive {:"$ICON", ^event}, 500
     end
   end
 end
