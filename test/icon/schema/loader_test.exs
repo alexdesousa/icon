@@ -878,6 +878,54 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads non_pos_integer type" do
+      non_pos_integer = "0x0"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               :non_pos_integer
+               |> Schema.generate()
+               |> Schema.new(non_pos_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.NonPosInteger
+               |> Schema.generate()
+               |> Schema.new(non_pos_integer)
+               |> Schema.load()
+    end
+
+    test "loads non_pos_integer type in schema" do
+      params = %{"non_pos_integer" => "0x0"}
+
+      assert %Schema{
+               data: %{non_pos_integer: 0},
+               is_valid?: true
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when non_pos_integer is invalid" do
+      params = %{"non_pos_integer" => "0x2a"}
+
+      assert %Schema{
+               errors: %{non_pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads pos_integer type" do
       pos_integer = "0x2a"
 

@@ -495,6 +495,32 @@ defmodule Icon.Schema.DumperTest do
                |> Schema.dump()
     end
 
+    test "dumps non_pos_integer type" do
+      params = %{"non_pos_integer" => 0}
+
+      assert %Schema{
+               data: %{non_pos_integer: "0x0"},
+               is_valid?: true
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when non_pos_integer is invalid" do
+      params = %{"non_pos_integer" => 1}
+
+      assert %Schema{
+               errors: %{non_pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
     test "dumps pos_integer type" do
       params = %{"pos_integer" => 42}
 

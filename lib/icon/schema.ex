@@ -38,6 +38,7 @@ defmodule Icon.Schema do
   - `:loop` (same as `Icon.Schema.Types.Loop`).
   - `:neg_integer` (same as `Icon.Schema.Types.NegInteger`)
   - `:non_neg_integer` (same as `Icon.Schema.Types.NonNegInteger`)
+  - `:non_pos_integer` (same as `Icon.Schema.Types.NonPosInteger`)
   - `:pos_integer` (same as `Icon.Schema.Types.PosInteger`).
   - `:score_address` (same as `Icon.Schema.Types.SCORE`).
   - `:signature` (same as `Icon.Schema.Types.Signature`).
@@ -187,6 +188,7 @@ defmodule Icon.Schema do
           | :loop
           | :neg_integer
           | :non_neg_integer
+          | :non_pos_integer
           | :pos_integer
           | :score_address
           | :signature
@@ -453,6 +455,7 @@ defmodule Icon.Schema do
              :loop,
              :neg_integer,
              :non_neg_integer,
+             :non_pos_integer,
              :pos_integer,
              :score_address,
              :signature,
@@ -476,6 +479,7 @@ defmodule Icon.Schema do
              Icon.Schema.Types.Loop,
              Icon.Schema.Types.NegInteger,
              Icon.Schema.Types.NonNegInteger,
+             Icon.Schema.Types.NonPosInteger,
              Icon.Schema.Types.PosInteger,
              Icon.Schema.Types.SCORE,
              Icon.Schema.Types.Signature,
@@ -614,6 +618,7 @@ defmodule Icon.Schema do
   defp expand_type(_key, :loop), do: Icon.Schema.Types.Loop
   defp expand_type(_key, :neg_integer), do: Icon.Schema.Types.NegInteger
   defp expand_type(_key, :non_neg_integer), do: Icon.Schema.Types.NonNegInteger
+  defp expand_type(_key, :non_pos_integer), do: Icon.Schema.Types.NonPosInteger
   defp expand_type(_key, :pos_integer), do: Icon.Schema.Types.PosInteger
   defp expand_type(_key, :score_address), do: Icon.Schema.Types.SCORE
   defp expand_type(_key, :signature), do: Icon.Schema.Types.Signature
