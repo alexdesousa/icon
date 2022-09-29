@@ -782,6 +782,54 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads neg_integer type" do
+      neg_integer = "-0x2a"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": -42},
+               is_valid?: true
+             } =
+               :neg_integer
+               |> Schema.generate()
+               |> Schema.new(neg_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": -42},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.NegInteger
+               |> Schema.generate()
+               |> Schema.new(neg_integer)
+               |> Schema.load()
+    end
+
+    test "loads neg_integer type in schema" do
+      params = %{"neg_integer" => "-0x2a"}
+
+      assert %Schema{
+               data: %{neg_integer: -42},
+               is_valid?: true
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when neg_integer is invalid" do
+      params = %{"neg_integer" => "0x2a"}
+
+      assert %Schema{
+               errors: %{neg_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads pos_integer type" do
       pos_integer = "0x2a"
 
