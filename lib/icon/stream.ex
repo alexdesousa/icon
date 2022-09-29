@@ -1,6 +1,331 @@
 defmodule Icon.Stream do
   @moduledoc """
-  This module defines an Icon websocket stream.
+  This module defines an ICOM websocket stream, that defines encoding and
+  decoding functions for the websocket outgoing and incoming messages
+  respectively.
+
+  ## Overview
+
+  ICON nodes have a handy HTTP 1.1 websocket endpoint for subscrible to block
+  events. There are two types of subscription streams:
+
+  - [Block stream](#block-stream): for subscribing to 0 or more types of events.
+  - [Event stream](#event-stream): for subscribing to a single type of event.
+
+  However, this module implements an abstraction that decodes the messages into
+  a decoded map e.g. it decodes the following:
+
+  ```json
+  {
+    "height": "0x44c",
+    "hash": "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    "indexes": [["0x1"], ["0x2", "0x3"]],
+    "events": [[["0x1", "0x2"]], [["0x1", "0x2"], ["0x4"]]]
+  }
+  ```
+
+  into the following:
+
+  ```elixir
+  %{
+    height: 1000,
+    hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    events: %{
+      1 => [1, 2],
+      2 => [1, 2],
+      3 => [4]
+    }
+  }
+  ```
+  where:
+
+  - The `events` keys are the transaction index in the block.
+  - The `events` values are list of event logs indexes in the transaction.
+
+  > **Note**: Indexes start on zero.
+
+  These decoded messages are easier to process when retrieving both blocks
+  and transactions.
+
+  > **Note**: The block `height` is the next block after the events where
+  > emitted e.g. in the example, the block is `1000`, so the events are in the
+  > event `999`.
+
+  ## Block Stream
+
+  A block stream allows us to subscribe to 0 or more types of events. In order
+  to get block events, we need to connect to the websocket at:
+
+  ```
+  "wss://${NODE_URL}/api/v3/icon_dex/block"
+  ```
+
+  and send a subscription message.
+
+  ### Subscription Message
+
+  A connection message is a JSON with the following fields:
+
+  | Name           | Type                                  | Description |
+  | :------------- | :------------------------------------ | :---------- |
+  | `height`       | `Icon.Schema.Types.NonNegInteger.t()` | The block heigth from which we want to start receiving messages. If no `height` is specified, the node will stream updates from the genesis block. |
+  | `eventFilters` | A list of event logs (see next table) | Filters to match against each block. |
+
+  where a single event log filter has the following fields:
+
+  | Name      | Type                          | Description |
+  | :-------- | :---------------------------- | :---------- |
+  | `event`   | `binary()`                    | Event header e.g. `Transfer(Address,Address,int)`. |
+  | `addr`    | `Icon.Schema.Types.SCORE.t()` | SCORE address of the contract emitting logs. |
+  | `indexed` | `[any()]`                     | Indexed values to match in the event. If the value for the indexed paramter is `nil`, it will match any value. |
+  | `data`    | `[any()]`                     | Data values to match in the event. If the value for the data paramter is `nil`, it will match any value. |
+
+  E.g. Let's say we want to subscribe to the events where:
+
+  - The header `Transfer(Address,Address,int)` where the two first
+    parameters are indexed.
+  - The SCORE address is `cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32`.
+  - And the receiver's EOA address is `hxbe258ceb872e08851f1f59694dac2558708ece11`.
+
+  and we want to do that from the block height `1000`. Then the message to be
+  sent would be:
+
+  ```json
+  {
+    "height": "0x3e8",
+    "eventFilters": [
+      {
+        "event": "Transfer(Address,Address,int)",
+        "addr": "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        "indexed": [
+          null,
+          "hxbe258ceb872e08851f1f59694dac2558708ece11"
+        ]
+      }
+    ]
+  }
+  ```
+
+  If all's good, the node should respond with the following message:
+
+  ```json
+  {"code": 0}
+  ```
+
+  and all the following messages should be the block stream events.
+
+  > **Note**: If the subscription fails, the node will return a `code` different
+  > than zero and a `message` with the description of the error e.g:
+  > ```json
+  > {"code":-32_000, "message": "Server error"}
+  > ```
+
+  ### Block Stream Events
+
+  Once the connection is established and the subscription is configured, the
+  node will start streaming events. An event is a JSON with the following
+  fields:
+
+  | Name      | Type                                        | Description |
+  | :-------  | :------------------------------------------ | :---------- |
+  | `height`  | `Icon.Schema.Types.NonNegInteger.t()`       | The block height. |
+  | `hash`    | `Icon.Schema.Types.Hash.t()`                | The block hash.   |
+  | `indexes` | `[[Icon.Schema.Types.NonNegInteger.t()]]`   | The indexes of the transactions that match each of the event filters e.g. if the length of the `eventFilters` is 3, then the `indexes` outer list should be length 3. |
+  | `events`  | [`[[Icon.Schema.Types.NonNegInteger.t()]]]` | The event log indexes that match each of the event filters. These are paired with the `indexes` from the previous row. |
+
+  This stream will send a notification every time a block is produced regardless
+  of the filters. However, when there are matches, the fields `indexes` and
+  `events` will be populated.
+
+  When there are events that match the filters, they can be found in the
+  previous block e.g. if we receive a notification for the block `0x44c` with
+  both `indexes` and `events`, then they can be found in the block `0x44b`.
+
+  ### Block Stream Events Example
+
+  It's easier to see the previous with an example e.g. let's say we have the
+  followin subscription:
+
+  ```json
+  {
+    "height": "0x3e8",
+    "eventFilters": [
+      {"event": "EventOne()"},
+      {"event": "EventTwo()"},
+    ]
+  }
+  ```
+
+  and we eventually receive the following event:
+
+  ```json
+  {
+    "height": "0x44c",
+    "hash": "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    "indexes": [["0x1"], ["0x2", "0x3"]],
+    "events": [[["0x1", "0x2"]], [["0x1", "0x2"], ["0x4"]]]
+  }
+  ```
+
+  Then we can find the event logs like this:
+
+  ```mermaid
+  graph LR
+    current_block(Block 0x44c) --> previous_block(Block 0x44b)
+    previous_block --> transaction_0(Transaction 0x0)
+    previous_block --> transaction_1(Transaction 0x1)
+    previous_block --> transaction_2(Transaction 0x2)
+    previous_block --> transaction_3(Transaction 0x3)
+    transaction_0 --> event_0_0(Event 0x0)
+    transaction_1 --> event_1_0(Event 0x0)
+    transaction_1 --> event_1_1(Event 0x1)
+    transaction_1 --> event_1_2(Event 0x2)
+    transaction_2 --> event_2_0(Event 0x0)
+    transaction_2 --> event_2_1(Event 0x1)
+    transaction_2 --> event_2_2(Event 0x2)
+    transaction_3 --> event_3_0(Event 0x0)
+    transaction_3 --> event_3_1(Event 0x1)
+    transaction_3 --> event_3_2(Event 0x2)
+    transaction_3 --> event_3_3(Event 0x3)
+    transaction_3 --> event_3_4(Event 0x4)
+
+    style current_block fill:#99f,stroke:#333,stroke-width:4px
+    style previous_block fill:#f9f,stroke:#333,stroke-width:4px
+    style transaction_1 fill:#ff9,stroke:#333,stroke-width:4px
+    style event_1_1 fill:#ff9,stroke:#333,stroke-width:4px
+    style event_1_2 fill:#ff9,stroke:#333,stroke-width:4px
+    style transaction_2 fill:#9ff,stroke:#333,stroke-width:4px
+    style event_2_1 fill:#9ff,stroke:#333,stroke-width:4px
+    style event_2_2 fill:#9ff,stroke:#333,stroke-width:4px
+    style transaction_3 fill:#9ff,stroke:#333,stroke-width:4px
+    style event_3_4 fill:#9ff,stroke:#333,stroke-width:4px
+  ```
+  where:
+  - The current block is colored blue.
+  - The previous block (where the events actually are) is colored red.
+  - The `EventOne()` events and their transaction are colored yellow.
+  - The `EventTwo()` events and their transactions are colored green.
+
+  ## Event Stream
+
+  An event stream is a simpler version of a [block stream](#block-stream), where
+  we only subscribe to a single event. In order to get events, we need to
+  connect to the websocket at:
+
+  ```
+  "wss://${NODE_URL}/api/v3/icon_dex/event"
+  ```
+
+  and send a subscription message.
+
+  ### Subscription Message
+
+  A connection message is a JSON with the following fields:
+
+  | Name           | Type                                  | Description |
+  | :------------- | :------------------------------------ | :---------- |
+  | `height`       | `Icon.Schema.Types.NonNegInteger.t()` | The block heigth from which we want to start receiving messages. If no `height` is specified, the node will stream updates from the genesis block. |
+  | `event`        | `binary()`                            | Event header e.g. `Transfer(Address,Address,int)`. |
+  | `addr`         | `Icon.Schema.Types.SCORE.t()`         | SCORE address of the contract emitting logs. |
+  | `indexed`      | `[any()]`                             | Indexed values to match in the event. If the value for the indexed paramter is `nil`, it will match any value. |
+  | `data`         | `[any()]`                             | Data values to match in the event. If the value for the data paramter is `nil`, it will match any value. |
+
+  E.g. Let's say we want to subscribe to the events where:
+
+  - The header `Transfer(Address,Address,int)` where the two first
+    parameters are indexed.
+  - The SCORE address is `cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32`.
+  - And the receiver's EOA address is `hxbe258ceb872e08851f1f59694dac2558708ece11`.
+
+  and we want to do that from the block height `1000`. Then the message to be
+  sent would be:
+
+  ```json
+  {
+    "height": "0x3e8",
+    "event": "Transfer(Address,Address,int)",
+    "addr": "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+    "indexed": [
+      null,
+      "hxbe258ceb872e08851f1f59694dac2558708ece11"
+    ]
+  }
+  ```
+
+  If all's good, the node should respond with the following message:
+
+  ```json
+  {"code": 0}
+  ```
+
+  and all the following messages should be the block stream events.
+
+  > **Note**: If the subscription fails, the node will return a `code` different
+  > than zero and a `message` with the description of the error e.g:
+  > ```json
+  > {"code":-32_000, "message": "Server error"}
+  > ```
+
+  ### Event Stream Notifications
+
+  Once the connection is established and the subscription is configured, the
+  node will start streaming events. An event is a JSON with the following
+  fields:
+
+  | Name      | Type                                     | Description |
+  | :-------  | :--------------------------------------- | :---------- |
+  | `height`  | `Icon.Schema.Types.NonNegInteger.t()`    | The block height. |
+  | `hash`    | `Icon.Schema.Types.Hash.t()`             | The block hash.   |
+  | `index`   | `Icon.Schema.Types.NonNegInteger.t()`    | The index of the transaction that match the event filters. |
+  | `events`  | [`[Icon.Schema.Types.NonNegInteger.t()]` | The event log indexes that match the event filters. |
+
+  This stream will only send a notification when a message matches the filter.
+
+  ### Event Stream Example
+
+  It's easier to see the previous with an example e.g. let's say we have the
+  followin subscription:
+
+  ```json
+  {
+    "height": "0x3e8",
+    "event": "Event()"
+  }
+  ```
+
+  and we eventually receive the following event:
+
+  ```json
+  {
+    "height": "0x44c",
+    "hash": "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+    "index": "0x1",
+    "events": ["0x1", "0x2"]
+  }
+  ```
+
+  Then we can find the event logs like this:
+
+  ```mermaid
+  graph LR
+    current_block(Block 0x44c) --> previous_block(Block 0x44b)
+    previous_block --> transaction_0(Transaction 0x0)
+    previous_block --> transaction_1(Transaction 0x1)
+    transaction_0 --> event_0_0(Event 0x0)
+    transaction_1 --> event_1_0(Event 0x0)
+    transaction_1 --> event_1_1(Event 0x1)
+    transaction_1 --> event_1_2(Event 0x2)
+
+    style current_block fill:#99f,stroke:#333,stroke-width:4px
+    style previous_block fill:#f9f,stroke:#333,stroke-width:4px
+    style transaction_1 fill:#ff9,stroke:#333,stroke-width:4px
+    style event_1_1 fill:#ff9,stroke:#333,stroke-width:4px
+    style event_1_2 fill:#ff9,stroke:#333,stroke-width:4px
+  ```
+  where:
+  - The current block is colored blue.
+  - The previous block (where the events actually are) is colored red.
+  - The `Event()` events and their transaction are colored yellow.
   """
   import Icon.Schema, only: [list: 1]
 

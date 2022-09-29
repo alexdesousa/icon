@@ -149,6 +149,7 @@ defmodule Icon.MixProject do
       "ICON 2.0 WebSocket": [
         Icon.Stream,
         Icon.Stream.Consumer.Publisher,
+        Icon.Stream.Supervisor,
         Icon.Stream.WebSocket
       ],
       "Yggdrasil Websocket adapter": [
@@ -174,6 +175,10 @@ defmodule Icon.MixProject do
         Icon.Schema.Types.Hash,
         Icon.Schema.Types.Integer,
         Icon.Schema.Types.Loop,
+        Icon.Schema.Types.NegInteger,
+        Icon.Schema.Types.NonNegInteger,
+        Icon.Schema.Types.NonPosInteger,
+        Icon.Schema.Types.PosInteger,
         Icon.Schema.Types.SCORE,
         Icon.Schema.Types.Signature,
         Icon.Schema.Types.String,
