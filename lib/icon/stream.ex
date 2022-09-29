@@ -2,15 +2,11 @@ defmodule Icon.Stream do
   @moduledoc """
   This module defines an Icon websocket stream.
   """
-  alias Icon.RPC.Identity
+  import Icon.Schema, only: [list: 1]
 
-  alias Icon.Schema.{
-    Error,
-    Type,
-    Types,
-    Types.Block,
-    Types.SCORE
-  }
+  alias Icon.RPC.Identity
+  alias Icon.Schema
+  alias Icon.Schema.{Error, Type, Types}
 
   @max_buffer_size 1_000
 
@@ -47,7 +43,7 @@ defmodule Icon.Stream do
   @type stream :: %__MODULE__{
           identity: identity :: Identity.t(),
           source: source :: source(),
-          events: events :: events(),
+          events: events_subscriptions :: event_subscriptions(),
           height: height :: non_neg_integer(),
           type: height_type :: :latest | :past,
           buffer: buffer :: :queue.queue(map()),
@@ -62,17 +58,44 @@ defmodule Icon.Stream do
           | :event
 
   @typedoc """
-  Event.
+  Event suscription.
   """
-  @type event :: %{
-          required(:event) => binary(),
-          optional(:addr) => SCORE.t(),
-          optional(:indexed) => [any()],
-          optional(:data) => [any()]
+  @type event_subscription :: %{
+          required(:event) => signature :: binary(),
+          optional(:addr) => contract_address :: Types.SCORE.t(),
+          optional(:indexed) => indexed_parameters :: [any()],
+          optional(:data) => data_parameters :: [any()]
         }
 
   @typedoc """
   Events.
+  """
+  @type event_subscriptions :: [event_subscription()]
+
+  @typedoc """
+  Transaction index.
+  """
+  @type transaction_index :: non_neg_integer()
+
+  @typedoc """
+  Event log index.
+  """
+  @type event_log_index :: non_neg_integer()
+
+  @typedoc """
+  Incoming event.
+  """
+  @type event :: %{
+          :height => height :: non_neg_integer(),
+          :hash => hash :: Types.Hash.t(),
+          optional(:events) =>
+            events :: %{
+              optional(transaction_index()) => [event_log_index()]
+            }
+        }
+
+  @typedoc """
+  Incoming events.
   """
   @type events :: [event()]
 
@@ -101,8 +124,10 @@ defmodule Icon.Stream do
   `1_000`.
   """
   @spec new_block_stream() :: {:ok, t()} | {:error, Error.t()}
-  @spec new_block_stream(events()) :: {:ok, t()} | {:error, Error.t()}
-  @spec new_block_stream(events(), options()) ::
+  @spec new_block_stream(event_subscriptions()) ::
+          {:ok, t()}
+          | {:error, Error.t()}
+  @spec new_block_stream(event_subscriptions(), options()) ::
           {:ok, t()}
           | {:error, Error.t()}
   def new_block_stream(events \\ [], options \\ [])
@@ -123,8 +148,10 @@ defmodule Icon.Stream do
   `1_000`.
   """
   @spec new_event_stream() :: {:ok, t()} | {:error, Error.t()}
-  @spec new_event_stream(nil | event()) :: {:ok, t()} | {:error, Error.t()}
-  @spec new_event_stream(nil | event(), options()) ::
+  @spec new_event_stream(nil | event_subscription()) ::
+          {:ok, t()}
+          | {:error, Error.t()}
+  @spec new_event_stream(nil | event_subscription(), options()) ::
           {:ok, t()}
           | {:error, Error.t()}
   def new_event_stream(event \\ nil, options \\ [])
@@ -186,32 +213,6 @@ defmodule Icon.Stream do
     Agent.get(stream, &do_encode/1)
   end
 
-  @spec do_encode(stream()) :: binary()
-  defp do_encode(%__MODULE__{
-         source: :event,
-         height: height,
-         events: [event]
-       }) do
-    event
-    |> Map.put(:height, encode_height(height))
-    |> Jason.encode!()
-  end
-
-  defp do_encode(%__MODULE__{
-         source: :block,
-         height: height,
-         events: [_ | _] = events
-       }) do
-    Jason.encode!(%{
-      height: encode_height(height),
-      eventFilters: events
-    })
-  end
-
-  defp do_encode(%__MODULE__{height: height}) do
-    Jason.encode!(%{height: encode_height(height)})
-  end
-
   @doc """
   Puts new events into the buffer.
   """
@@ -225,13 +226,23 @@ defmodule Icon.Stream do
   @spec do_put(stream(), [map()]) :: stream()
   defp do_put(%__MODULE__{buffer: buffer} = stream, events)
        when is_list(events) do
-    %__MODULE__{stream | buffer: Enum.reduce(events, buffer, &:queue.in/2)}
+    events =
+      events
+      |> Stream.map(&do_decode(stream, &1))
+      |> Enum.reduce(buffer, fn event, queue ->
+        case :queue.peek(queue) do
+          {:value, ^event} -> queue
+          _ -> :queue.in(event, queue)
+        end
+      end)
+
+    %__MODULE__{stream | buffer: events}
   end
 
   @doc """
   Pops an `amount` of events from the stream buffer.
   """
-  @spec pop(t(), non_neg_integer()) :: [map()]
+  @spec pop(t(), non_neg_integer()) :: events()
   def pop(stream, amount)
 
   def pop(stream, amount)
@@ -239,7 +250,7 @@ defmodule Icon.Stream do
     Agent.get_and_update(stream, &do_pop(&1, amount))
   end
 
-  @spec do_pop(stream(), non_neg_integer()) :: {[map()], stream()}
+  @spec do_pop(stream(), non_neg_integer()) :: {events(), stream()}
   defp do_pop(%__MODULE__{buffer: buffer, height: height} = stream, amount)
        when amount >= 0 do
     buffer_size = :queue.len(buffer)
@@ -249,11 +260,8 @@ defmodule Icon.Stream do
 
     new_height =
       case :queue.peek_r(to_pop) do
-        :empty ->
-          height
-
-        {:value, %{"height" => height}} ->
-          Type.load!(Types.Integer, height)
+        :empty -> height
+        {:value, %{height: height}} -> height + 1
       end
 
     new_stream = %__MODULE__{
@@ -305,7 +313,7 @@ defmodule Icon.Stream do
   ##########################
   # Initialization functions
 
-  @spec new(source(), nil | events(), options()) ::
+  @spec new(source(), nil | event_subscriptions(), options()) ::
           {:ok, t()} | {:error, Error.t()}
   defp new(source, events, options) do
     identity = options[:identity] || Identity.new()
@@ -334,7 +342,7 @@ defmodule Icon.Stream do
   defp get_height(identity, height)
 
   defp get_height(%Identity{} = identity, :latest) do
-    with {:ok, %Block{height: height}} <- Icon.get_block(identity) do
+    with {:ok, %Types.Block{height: height}} <- Icon.get_block(identity) do
       get_height(identity, height)
     end
   end
@@ -346,7 +354,33 @@ defmodule Icon.Stream do
   ####################
   # Encoding functions
 
-  @spec encode_event(event()) :: map()
+  @spec do_encode(stream()) :: binary()
+  defp do_encode(%__MODULE__{
+         source: :event,
+         height: height,
+         events: [event]
+       }) do
+    event
+    |> Map.put(:height, encode_height(height))
+    |> Jason.encode!()
+  end
+
+  defp do_encode(%__MODULE__{
+         source: :block,
+         height: height,
+         events: [_ | _] = events
+       }) do
+    Jason.encode!(%{
+      height: encode_height(height),
+      eventFilters: events
+    })
+  end
+
+  defp do_encode(%__MODULE__{height: height}) do
+    Jason.encode!(%{height: encode_height(height)})
+  end
+
+  @spec encode_event(event_subscription()) :: map()
   defp encode_event(%{event: header} = data) when is_binary(header) do
     %{event: header}
     |> maybe_add_addr(data)
@@ -358,16 +392,16 @@ defmodule Icon.Stream do
     raise ArgumentError, message: "missing event header"
   end
 
-  @spec maybe_add_addr(map(), event()) :: map()
+  @spec maybe_add_addr(map(), event_subscription()) :: map()
   defp maybe_add_addr(event, %{addr: addr}) do
-    Map.put(event, :addr, Type.dump!(Icon.Schema.Types.SCORE, addr))
+    Map.put(event, :addr, Type.dump!(Types.SCORE, addr))
   end
 
   defp maybe_add_addr(event, _) do
     event
   end
 
-  @spec maybe_add_indexed(map(), event()) :: map()
+  @spec maybe_add_indexed(map(), event_subscription()) :: map()
   defp maybe_add_indexed(event, data)
 
   defp maybe_add_indexed(%{event: header} = event, %{indexed: indexed})
@@ -386,7 +420,7 @@ defmodule Icon.Stream do
 
   defp maybe_add_indexed(event, _data), do: event
 
-  @spec maybe_add_data(map(), event()) :: map()
+  @spec maybe_add_data(map(), event_subscription()) :: map()
   defp maybe_add_data(event, data)
 
   defp maybe_add_data(%{event: header, indexed: indexed} = event, %{data: data})
@@ -421,8 +455,118 @@ defmodule Icon.Stream do
     end)
   end
 
-  @spec encode_height(non_neg_integer()) :: Types.Integer
+  @spec encode_height(non_neg_integer()) :: Types.NonNegInteger
   defp encode_height(height) when height >= 0 do
-    Type.dump!(Types.Integer, height)
+    Type.dump!(Types.NonNegInteger, height)
+  end
+
+  ####################
+  # Decoding functions
+
+  @spec do_decode(stream(), map()) :: event() | no_return()
+  defp do_decode(stream, event)
+
+  defp do_decode(%__MODULE__{} = stream, %{"index" => _} = raw_event) do
+    %{
+      height: {:non_neg_integer, required: true},
+      hash: {:hash, required: true},
+      index: {:non_neg_integer, required: true},
+      events: {list(:non_neg_integer), required: true}
+    }
+    |> Schema.generate()
+    |> Schema.new(raw_event)
+    |> Schema.load()
+    |> Schema.apply()
+    |> case do
+      {:ok, event} ->
+        expand_indexes(stream, event)
+
+      {:error, reason} ->
+        raise RuntimeError,
+          message: "cannot decode incoming event: #{inspect(reason)}"
+    end
+  end
+
+  defp do_decode(%__MODULE__{} = stream, raw_event) do
+    %{
+      height: {:non_neg_integer, required: true},
+      hash: {:hash, required: true},
+      indexes: list(list(:non_neg_integer)),
+      events: list(list(list(:non_neg_integer)))
+    }
+    |> Schema.generate()
+    |> Schema.new(raw_event)
+    |> Schema.load()
+    |> Schema.apply()
+    |> case do
+      {:ok, event} ->
+        expand_indexes(stream, event)
+
+      {:error, reason} ->
+        raise RuntimeError,
+          message: "cannot decode incoming event: #{inspect(reason)}"
+    end
+  end
+
+  @spec expand_indexes(stream(), raw_event | raw_block__event) :: event()
+        when raw_block__event: %{
+               :height => height :: non_neg_integer(),
+               :hash => hash :: Types.Hash.t(),
+               optional(:indexes) => indexes :: [[non_neg_integer()]],
+               optional(:events) => events :: [[[non_neg_integer()]]]
+             },
+             raw_event: %{
+               :height => height :: non_neg_integer(),
+               :hash => hash :: Types.Hash.t(),
+               optional(:index) => index :: non_neg_integer(),
+               optional(:events) => events :: [non_neg_integer()]
+             }
+  defp expand_indexes(stream, raw_event)
+
+  defp expand_indexes(
+         %__MODULE__{events: [_subscription]},
+         %{index: index, events: events} = raw_event
+       ) do
+    %{
+      height: raw_event.height,
+      hash: raw_event.hash,
+      events: Map.put(%{}, index, events)
+    }
+  end
+
+  defp expand_indexes(
+         %__MODULE__{events: subscriptions},
+         %{indexes: indexes, events: events} = raw_event
+       )
+       when is_list(indexes) and is_list(events) do
+    events =
+      subscriptions
+      |> Stream.zip(indexes)
+      |> Stream.zip(events)
+      |> Stream.map(fn {{_subscription, indexes}, events} ->
+        indexes
+        |> Enum.zip(events)
+        |> Map.new()
+      end)
+      |> Enum.reduce(%{}, fn event, acc ->
+        Map.merge(acc, event, fn _k, v1, v2 ->
+          v1
+          |> Kernel.++(v2)
+          |> Enum.dedup()
+        end)
+      end)
+
+    %{
+      height: raw_event.height,
+      hash: raw_event.hash,
+      events: events
+    }
+  end
+
+  defp expand_indexes(%__MODULE__{} = _stream, %{height: height, hash: hash}) do
+    %{
+      height: height,
+      hash: hash
+    }
   end
 end

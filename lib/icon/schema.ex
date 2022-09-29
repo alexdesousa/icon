@@ -134,16 +134,19 @@ defmodule Icon.Schema do
     ]
   }
 
-  %Block{
-    height: 42,
-    hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
-    transactions: [
-      %Transaction{
-        from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
-        to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
-        value: 42
-      }
-    ]
+  {
+    :ok,
+    %Block{
+      height: 42,
+      hash: "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238",
+      transactions: [
+        %Transaction{
+          from: "hxbe258ceb872e08851f1f59694dac2558708ece11",
+          to: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+          value: 42
+        }
+      ]
+    }
   } =
     Block
     |> Icon.Schema.generate()

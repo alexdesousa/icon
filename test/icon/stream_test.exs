@@ -599,40 +599,268 @@ defmodule Icon.StreamTest do
   describe "put/2" do
     test "should store the events in the buffer" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
       assert :ok = Icon.Stream.put(stream, events)
-      assert ^events = Icon.Stream.pop(stream, 3)
+
+      expected = [
+        %{
+          height: 0,
+          hash:
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          height: 1,
+          hash:
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          height: 2,
+          hash:
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
+      ]
+
+      assert ^expected = Icon.Stream.pop(stream, 3)
+    end
+
+    test "should decode height" do
+      events = [
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        }
+      ]
+
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+      assert [%{height: 0}] = Icon.Stream.pop(stream, 1)
+    end
+
+    test "should decode hash" do
+      events = [
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        }
+      ]
+
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+
+      assert [
+               %{
+                 hash:
+                   "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+               }
+             ] = Icon.Stream.pop(stream, 1)
+    end
+
+    test "should avoid inserting the same event twice" do
+      events = [
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        }
+      ]
+
+      assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
+      assert :ok = Icon.Stream.put(stream, events)
+
+      assert [
+               %{
+                 height: 0,
+                 hash:
+                   "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+               }
+             ] = Icon.Stream.pop(stream, 2)
+    end
+
+    test "should decode events" do
+      subscription = %{
+        addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+        event: "Transfer(Address,Address,int)",
+        indexed: [
+          nil,
+          "hxbe258ceb872e08851f1f59694dac2558708ece11"
+        ],
+        data: [
+          42
+        ]
+      }
+
+      events = [
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea",
+          "index" => "0x1",
+          "events" => ["0x1", "0x2"]
+        }
+      ]
+
+      assert {:ok, stream} =
+               Icon.Stream.new_event_stream(subscription, from_height: 0)
+
+      assert :ok = Icon.Stream.put(stream, events)
+
+      assert [
+               %{
+                 events: %{1 => [1, 2]}
+               }
+             ] = Icon.Stream.pop(stream, 1)
+    end
+
+    test "should decode block events" do
+      subscriptions = [
+        %{
+          event: "Transfer(Address,Address,int)"
+        },
+        %{
+          addr: "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32",
+          event: "Transfer(Address,Address,int)",
+          indexed: [
+            nil,
+            "hxbe258ceb872e08851f1f59694dac2558708ece11"
+          ],
+          data: [
+            42
+          ]
+        }
+      ]
+
+      events = [
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea",
+          "indexes" => [["0x1"], ["0x2", "0x3"]],
+          "events" => [[["0x1", "0x2"]], [["0x1", "0x3"], ["0x4"]]]
+        }
+      ]
+
+      assert {:ok, stream} =
+               Icon.Stream.new_block_stream(subscriptions, from_height: 0)
+
+      assert :ok = Icon.Stream.put(stream, events)
+
+      assert [
+               %{
+                 events: %{1 => [1, 2], 2 => [1, 3], 3 => [4]}
+               }
+             ] = Icon.Stream.pop(stream, 1)
     end
   end
 
   describe "pop/2" do
     test "should pop the amount of events requested if they exist" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
       assert :ok = Icon.Stream.put(stream, events)
-      assert ^events = Icon.Stream.pop(stream, 3)
+
+      expected = [
+        %{
+          height: 0,
+          hash:
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          height: 1,
+          hash:
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          height: 2,
+          hash:
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
+      ]
+
+      assert ^expected = Icon.Stream.pop(stream, 3)
     end
 
     test "should pop all events when the amount is greater than the buffer size" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
       assert :ok = Icon.Stream.put(stream, events)
-      assert ^events = Icon.Stream.pop(stream, 100)
+
+      expected = [
+        %{
+          height: 0,
+          hash:
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          height: 1,
+          hash:
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          height: 2,
+          hash:
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
+      ]
+
+      assert ^expected = Icon.Stream.pop(stream, 100)
     end
 
     test "should return an empty list when the buffer is empty" do
@@ -642,9 +870,21 @@ defmodule Icon.StreamTest do
 
     test "should change the height if the buffer is not empty" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} = Icon.Stream.new_block_stream([], from_height: 0)
@@ -661,9 +901,21 @@ defmodule Icon.StreamTest do
   describe "is_full?" do
     test "should return true when the buffer is full" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} =
@@ -678,9 +930,21 @@ defmodule Icon.StreamTest do
 
     test "should return false when the buffer is not full" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} =
@@ -697,9 +961,21 @@ defmodule Icon.StreamTest do
   describe "check_capacity/1" do
     test "should return the percentage of space left in the buffer" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} =
@@ -714,9 +990,21 @@ defmodule Icon.StreamTest do
 
     test "should return 0 if the buffer is full" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} =
@@ -731,9 +1019,21 @@ defmodule Icon.StreamTest do
 
     test "should return 0 when the buffer is overflowed" do
       events = [
-        %{"height" => "0x0"},
-        %{"height" => "0x1"},
-        %{"height" => "0x2"}
+        %{
+          "height" => "0x0",
+          "hash" =>
+            "0x761adf0e0f83a5ef728cc47e03800691e7cff67ce3b4048a296ea00fffc28aea"
+        },
+        %{
+          "height" => "0x1",
+          "hash" =>
+            "0xb57325d52de012469ffb8b355408f22ca6aa52eefd69d0d873eef974a7f211e9"
+        },
+        %{
+          "height" => "0x2",
+          "hash" =>
+            "0x1feb9e1478626b68716ad5d242c12276554719f2a3a246f697d1aa91ace66f91"
+        }
       ]
 
       assert {:ok, stream} =

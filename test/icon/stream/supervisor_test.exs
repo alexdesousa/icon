@@ -43,7 +43,13 @@ defmodule Icon.Stream.SupervisorTest do
       assert :ok = Streamer.send_message(websocket, event)
       assert_receive {:"$websocket", :sent, {:text, _}}, 500
 
-      assert_receive {:"$ICON", ^event}, 500
+      expected = %{
+        height: 0,
+        hash:
+          "0xc71303ef8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+      }
+
+      assert_receive {:"$ICON", ^expected}, 500
     end
 
     test "should terminate supervisor when the stream is terminated", %{
