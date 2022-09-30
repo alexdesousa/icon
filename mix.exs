@@ -45,8 +45,8 @@ defmodule Icon.MixProject do
   defp deps do
     [
       {:exreg, "~> 1.0"},
-      {:finch, "~> 0.12"},
-      {:jason, "~> 1.3"},
+      {:finch, "~> 0.13"},
+      {:jason, "~> 1.4"},
       {:curvy, "~> 0.3"},
       {:gen_stage, "~> 1.0"},
       {:mint, "~> 1.4"},
@@ -59,7 +59,7 @@ defmodule Icon.MixProject do
       {:plug_cowboy, "~> 2.5", only: :test},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test, runtime: false}
     ]
   end
