@@ -70,6 +70,7 @@ defmodule Icon.Stream.WebSocket do
   import Bitwise
 
   alias __MODULE__, as: State
+  alias Icon.Schema
 
   @max_backoff_increments 3
   @backoff_slot_size 10
@@ -639,7 +640,7 @@ defmodule Icon.Stream.WebSocket do
   defp log_error(error)
 
   defp log_error(%{"code" => code} = reason) do
-    error = Icon.Schema.Error.new(code: code, message: reason["message"])
+    error = Schema.Error.new(code: code, message: reason["message"])
     Logger.warn("Error message received: #{inspect(error)}")
   end
 

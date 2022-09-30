@@ -4,6 +4,7 @@ defmodule Icon.Stream.Consumer.Publisher do
   a `Phoenix.PubSub` channel.
   """
   use GenStage
+  alias Icon.Stream.WebSocket
 
   @doc """
   Starts a new consumer for a specific stream. The messages are broadcasted
@@ -29,7 +30,7 @@ defmodule Icon.Stream.Consumer.Publisher do
   @impl GenStage
   def init(stream) do
     channel = generate_channel(stream)
-    producer = Icon.Stream.WebSocket.name(stream)
+    producer = WebSocket.name(stream)
 
     {:consumer, channel, subscribe_to: [{producer, max_demand: 1}]}
   end
