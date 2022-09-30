@@ -52,7 +52,7 @@ defmodule Icon.RPC.Request.GoloopTest do
                  method: "icx_getBlockByHeight",
                  options: %{
                    url: _,
-                   schema: %{height: {:pos_integer, required: true}}
+                   schema: %{height: {:non_neg_integer, required: true}}
                  },
                  params: %{
                    height: ^height

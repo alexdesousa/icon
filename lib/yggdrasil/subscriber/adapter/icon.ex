@@ -36,10 +36,9 @@ defmodule Yggdrasil.Subscriber.Adapter.Icon do
   ```
   """
   use GenServer
-  use Bitwise
   use Yggdrasil.Subscriber.Adapter
-
   require Logger
+  import Bitwise
 
   alias __MODULE__, as: State
   alias Icon.RPC.Identity

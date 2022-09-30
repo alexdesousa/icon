@@ -782,6 +782,150 @@ defmodule Icon.Schema.LoaderTest do
                |> Schema.load()
     end
 
+    test "loads neg_integer type" do
+      neg_integer = "-0x2a"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": -42},
+               is_valid?: true
+             } =
+               :neg_integer
+               |> Schema.generate()
+               |> Schema.new(neg_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": -42},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.NegInteger
+               |> Schema.generate()
+               |> Schema.new(neg_integer)
+               |> Schema.load()
+    end
+
+    test "loads neg_integer type in schema" do
+      params = %{"neg_integer" => "-0x2a"}
+
+      assert %Schema{
+               data: %{neg_integer: -42},
+               is_valid?: true
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when neg_integer is invalid" do
+      params = %{"neg_integer" => "0x2a"}
+
+      assert %Schema{
+               errors: %{neg_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "loads non_neg_integer type" do
+      non_neg_integer = "0x0"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               :non_neg_integer
+               |> Schema.generate()
+               |> Schema.new(non_neg_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.NonNegInteger
+               |> Schema.generate()
+               |> Schema.new(non_neg_integer)
+               |> Schema.load()
+    end
+
+    test "loads non_neg_integer type in schema" do
+      params = %{"non_neg_integer" => "0x0"}
+
+      assert %Schema{
+               data: %{non_neg_integer: 0},
+               is_valid?: true
+             } =
+               %{non_neg_integer: :non_neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when non_neg_integer is invalid" do
+      params = %{"non_neg_integer" => "-0x2a"}
+
+      assert %Schema{
+               errors: %{non_neg_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_neg_integer: :non_neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "loads non_pos_integer type" do
+      non_pos_integer = "0x0"
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               :non_pos_integer
+               |> Schema.generate()
+               |> Schema.new(non_pos_integer)
+               |> Schema.load()
+
+      assert %Schema{
+               data: %{"$__SCHEMA__": 0},
+               is_valid?: true
+             } =
+               Icon.Schema.Types.NonPosInteger
+               |> Schema.generate()
+               |> Schema.new(non_pos_integer)
+               |> Schema.load()
+    end
+
+    test "loads non_pos_integer type in schema" do
+      params = %{"non_pos_integer" => "0x0"}
+
+      assert %Schema{
+               data: %{non_pos_integer: 0},
+               is_valid?: true
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
+    test "adds error when non_pos_integer is invalid" do
+      params = %{"non_pos_integer" => "0x2a"}
+
+      assert %Schema{
+               errors: %{non_pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.load()
+    end
+
     test "loads pos_integer type" do
       pos_integer = "0x2a"
 

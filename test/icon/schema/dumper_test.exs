@@ -443,6 +443,110 @@ defmodule Icon.Schema.DumperTest do
                |> Schema.dump()
     end
 
+    test "dumps neg_integer type" do
+      params = %{"neg_integer" => -42}
+
+      assert %Schema{
+               data: %{neg_integer: "-0x2a"},
+               is_valid?: true
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when neg_integer is invalid" do
+      params = %{"neg_integer" => 0}
+
+      assert %Schema{
+               errors: %{neg_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{neg_integer: :neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "dumps non_neg_integer type" do
+      params = %{"non_neg_integer" => 0}
+
+      assert %Schema{
+               data: %{non_neg_integer: "0x0"},
+               is_valid?: true
+             } =
+               %{non_neg_integer: :non_neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when non_neg_integer is invalid" do
+      params = %{"non_neg_integer" => -1}
+
+      assert %Schema{
+               errors: %{non_neg_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_neg_integer: :non_neg_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "dumps non_pos_integer type" do
+      params = %{"non_pos_integer" => 0}
+
+      assert %Schema{
+               data: %{non_pos_integer: "0x0"},
+               is_valid?: true
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when non_pos_integer is invalid" do
+      params = %{"non_pos_integer" => 1}
+
+      assert %Schema{
+               errors: %{non_pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{non_pos_integer: :non_pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "dumps pos_integer type" do
+      params = %{"pos_integer" => 42}
+
+      assert %Schema{
+               data: %{pos_integer: "0x2a"},
+               is_valid?: true
+             } =
+               %{pos_integer: :pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
+    test "adds error when pos_integer is invalid" do
+      params = %{"pos_integer" => 0}
+
+      assert %Schema{
+               errors: %{pos_integer: "is invalid"},
+               is_valid?: false
+             } =
+               %{pos_integer: :pos_integer}
+               |> Schema.generate()
+               |> Schema.new(params)
+               |> Schema.dump()
+    end
+
     test "dumps score_address type" do
       score_address = "cxb0776ee37f5b45bfaea8cff1d8232fbb6122ec32"
       params = %{"score_address" => score_address}

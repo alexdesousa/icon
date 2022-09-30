@@ -8,7 +8,7 @@ defmodule Icon.Schema.Types.Block do
   :--------------------------- | :------------------------------------------ | :----------
   `block_hash`                 | `Icon.Schema.Types.Hash.t()`                | Block hash.
   `confirmed_transaction_list` | List of `Icon.Schema.Types.Transaction.t()` | List of confirmed transactions.
-  `height`                     | `Icon.Schema.Types.Integer.t()`             | Block height.
+  `height`                     | `Icon.Schema.Types.NonNegInteger.t()`       | Block height.
   `merkle_tree_root_hash`      | `Icon.Schema.Types.Hash.t()`                | Merkle tree root hash.
   `peer_id`                    | `Icon.Schema.Types.EOA.t()`                 | Unique address of the node.
   `prev_block_hash`            | `Icon.Schema.Types.Hash.t()`                | Previous block hash.
@@ -27,7 +27,7 @@ defmodule Icon.Schema.Types.Block do
     prev_block_hash: :hash,
     peer_id: :eoa_address,
     merkle_tree_root_hash: :hash,
-    height: :pos_integer,
+    height: :non_neg_integer,
     block_hash: :hash,
     confirmed_transaction_list: list(Transaction)
   })

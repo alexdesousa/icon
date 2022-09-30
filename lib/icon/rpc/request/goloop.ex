@@ -87,7 +87,7 @@ defmodule Icon.RPC.Request.Goloop do
   def get_block_by_height(identity, height)
 
   def get_block_by_height(%Identity{} = identity, height) do
-    schema = %{height: {:pos_integer, required: true}}
+    schema = %{height: {:non_neg_integer, required: true}}
 
     with {:ok, params} <- validate(schema, height: height) do
       request =

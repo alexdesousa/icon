@@ -19,13 +19,13 @@ defmodule Icon.RPC.Request do
   ```elixir
   iex> method = "icx_getBlockByHeight"
   iex> params = %{height: 42}
-  iex> schema = %{height: :pos_integer}
+  iex> schema = %{height: :non_neg_integer}
   iex> Icon.RPC.Request.build(method, params, schema: schema)
   %Icon.RPC.Request{
     id: 1_639_382_704_065_742_380,
     method: "icx_getBlockByHeight",
     options: %{
-      schema: %{height: :pos_integer},
+      schema: %{height: :non_neg_integer},
       identity: #Identity<
         node: "https://ctz.solidwallet.io",
         network_id: "0x01 (Mainnet)",
@@ -225,13 +225,13 @@ defmodule Icon.RPC.Request do
   ```elixir
   iex> method = "icx_getBlockByHeight"
   iex> params = %{height: 42}
-  iex> schema = %{height: :pos_integer}
+  iex> schema = %{height: :non_neg_integer}
   iex> Icon.RPC.Request.build(method, params, schema: schema)
   %Icon.RPC.Request{
     id: 1_639_382_704_065_742_380,
     method: "icx_getBlockByHeight",
     options: %{
-      schema: %{height: :pos_integer},
+      schema: %{height: :non_neg_integer},
       identity: #Identity<
         node: "https://ctz.solidwallet.io",
         network_id: "0x01 (Mainnet)",
