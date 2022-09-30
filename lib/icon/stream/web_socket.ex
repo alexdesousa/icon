@@ -113,7 +113,7 @@ defmodule Icon.Stream.WebSocket do
           pending_demand: pending_demand :: non_neg_integer(),
           # Connection status fields
           status: status :: status(),
-          conn: http_connection :: nil | Mint.Connection.t(),
+          conn: http_connection :: nil | Mint.HTTP.t(),
           ref: http_connection_reference :: nil | Mint.Types.request_ref(),
           websocket: websocket_connection :: nil | Mint.WebSocket.t(),
           # Debug fields
@@ -433,7 +433,7 @@ defmodule Icon.Stream.WebSocket do
       }
       |> change_status(:initializing)
     else
-      {:error, conn, _, _} ->
+      {:error, conn, _} ->
         disconnect(%State{state | conn: conn})
 
       :unknown ->
@@ -447,34 +447,56 @@ defmodule Icon.Stream.WebSocket do
   @spec initialize(t()) :: t()
   defp initialize(state)
 
-  defp initialize(
+  defp initialize(%State{status: :initializing} = state) do
+    with {:ok, new_state, message} <- init_message(state),
+         {:ok, new_state} <- send_init_message(new_state, message) do
+      change_status(new_state, :setting_up)
+    else
+      {:error, %State{} = state} ->
+        disconnect(state)
+    end
+  end
+
+  @spec init_message(t()) :: {:ok, t(), binary()} | {:error, t()}
+  defp init_message(
          %State{
            stream: stream,
-           conn: conn,
-           ref: ref,
-           websocket: websocket,
-           status: :initializing
+           websocket: websocket
          } = state
        ) do
     message = {:text, Icon.Stream.encode(stream)}
 
-    with {:ok, websocket, data} <- Mint.WebSocket.encode(websocket, message),
-         {:ok, conn} <- Mint.WebSocket.stream_request_body(conn, ref, data) do
-      %State{
-        state
-        | conn: conn,
-          websocket: websocket
-      }
-      |> change_status(:setting_up)
-    else
-      {:error, %Mint.WebSocket{} = _websocket, _} ->
-        disconnect(state)
+    # Workaround to avoid the following weird dialyzer error:
+    # The pattern can never match the type.
+    #
+    # Pattern:
+    # {:ok, _websocket, _data}
+    #
+    # Type:
+    # {:error, Mint.WebSocket.t(), _}
+    case Mint.WebSocket.encode(websocket, message) do
+      {:error, websocket, %Mint.WebSocketError{}} ->
+        {:error, %State{state | websocket: websocket}}
+
+      {_, websocket, data} ->
+        {:ok, %State{state | websocket: websocket}, data}
+    end
+  end
+
+  @spec send_init_message(t(), binary()) :: {:ok, t()} | {:error, t()}
+  defp send_init_message(
+         %State{
+           conn: conn,
+           ref: ref
+         } = state,
+         message
+       ) do
+    case Mint.WebSocket.stream_request_body(conn, ref, message) do
+      {:ok, conn} ->
+        {:ok, %State{state | conn: conn}}
 
       {:error, conn, _} ->
-        disconnect(%State{state | conn: conn})
-
-      :error ->
-        disconnect(state)
+        {:error, %State{state | conn: conn}}
     end
   end
 
